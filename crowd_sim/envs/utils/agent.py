@@ -3,7 +3,7 @@ import logging
 import numpy as np
 from numpy.linalg import norm
 from crowd_sim.envs.policy.policy_factory import policy_factory
-from crowd_sim.envs.utils.action import ActionXY, ActionRot
+from crowd_sim.envs.utils.action import ActionXY, ActionRot, ActionDiff
 from crowd_sim.envs.utils.state import ObservableState, FullState
 
 
@@ -111,35 +111,70 @@ class Agent(object):
     def check_validity(self, action):
         if self.kinematics == 'holonomic':
             assert isinstance(action, ActionXY)
+        elif self.kinematics == 'differential':
+            assert isinstance(action, ActionDiff)
         else:
             assert isinstance(action, ActionRot)
 
-    def compute_position(self, action, delta_t):
+    def compute_position(self, action, delta_time):
+        assert self.time_step == delta_time
         self.check_validity(action)
-        if self.kinematics == 'holonomic':
-            px = self.px + action.vx * delta_t
-            py = self.py + action.vy * delta_t
+        if self.kinematics == 'kilonomic' :
+            px = self.px + action.vx * self.time_step
+            py = self.py + action.vy * self.time_step
+        elif self.kinematics == 'differential':
+            left_acc = action.al
+            right_acc = action.ar
+            vx = self.vx + left_acc * self.time_step
+            vy = self.vy + right_acc * self.time_step
+            if np.abs(vx) > self.v_pref:
+                vx = vx / np.abs(vx) * self.v_pref
+            if np.abs(self.vy) > self.v_pref:
+                vy = vy / np.abs(vy) * self.v_pref
+            linear_vel = (vx + vy) / 2.0
+            vx = linear_vel * np.cos(self.theta)
+            vy = linear_vel * np.sin(self.theta)
+            px = self.px + vx * self.time_step
+            py = self.py + vy * self.time_step
         else:
-            theta = self.theta + action.r
-            px = self.px + np.cos(theta) * action.v * delta_t
-            py = self.py + np.sin(theta) * action.v * delta_t
-
+            theta = (self.theta + action.r) % (2 * np.pi)
+            vx = action.v * np.cos(theta)
+            vy = action.v * np.sin(theta)
+            px = self.px + vx * self.time_step
+            py = self.py + vy * self.time_step
         return px, py
-
     def step(self, action):
         """
         Perform an action and update the state
         """
         self.check_validity(action)
-        pos = self.compute_position(action, self.time_step)
-        self.px, self.py = pos
         if self.kinematics == 'holonomic':
+            self.px = self.px + action.vx * self.time_step
+            self.py = self.py + action.vy * self.time_step
             self.vx = action.vx
             self.vy = action.vy
+        elif self.kinematics == 'differential':
+            left_acc = action.al
+            right_acc = action.ar
+            self.vx = self.vx + left_acc * self.time_step
+            self.vy = self.vy + right_acc * self.time_step
+            if np.abs(self.vx) > self.v_pref:
+                self.vx = self.vx / np.abs(self.vx) * self.v_pref
+            if np.abs(self.vy) > self.v_pref:
+                self.vy = self.vy / np.abs(self.vy) * self.v_pref
+            angular_vel = (self.vx - self.vy) / 2.0 / self.radius
+            linear_vel = (self.vx + self.vy) / 2.0
+            vx = linear_vel * np.cos(self.theta)
+            vy = linear_vel * np.sin(self.theta)
+            self.px = self.px + vx * self.time_step
+            self.py = self.py + vy * self.time_step
+            self.theta = (self.theta + angular_vel * self.time_step) % (2 * np.pi)
         else:
             self.theta = (self.theta + action.r) % (2 * np.pi)
             self.vx = action.v * np.cos(self.theta)
             self.vy = action.v * np.sin(self.theta)
+            self.px = self.px + self.vx * self.time_step
+            self.py = self.py + self.vy * self.time_step
 
     def reached_destination(self):
         return norm(np.array(self.get_position()) - np.array(self.get_goal_position())) < self.radius

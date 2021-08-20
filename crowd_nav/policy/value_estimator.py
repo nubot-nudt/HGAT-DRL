@@ -126,7 +126,7 @@ class DQNNetwork(nn.Module):
     def __init__(self, config, graph_model):
         super().__init__()
         config.action_space.rotation_samples
-        self.action_num = config.action_space.speed_samples * config.action_space.rotation_samples + 1
+        self.action_num = config.action_space.speed_samples * config.action_space.speed_samples
         self.graph_model = graph_model
         # self.value_network = mlp(config.gcn.X_dim, config.model_predictive_rl.value_network_dims)
         # self.value_network = DQN(config.gcn.X_dim, 25)

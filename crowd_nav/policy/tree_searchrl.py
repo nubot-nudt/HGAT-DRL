@@ -4,7 +4,7 @@ import numpy as np
 from numpy.linalg import norm
 import itertools
 from crowd_sim.envs.policy.policy import Policy
-from crowd_sim.envs.utils.action import ActionRot, ActionXY
+from crowd_sim.envs.utils.action import ActionRot, ActionXY, ActionAW, ActionDiff
 from crowd_sim.envs.utils.state import tensor_to_joint_state
 from crowd_sim.envs.utils.utils import point_to_segment_dist
 from crowd_nav.policy.state_predictor import StatePredictor, LinearStatePredictor_batch
@@ -160,31 +160,22 @@ class TreeSearchRL(Policy):
         checkpoint = torch.load(file)
         self.load_state_dict(checkpoint)
 
-    def build_action_space(self, v_pref):
+    def build_action_space(self, acc_max):
         """
         Action space consists of 25 uniformly sampled actions in permitted range and 25 randomly sampled actions.
         """
-        holonomic = True if self.kinematics == 'holonomic' else False
-        # speeds = [(np.exp((i + 1) / self.speed_samples) - 1) / (np.e - 1) * v_pref for i in range(self.speed_samples)]
-        speeds = [(i+1)/self.speed_samples * v_pref for i in range(self.speed_samples)]
-        if holonomic:
-            rotations = np.linspace(0, 2 * np.pi, self.rotation_samples, endpoint=False)
-        else:
-            rotations = np.linspace(-self.rotation_constraint, self.rotation_constraint, self.rotation_samples)
-
-        action_space = [ActionXY(0, 0) if holonomic else ActionRot(0, 0)]
-        self.action_group_index.append(0)
-
-        for i, rotation in enumerate(rotations):
-            for j, speed in enumerate(speeds):
-                action_index = i * self.speed_samples + j + 1
+        # currently, acc_max is 1, and the number of speed samples is 5.
+        # currently, rotation constraint is np.pi/3, and rotation_samples is 5
+        left_accs = np.linspace(-acc_max, acc_max, self.speed_samples)
+        right_accs = np.linspace(-acc_max, acc_max, self.speed_samples)
+        action_space = []
+        for i, left_acc in enumerate(left_accs):
+            for j, right_acc in enumerate(right_accs):
+                action_index = i * self.speed_samples + j
                 self.action_group_index.append(action_index)
-                if holonomic:
-                    action_space.append(ActionXY(speed * np.cos(rotation), speed * np.sin(rotation)))
-                else:
-                    action_space.append(ActionRot(speed, rotation))
-        self.speeds = speeds
-        self.rotations = rotations
+                action_space.append(ActionDiff(left_acc, right_acc))
+        self.speeds = left_accs
+        self.rotations = right_accs
         self.action_space = action_space
 
     def predict(self, state):
@@ -201,8 +192,8 @@ class TreeSearchRL(Policy):
         if self.phase == 'train' and self.epsilon is None:
             raise AttributeError('Epsilon attribute has to be set in training phase')
 
-        if self.reach_destination(state):
-            return ActionXY(0, 0) if self.kinematics == 'holonomic' else ActionRot(0, 0)
+        # if self.reach_destination(state):
+        #     return ActionXY(0, 0) if self.kinematics == 'holonomic' else ActionRot(0, 0)
         if self.action_space is None:
             self.build_action_space(1.0)
         max_action = None
@@ -246,12 +237,8 @@ class TreeSearchRL(Policy):
         else:
             q_value = torch.Tensor(self.value_estimator(state))
             max_action_value, max_action_indexes = torch.topk(q_value, width, dim=1)
-        action_stay = []
-        for i in range(robot_state_batch.shape[0]):
-            if self.kinematics == "holonomic":
-                action_stay.append(ActionXY(0, 0))
-            else:
-                action_stay.append(ActionRot(0, 0))
+        # predict next human state
+        action_stay = None
         _, pre_next_state = self.state_predictor(state, action_stay)
         next_robot_state_batch = None
         next_human_state_batch = None
@@ -300,17 +287,28 @@ class TreeSearchRL(Policy):
         if robot_state.shape[0] != 1:
             raise NotImplementedError
         next_state = robot_state.clone().squeeze()
+        left_acc = action.al
+        right_acc = action.ar
         if self.kinematics == 'holonomic':
             next_state[0] = next_state[0] + action.vx * self.time_step
             next_state[1] = next_state[1] + action.vy * self.time_step
             next_state[2] = action.vx
             next_state[3] = action.vy
-        else:
-            next_state[8] = (next_state[8] + action.r) % (2 * np.pi)
-            next_state[0] = next_state[0] + np.cos(next_state[8]) * action.v * self.time_step
-            next_state[1] = next_state[1] + np.sin(next_state[8]) * action.v * self.time_step
-            next_state[2] = np.cos(next_state[8]) * action.v
-            next_state[3] = np.sin(next_state[8]) * action.v
+        elif self.kinematics == 'differential':
+            # px, py, v_left, v_right, radius, gx, gy, vel_max, heading
+            next_state[2] = next_state[2] + left_acc * self.time_step
+            next_state[3] = next_state[3] + right_acc * self.time_step
+            if np.abs(next_state[2]) > next_state[7]:
+                next_state[2] = next_state[2] * next_state[7] / np.abs(next_state[2])
+            if np.abs(next_state[3]) > next_state[7]:
+                next_state[3] = next_state[3] * next_state[7] / np.abs(next_state[3])
+            angular_vel = (next_state[2] - next_state[3]) / 2.0 / next_state[4]
+            linear_vel = (next_state[2] + next_state[3]) / 2.0
+            vx = linear_vel * np.cos(next_state[8])
+            vy = linear_vel * np.sin(next_state[8])
+            next_state[0] = next_state[0] + vx * self.time_step
+            next_state[1] = next_state[1] + vy * self.time_step
+            next_state[8] = (next_state[8] + angular_vel * self.time_step) % (2 * np.pi)
         return next_state.unsqueeze(0).unsqueeze(0)
     def get_attention_weights(self):
         return self.value_estimator.graph_model.attention_weights

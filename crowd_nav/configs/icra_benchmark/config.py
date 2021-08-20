@@ -70,7 +70,8 @@ class BasePolicyConfig(object):
 
     action_space = Config()
     #action_space.kinematics = 'holonomic'
-    action_space.kinematics = 'unicycle'
+    #action_space.kinematics = 'unicycle'
+    action_space.kinematics = 'differential'
     action_space.speed_samples = 3
     action_space.rotation_samples = 8
     action_space.sampling = 'exponential'

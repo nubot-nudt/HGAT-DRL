@@ -11,7 +11,7 @@ from numpy.linalg import norm
 
 from crowd_sim.envs.policy.policy_factory import policy_factory
 from crowd_sim.envs.utils.state import tensor_to_joint_state, JointState
-from crowd_sim.envs.utils.action import ActionRot
+from crowd_sim.envs.utils.action import ActionRot, ActionDiff
 from crowd_sim.envs.utils.human import Human
 from crowd_sim.envs.utils.info import *
 from crowd_sim.envs.utils.utils import point_to_segment_dist
@@ -363,6 +363,18 @@ class CrowdSim(gym.Env):
             if self.robot.kinematics == 'holonomic':
                 vx = human_actions[i].vx - action.vx
                 vy = human_actions[i].vy - action.vy
+            elif self.robot.kinematics == 'differential':
+                left_acc = action.al
+                right_acc = action.ar
+                vel_left = self.robot.vx + left_acc * self.time_step
+                vel_right = self.robot.vy + right_acc * self.time_step
+                if np.abs(vel_left) > self.robot.v_pref:
+                    vel_left = vel_left * self.robot.v_pref / np.abs(vel_left)
+                if np.abs(vel_right) > self.robot.v_pref:
+                    vel_right = vel_right * self.robot.v_pref / np.abs(vel_right)
+                linear_vel = (vel_left + vel_right) / 2.0
+                vx = linear_vel * np.cos(self.robot.theta)
+                vy = linear_vel * np.sin(self.robot.theta)
             else:
                 vx = human_actions[i].vx - action.v * np.cos(action.r + self.robot.theta)
                 vy = human_actions[i].vy - action.v * np.sin(action.r + self.robot.theta)
