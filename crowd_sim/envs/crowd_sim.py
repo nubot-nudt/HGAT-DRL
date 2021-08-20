@@ -668,6 +668,11 @@ class CrowdSim(gym.Env):
                         direction = (
                         (agent_state.px, agent_state.py), (agent_state.px + radius * np.cos(agent_state.theta),
                                                            agent_state.py + radius * np.sin(agent_state.theta)))
+                    elif self.robot.kinematics == 'differential' and i == 0:
+                        arrow_length = 0.5 * (agent_state.vx + agent_state.vy) * radius
+                        direction = (
+                        (agent_state.px, agent_state.py), (agent_state.px + arrow_length * np.cos(agent_state.theta),
+                                                           agent_state.py + arrow_length * np.sin(agent_state.theta)))
                     else:
                         theta = np.arctan2(agent_state.vy, agent_state.vx)
                         direction = ((agent_state.px, agent_state.py), (agent_state.px + 1.5*radius * np.cos(theta),
@@ -676,9 +681,12 @@ class CrowdSim(gym.Env):
                 orientations.append(orientation)
                 if i == 0:
                     robot_arrow_color = 'red'
+                    robot_arrow_style = arrow_style
+                    # patches.ArrowStyle.Fancy(head_length=4, head_width=2, tail_width=.6)
+                    # robot_arrow_style.
                     arrows = [patches.FancyArrowPatch(*orientation[0], color=robot_arrow_color, arrowstyle=arrow_style)]
                 else:
-                    human_arrow_color = 'red'
+                    human_arrow_color = 'blue'
                     arrows.extend(
                         [patches.FancyArrowPatch(*orientation[0], color=human_arrow_color, arrowstyle=arrow_style)])
 
