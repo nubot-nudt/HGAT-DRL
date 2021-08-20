@@ -183,4 +183,7 @@ if __name__ == '__main__':
     parser.add_argument('-w', '--planning_width', type=int, default=None)
     parser.add_argument('--sparse_search', default=False, action='store_true')
     sys_args = parser.parse_args()
+    sys_args.model_dir = 'data/nubot_gzr/0820/tsrl/0'
+    sys_args.visualize = True
+    sys_args.test_case = 7
     main(sys_args)

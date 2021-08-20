@@ -121,8 +121,10 @@ class BasePolicyConfig(object):
     gnn = Config()
     gnn.multiagent_training = True
     gnn.node_dim = 32
-    gnn.wr_dims = [64, gnn.node_dim]
-    gnn.wh_dims = [64, gnn.node_dim]
+    # gnn.wr_dims = [64, gnn.node_dim]
+    # gnn.wh_dims = [64, gnn.node_dim]
+    gnn.wr_dims = [gnn.node_dim]
+    gnn.wh_dims = [gnn.node_dim]
     gnn.edge_dim = 32
     gnn.planning_dims = [150, 100, 100, 1]
 
@@ -148,10 +150,10 @@ class BaseTrainConfig(object):
     # number of batches to train at the end of training episode il_episodes
     train.train_batches = 50
     # training episodes in outer loop
-    train.train_episodes = 10000
+    train.train_episodes = 20000
     # number of episodes sampled in one training episode
     train.sample_episodes = 1
-    train.target_update_interval = 500
+    train.target_update_interval = 250
     train.evaluation_interval = 500
     # the memory pool can roughly store 2K episodes, total size = episodes * 50
     train.capacity = 100000

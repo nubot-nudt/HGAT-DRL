@@ -185,8 +185,8 @@ class TreeSearchRL(Policy):
 
         """
         self.count=self.count+1
-        # if self.count == 34:
-        #     print('debug')
+        if self.count == 41:
+            print('debug')
         if self.phase is None or self.device is None:
             raise AttributeError('Phase, device attributes have to be set!')
         if self.phase == 'train' and self.epsilon is None:
