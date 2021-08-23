@@ -178,6 +178,34 @@ class TreeSearchRL(Policy):
         self.rotations = right_accs
         self.action_space = action_space
 
+    def select_random_axis(self, cur_vel):
+        min = 0
+        inter_num = (self.speed_samples - 1) / 2
+        max = self.speed_samples
+        a = (-self.v_pref - cur_vel) / self.time_step / (self.v_pref / inter_num)
+        b = (self.v_pref - cur_vel) / self.time_step / (self.v_pref / inter_num) + inter_num + 1
+        if min < a:
+            min = a
+        if max > b:
+            max = b
+        if min == max:
+            index = min
+        else:
+            if min > max:
+                min = 0
+                max = self.speed_samples
+            index = np.random.randint(min, max)
+        return index
+
+    def select_random_action(self, cur_state):
+        left_vel = cur_state.robot_state.vx
+        right_vel = cur_state.robot_state.vy
+        left_acc_index = self.select_random_axis(left_vel)
+        right_vel_index = self.select_random_axis(right_vel)
+        action_index = left_acc_index * self.speed_samples  + right_vel_index
+        return action_index
+
+
     def predict(self, state):
         """
         A base class for all methods that takes pairwise joint state as input to value network.
@@ -195,13 +223,14 @@ class TreeSearchRL(Policy):
         # if self.reach_destination(state):
         #     return ActionXY(0, 0) if self.kinematics == 'holonomic' else ActionRot(0, 0)
         if self.action_space is None:
-            self.build_action_space(1.0)
+            self.build_action_space(2.0)
         max_action = None
         origin_max_value = float('-inf')
         state_tensor = state.to_tensor(add_batch_size=True, device=self.device)
         probability = np.random.random()
         if self.phase == 'train' and probability < self.epsilon and self.use_noisy_net is False:
-            max_action_index = np.random.choice(len(self.action_space))
+            max_action_index = self.select_random_action(state)
+            # max_action_index = np.random.choice(len(self.action_space))
             max_action = self.action_space[max_action_index]
             self.last_state = self.transform(state)
             return max_action, max_action_index

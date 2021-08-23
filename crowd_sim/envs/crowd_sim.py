@@ -370,9 +370,9 @@ class CrowdSim(gym.Env):
                 vel_left = self.robot.vx + left_acc * self.time_step
                 vel_right = self.robot.vy + right_acc * self.time_step
                 if np.abs(vel_left) > self.robot.v_pref:
-                    re_max_vel += 10 * (np.abs(vel_left) - self.robot.v_pref)
+                    re_max_vel += -1.0 * (np.abs(vel_left) - self.robot.v_pref)
                 if np.abs(vel_right) > self.robot.v_pref:
-                    re_max_vel += 10 * (np.abs(vel_right) - self.robot.v_pref)
+                    re_max_vel += -1.0 * (np.abs(vel_right) - self.robot.v_pref)
                 linear_vel = (vel_left + vel_right) / 2.0
                 vx = linear_vel * np.cos(self.robot.theta)
                 vy = linear_vel * np.sin(self.robot.theta)

@@ -72,8 +72,8 @@ class BasePolicyConfig(object):
     #action_space.kinematics = 'holonomic'
     #action_space.kinematics = 'unicycle'
     action_space.kinematics = 'differential'
-    action_space.speed_samples = 3
-    action_space.rotation_samples = 8
+    action_space.speed_samples = 5
+    action_space.rotation_samples = 16
     action_space.sampling = 'exponential'
     action_space.query_env = False
     action_space.rotation_constraint = rotation_constraint
@@ -150,10 +150,10 @@ class BaseTrainConfig(object):
     # number of batches to train at the end of training episode il_episodes
     train.train_batches = 50
     # training episodes in outer loop
-    train.train_episodes = 20000
+    train.train_episodes = 15000
     # number of episodes sampled in one training episode
     train.sample_episodes = 1
-    train.target_update_interval = 250
+    train.target_update_interval = 500
     train.evaluation_interval = 500
     # the memory pool can roughly store 2K episodes, total size = episodes * 50
     train.capacity = 100000
