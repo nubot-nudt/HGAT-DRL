@@ -46,23 +46,27 @@ class DuelingDQN(nn.Module):
         self.output_dim = output_dim
 
         self.feauture_layer = nn.Sequential(
-            nn.Linear(self.input_dim, 128),
+            nn.Linear(self.input_dim, 64),
             # nn.LeakyReLU(negative_slope=-0.2)
             nn.ReLU(),
-            nn.Linear(128, 128),
+            nn.Linear(64, 64),
             nn.ReLU(),
         )
 
         self.value_stream = nn.Sequential(
-            nn.Linear(128, 128),
+            nn.Linear(64, 64),
             nn.ReLU(),
-            nn.Linear(128, 1)
+            nn.Linear(64, 64),
+            nn.ReLU(),
+            nn.Linear(64, 1)
         )
 
         self.advantage_stream = nn.Sequential(
-            nn.Linear(128, 128),
+            nn.Linear(64, 64),
             nn.ReLU(),
-            nn.Linear(128, self.output_dim)
+            nn.Linear(64, 64),
+            nn.ReLU(),
+            nn.Linear(64, self.output_dim)
         )
         # for p in self.advantage_stream.parameters():
         #     p.requires_grad = False

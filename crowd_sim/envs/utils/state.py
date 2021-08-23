@@ -3,6 +3,7 @@ import torch
 
 class FullState(object):
     def __init__(self, px, py, vx, vy, radius, gx, gy, v_pref, theta):
+        # for differential model, vx and vy represent v_left and v_right, respectively.
         self.px = px
         self.py = py
         self.vx = vx

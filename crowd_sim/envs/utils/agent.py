@@ -25,6 +25,8 @@ class Agent(object):
         self.gy = None
         self.vx = None
         self.vy = None
+        self.v_left = None
+        self.v_right = None
         self.theta = None
         self.time_step = None
 
@@ -56,6 +58,8 @@ class Agent(object):
         self.gy = gy
         self.vx = vx
         self.vy = vy
+        self.v_left = 0.0
+        self.v_right = 0.0
         self.theta = theta
         if radius is not None:
             self.radius = radius
@@ -64,6 +68,7 @@ class Agent(object):
 
     def get_observable_state(self):
         return ObservableState(self.px, self.py, self.vx, self.vy, self.radius)
+
 
     def get_next_observable_state(self, action):
         self.check_validity(action)
@@ -78,7 +83,10 @@ class Agent(object):
         return ObservableState(next_px, next_py, next_vx, next_vy, self.radius)
 
     def get_full_state(self):
-        return FullState(self.px, self.py, self.vx, self.vy, self.radius, self.gx, self.gy, self.v_pref, self.theta)
+        if self.kinematics == 'differential':
+            return FullState(self.px, self.py, self.v_left, self.v_right, self.radius, self.gx, self.gy, self.v_pref, self.theta)
+        else:
+            return FullState(self.px, self.py, self.vx, self.vy, self.radius, self.gx, self.gy, self.v_pref, self.theta)
 
     def get_position(self):
         return self.px, self.py
@@ -125,13 +133,14 @@ class Agent(object):
         elif self.kinematics == 'differential':
             left_acc = action.al
             right_acc = action.ar
-            vx = self.vx + left_acc * self.time_step
-            vy = self.vy + right_acc * self.time_step
-            # if np.abs(vx) > self.v_pref:
-            #     vx = vx / np.abs(vx) * self.v_pref
-            # if np.abs(self.vy) > self.v_pref:
-            #     vy = vy / np.abs(vy) * self.v_pref
-            linear_vel = (vx + vy) / 2.0
+            v_left = self.v_left + left_acc * self.time_step
+            v_right = self.v_right + right_acc * self.time_step
+            if np.abs(v_left) > self.v_pref:
+                v_left = v_left / np.abs(v_left) * self.v_pref
+            if np.abs(v_right) > self.v_pref:
+                v_right = v_right / np.abs(v_right) * self.v_pref
+            angular_vel = (v_left - v_right) / 2.0 / self.radius
+            linear_vel = (v_left + v_right) / 2.0
             vx = linear_vel * np.cos(self.theta)
             vy = linear_vel * np.sin(self.theta)
             px = self.px + vx * self.time_step
@@ -143,6 +152,7 @@ class Agent(object):
             px = self.px + vx * self.time_step
             py = self.py + vy * self.time_step
         return px, py
+
     def step(self, action):
         """
         Perform an action and update the state
@@ -156,16 +166,18 @@ class Agent(object):
         elif self.kinematics == 'differential':
             left_acc = action.al
             right_acc = action.ar
-            self.vx = self.vx + left_acc * self.time_step
-            self.vy = self.vy + right_acc * self.time_step
-            # if np.abs(self.vx) > self.v_pref:
-            #     self.vx = self.vx / np.abs(self.vx) * self.v_pref
-            # if np.abs(self.vy) > self.v_pref:
-            #     self.vy = self.vy / np.abs(self.vy) * self.v_pref
-            angular_vel = (self.vx - self.vy) / 2.0 / self.radius
-            linear_vel = (self.vx + self.vy) / 2.0
+            self.v_left = self.v_left + left_acc * self.time_step
+            self.v_right = self.v_right + right_acc * self.time_step
+            if np.abs(self.v_left) > self.v_pref:
+                self.v_left = self.v_left / np.abs(self.v_left) * self.v_pref
+            if np.abs(self.v_right) > self.v_pref:
+                self.v_right = self.v_right / np.abs(self.v_right) * self.v_pref
+            angular_vel = (self.v_left - self.v_right) / 2.0 / self.radius
+            linear_vel = (self.v_left + self.v_right) / 2.0
             vx = linear_vel * np.cos(self.theta)
             vy = linear_vel * np.sin(self.theta)
+            self.vx = vx
+            self.vy = vy
             self.px = self.px + vx * self.time_step
             self.py = self.py + vy * self.time_step
             self.theta = (self.theta + angular_vel * self.time_step) % (2 * np.pi)

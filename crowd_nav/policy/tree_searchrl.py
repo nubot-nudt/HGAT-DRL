@@ -182,8 +182,8 @@ class TreeSearchRL(Policy):
         min = 0
         inter_num = (self.speed_samples - 1) / 2
         max = self.speed_samples
-        a = (-self.v_pref - cur_vel) / self.time_step / (self.v_pref / inter_num)
-        b = (self.v_pref - cur_vel) / self.time_step / (self.v_pref / inter_num) + inter_num + 1
+        a = (-self.v_pref - cur_vel) / self.time_step / (self.v_pref * 2.0 / inter_num) + inter_num
+        b = (self.v_pref - cur_vel) / self.time_step / (self.v_pref * 2.0 / inter_num) + inter_num
         if min < a:
             min = a
         if max > b:
@@ -202,7 +202,7 @@ class TreeSearchRL(Policy):
         right_vel = cur_state.robot_state.vy
         left_acc_index = self.select_random_axis(left_vel)
         right_vel_index = self.select_random_axis(right_vel)
-        action_index = left_acc_index * self.speed_samples  + right_vel_index
+        action_index = left_acc_index * self.speed_samples + right_vel_index
         return action_index
 
 
@@ -327,10 +327,10 @@ class TreeSearchRL(Policy):
             # px, py, v_left, v_right, radius, gx, gy, vel_max, heading
             next_state[2] = next_state[2] + left_acc * self.time_step
             next_state[3] = next_state[3] + right_acc * self.time_step
-            # if np.abs(next_state[2]) > next_state[7]:
-            #     next_state[2] = next_state[2] * next_state[7] / np.abs(next_state[2])
-            # if np.abs(next_state[3]) > next_state[7]:
-            #     next_state[3] = next_state[3] * next_state[7] / np.abs(next_state[3])
+            if np.abs(next_state[2]) > next_state[7]:
+                next_state[2] = next_state[2] * next_state[7] / np.abs(next_state[2])
+            if np.abs(next_state[3]) > next_state[7]:
+                next_state[3] = next_state[3] * next_state[7] / np.abs(next_state[3])
             angular_vel = (next_state[2] - next_state[3]) / 2.0 / next_state[4]
             linear_vel = (next_state[2] + next_state[3]) / 2.0
             vx = linear_vel * np.cos(next_state[8])

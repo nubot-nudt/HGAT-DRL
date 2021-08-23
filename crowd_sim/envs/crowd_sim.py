@@ -354,6 +354,16 @@ class CrowdSim(gym.Env):
         re_collision = self.collision_penalty
         re_arrival = self.success_reward
         re_max_vel = 0.0
+        if self.robot.kinematics == 'differential':
+            left_acc = action.al
+            right_acc = action.ar
+            vel_left = self.robot.v_left + left_acc * self.time_step
+            vel_right = self.robot.v_left + right_acc * self.time_step
+            if np.abs(vel_left) > self.robot.v_pref:
+                re_max_vel += -4.0 * (np.abs(vel_left) - self.robot.v_pref)
+            if np.abs(vel_right) > self.robot.v_pref:
+                re_max_vel += -4.0 * (np.abs(vel_right) - self.robot.v_pref)
+
         # collision detection
         dmin = float('inf')
         collision = False
@@ -367,12 +377,12 @@ class CrowdSim(gym.Env):
             elif self.robot.kinematics == 'differential':
                 left_acc = action.al
                 right_acc = action.ar
-                vel_left = self.robot.vx + left_acc * self.time_step
-                vel_right = self.robot.vy + right_acc * self.time_step
+                vel_left = self.robot.v_left + left_acc * self.time_step
+                vel_right = self.robot.v_left + right_acc * self.time_step
                 if np.abs(vel_left) > self.robot.v_pref:
-                    re_max_vel += -1.0 * (np.abs(vel_left) - self.robot.v_pref)
+                    vel_left = vel_left * self.robot.v_pref / np.abs(vel_left)
                 if np.abs(vel_right) > self.robot.v_pref:
-                    re_max_vel += -1.0 * (np.abs(vel_right) - self.robot.v_pref)
+                    vel_right = vel_right * self.robot.v_pref / np.abs(vel_right)
                 linear_vel = (vel_left + vel_right) / 2.0
                 vx = linear_vel * np.cos(self.robot.theta)
                 vy = linear_vel * np.sin(self.robot.theta)
@@ -390,15 +400,6 @@ class CrowdSim(gym.Env):
                 dmin = closest_dist
             if closest_dist < self.discomfort_dist:
                 safety_penalty = safety_penalty + (closest_dist - self.discomfort_dist)
-            # dis_begin = np.sqrt(px**2 + py**2) - human.radius - self.robot.radius
-            # dis_end = np.sqrt(ex**2 + ey**2) - human.radius - self.robot.radius
-            # penalty_begin = 0
-            # penalty_end = 0
-            # if dis_begin < self.discomfort_dist:
-            #     penalty_begin = dis_begin - self.discomfort_dist
-            # if dis_end < self.discomfort_dist:
-            #     penalty_end = dis_end - self.discomfort_dist
-            # safety_penalty = safety_penalty + (penalty_end - penalty_begin)
 
         # collision detection between humans
         human_num = len(self.humans)
@@ -674,8 +675,8 @@ class CrowdSim(gym.Env):
                         (agent_state.px, agent_state.py), (agent_state.px + radius * np.cos(agent_state.theta),
                                                            agent_state.py + radius * np.sin(agent_state.theta)))
                     elif self.robot.kinematics == 'differential' and i == 0:
-                        arrow_length = 0.5 * (agent_state.vx + agent_state.vy) * radius
-                        ang_vel = 0.5 * (agent_state.vx - agent_state.vy) * radius
+                        arrow_length = 0.5 * (agent_state.v_left + agent_state.v_right) * radius
+                        ang_vel = 0.5 * (agent_state.v_left - agent_state.v_right) * radius
                         direction = (
                         (agent_state.px, agent_state.py), (agent_state.px + arrow_length * np.cos(agent_state.theta),
                                                            agent_state.py + arrow_length * np.sin(agent_state.theta)))
