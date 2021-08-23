@@ -298,10 +298,10 @@ class TreeSearchRL(Policy):
             # px, py, v_left, v_right, radius, gx, gy, vel_max, heading
             next_state[2] = next_state[2] + left_acc * self.time_step
             next_state[3] = next_state[3] + right_acc * self.time_step
-            if np.abs(next_state[2]) > next_state[7]:
-                next_state[2] = next_state[2] * next_state[7] / np.abs(next_state[2])
-            if np.abs(next_state[3]) > next_state[7]:
-                next_state[3] = next_state[3] * next_state[7] / np.abs(next_state[3])
+            # if np.abs(next_state[2]) > next_state[7]:
+            #     next_state[2] = next_state[2] * next_state[7] / np.abs(next_state[2])
+            # if np.abs(next_state[3]) > next_state[7]:
+            #     next_state[3] = next_state[3] * next_state[7] / np.abs(next_state[3])
             angular_vel = (next_state[2] - next_state[3]) / 2.0 / next_state[4]
             linear_vel = (next_state[2] + next_state[3]) / 2.0
             vx = linear_vel * np.cos(next_state[8])

@@ -72,8 +72,20 @@ class Reward_Estimator(object):
             reward_col = re_collision
         elif reaching_goal:
             reward_arrival = re_arrival
+        re_max_vel = 0.0
+        vel_left = next_robot_state.vx
+        vel_right = next_robot_state.vy
+        max_vel = next_robot_state.v_pref
+        if np.abs(vel_left) > max_vel:
+            re_max_vel += 10 * (np.abs(vel_left) - max_vel)
+        if np.abs(vel_right) > max_vel:
+            re_max_vel += 10 * (np.abs(vel_right) - max_vel)
+        linear_vel = (vel_left + vel_right) / 2.0
+        vx = linear_vel * np.cos(self.robot.theta)
+        vy = linear_vel * np.sin(self.robot.theta)
         reward_terminal = reward_col + reward_arrival
-        reward = weight_terminal * reward_terminal + weight_goal * reward_goal + weight_safe * safety_penalty
+        reward = weight_terminal * reward_terminal + weight_goal * reward_goal \
+                 + weight_safe * safety_penalty + re_max_vel
         # if collision:
         # reward = reward - 100
         reward = reward

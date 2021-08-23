@@ -353,6 +353,7 @@ class CrowdSim(gym.Env):
         weight_terminal = 1.0
         re_collision = self.collision_penalty
         re_arrival = self.success_reward
+        re_max_vel = 0.0
         # collision detection
         dmin = float('inf')
         collision = False
@@ -369,9 +370,9 @@ class CrowdSim(gym.Env):
                 vel_left = self.robot.vx + left_acc * self.time_step
                 vel_right = self.robot.vy + right_acc * self.time_step
                 if np.abs(vel_left) > self.robot.v_pref:
-                    vel_left = vel_left * self.robot.v_pref / np.abs(vel_left)
+                    re_max_vel += 10 * (np.abs(vel_left) - self.robot.v_pref)
                 if np.abs(vel_right) > self.robot.v_pref:
-                    vel_right = vel_right * self.robot.v_pref / np.abs(vel_right)
+                    re_max_vel += 10 * (np.abs(vel_right) - self.robot.v_pref)
                 linear_vel = (vel_left + vel_right) / 2.0
                 vx = linear_vel * np.cos(self.robot.theta)
                 vy = linear_vel * np.sin(self.robot.theta)
@@ -441,7 +442,8 @@ class CrowdSim(gym.Env):
             done = False
             info = Nothing()
         reward_terminal = reward_arrival + reward_col
-        reward = weight_terminal * reward_terminal + weight_goal * reward_goal + weight_safe * safety_penalty
+        reward = weight_terminal * reward_terminal + weight_goal * reward_goal \
+                + weight_safe * safety_penalty + re_max_vel
 
         if update:
             # store state, action value and attention weights
@@ -662,23 +664,33 @@ class CrowdSim(gym.Env):
             orientations = []
             for i in range(self.human_num + 1):
                 orientation = []
+                orientation2 = []
+                direction2 = None
                 for state in self.states:
                     agent_state = state[0] if i == 0 else state[1][i - 1]
+
                     if self.robot.kinematics == 'unicycle' and i == 0:
                         direction = (
                         (agent_state.px, agent_state.py), (agent_state.px + radius * np.cos(agent_state.theta),
                                                            agent_state.py + radius * np.sin(agent_state.theta)))
                     elif self.robot.kinematics == 'differential' and i == 0:
                         arrow_length = 0.5 * (agent_state.vx + agent_state.vy) * radius
+                        ang_vel = 0.5 * (agent_state.vx - agent_state.vy) * radius
                         direction = (
                         (agent_state.px, agent_state.py), (agent_state.px + arrow_length * np.cos(agent_state.theta),
                                                            agent_state.py + arrow_length * np.sin(agent_state.theta)))
+                        direction2 = (
+                        (agent_state.px, agent_state.py), (agent_state.px + 0.5 * np.cos(agent_state.theta + ang_vel),
+                                                           agent_state.py + 0.5 * np.sin(agent_state.theta + ang_vel)))
+                        orientation2.append(direction2)
                     else:
                         theta = np.arctan2(agent_state.vy, agent_state.vx)
                         direction = ((agent_state.px, agent_state.py), (agent_state.px + 1.5*radius * np.cos(theta),
                                                                         agent_state.py + 1.5*radius * np.sin(theta)))
                     orientation.append(direction)
                 orientations.append(orientation)
+                # if orientation2 is not None:
+                #     orientations.append(orientation2)
                 if i == 0:
                     robot_arrow_color = 'red'
                     robot_arrow_style = arrow_style
@@ -689,6 +701,7 @@ class CrowdSim(gym.Env):
                     human_arrow_color = 'blue'
                     arrows.extend(
                         [patches.FancyArrowPatch(*orientation[0], color=human_arrow_color, arrowstyle=arrow_style)])
+
 
             for arrow in arrows:
                 ax.add_artist(arrow)
@@ -745,6 +758,7 @@ class CrowdSim(gym.Env):
                         arrows = [patches.FancyArrowPatch(*orientation[frame_num], color=robot_arrow_color,
                                                           arrowstyle=arrow_style)]
                     else:
+                        print(frame_num)
                         arrows.extend([patches.FancyArrowPatch(*orientation[frame_num], color=human_arrow_color,
                                                                arrowstyle=arrow_style)])
                 for arrow in arrows:

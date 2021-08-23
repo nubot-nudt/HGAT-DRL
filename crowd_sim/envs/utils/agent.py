@@ -127,10 +127,10 @@ class Agent(object):
             right_acc = action.ar
             vx = self.vx + left_acc * self.time_step
             vy = self.vy + right_acc * self.time_step
-            if np.abs(vx) > self.v_pref:
-                vx = vx / np.abs(vx) * self.v_pref
-            if np.abs(self.vy) > self.v_pref:
-                vy = vy / np.abs(vy) * self.v_pref
+            # if np.abs(vx) > self.v_pref:
+            #     vx = vx / np.abs(vx) * self.v_pref
+            # if np.abs(self.vy) > self.v_pref:
+            #     vy = vy / np.abs(vy) * self.v_pref
             linear_vel = (vx + vy) / 2.0
             vx = linear_vel * np.cos(self.theta)
             vy = linear_vel * np.sin(self.theta)
@@ -158,10 +158,10 @@ class Agent(object):
             right_acc = action.ar
             self.vx = self.vx + left_acc * self.time_step
             self.vy = self.vy + right_acc * self.time_step
-            if np.abs(self.vx) > self.v_pref:
-                self.vx = self.vx / np.abs(self.vx) * self.v_pref
-            if np.abs(self.vy) > self.v_pref:
-                self.vy = self.vy / np.abs(self.vy) * self.v_pref
+            # if np.abs(self.vx) > self.v_pref:
+            #     self.vx = self.vx / np.abs(self.vx) * self.v_pref
+            # if np.abs(self.vy) > self.v_pref:
+            #     self.vy = self.vy / np.abs(self.vy) * self.v_pref
             angular_vel = (self.vx - self.vy) / 2.0 / self.radius
             linear_vel = (self.vx + self.vy) / 2.0
             vx = linear_vel * np.cos(self.theta)
