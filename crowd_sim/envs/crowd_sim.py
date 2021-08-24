@@ -354,11 +354,15 @@ class CrowdSim(gym.Env):
         re_collision = self.collision_penalty
         re_arrival = self.success_reward
         re_max_vel = 0.0
+        left_acc = 0.0
+        right_acc = 0.0
+        vel_left = 0.0
+        vel_right = 0.0
         if self.robot.kinematics == 'differential':
             left_acc = action.al
             right_acc = action.ar
             vel_left = self.robot.v_left + left_acc * self.time_step
-            vel_right = self.robot.v_left + right_acc * self.time_step
+            vel_right = self.robot.v_right + right_acc * self.time_step
             if np.abs(vel_left) > self.robot.v_pref:
                 re_max_vel += -4.0 * (np.abs(vel_left) - self.robot.v_pref)
             if np.abs(vel_right) > self.robot.v_pref:
@@ -375,17 +379,13 @@ class CrowdSim(gym.Env):
                 vx = human_actions[i].vx - action.vx
                 vy = human_actions[i].vy - action.vy
             elif self.robot.kinematics == 'differential':
-                left_acc = action.al
-                right_acc = action.ar
-                vel_left = self.robot.v_left + left_acc * self.time_step
-                vel_right = self.robot.v_left + right_acc * self.time_step
                 if np.abs(vel_left) > self.robot.v_pref:
                     vel_left = vel_left * self.robot.v_pref / np.abs(vel_left)
                 if np.abs(vel_right) > self.robot.v_pref:
                     vel_right = vel_right * self.robot.v_pref / np.abs(vel_right)
                 linear_vel = (vel_left + vel_right) / 2.0
-                vx = linear_vel * np.cos(self.robot.theta)
-                vy = linear_vel * np.sin(self.robot.theta)
+                vx = human_actions[i].vx - linear_vel * np.cos(self.robot.theta)
+                vy = human_actions[i].vy - linear_vel * np.sin(self.robot.theta)
             else:
                 vx = human_actions[i].vx - action.v * np.cos(action.r + self.robot.theta)
                 vy = human_actions[i].vy - action.v * np.sin(action.r + self.robot.theta)
