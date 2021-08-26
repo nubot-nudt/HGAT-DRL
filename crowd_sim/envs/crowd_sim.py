@@ -364,9 +364,9 @@ class CrowdSim(gym.Env):
             vel_left = self.robot.v_left + left_acc * self.time_step
             vel_right = self.robot.v_right + right_acc * self.time_step
             if np.abs(vel_left) > self.robot.v_pref:
-                re_max_vel += -4.0 * (np.abs(vel_left) - self.robot.v_pref)
+                re_max_vel += -0.5 * (np.abs(vel_left) - self.robot.v_pref)
             if np.abs(vel_right) > self.robot.v_pref:
-                re_max_vel += -4.0 * (np.abs(vel_right) - self.robot.v_pref)
+                re_max_vel += -0.5 * (np.abs(vel_right) - self.robot.v_pref)
 
         # collision detection
         dmin = float('inf')
@@ -675,7 +675,7 @@ class CrowdSim(gym.Env):
                         (agent_state.px, agent_state.py), (agent_state.px + radius * np.cos(agent_state.theta),
                                                            agent_state.py + radius * np.sin(agent_state.theta)))
                     elif self.robot.kinematics == 'differential' and i == 0:
-                        arrow_length = 0.5 * (agent_state.v_left + agent_state.v_right) * radius
+                        arrow_length = 0.5 * (agent_state.vx + agent_state.vy) * radius
                         ang_vel = 0.5 * (agent_state.v_left - agent_state.v_right) * radius
                         direction = (
                         (agent_state.px, agent_state.py), (agent_state.px + arrow_length * np.cos(agent_state.theta),

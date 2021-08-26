@@ -72,7 +72,7 @@ class BasePolicyConfig(object):
     #action_space.kinematics = 'holonomic'
     #action_space.kinematics = 'unicycle'
     action_space.kinematics = 'differential'
-    action_space.speed_samples = 5
+    action_space.speed_samples = 9
     action_space.rotation_samples = 16
     action_space.sampling = 'exponential'
     action_space.query_env = False

@@ -181,7 +181,7 @@ class TreeSearchRL(Policy):
     def select_random_axis(self, cur_vel):
         min = 0
         inter_num = (self.speed_samples - 1) / 2
-        max = self.speed_samples
+        max = self.speed_samples - 1
         a = (-self.v_pref - cur_vel) / self.time_step / (self.v_pref * 2.0 / inter_num) + inter_num
         b = (self.v_pref - cur_vel) / self.time_step / (self.v_pref * 2.0 / inter_num) + inter_num
         if min < a:
