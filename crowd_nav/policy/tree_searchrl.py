@@ -179,22 +179,22 @@ class TreeSearchRL(Policy):
         self.action_space = action_space
 
     def select_random_axis(self, cur_vel):
-        min = 0
-        inter_num = (self.speed_samples - 1) / 2
-        max = self.speed_samples - 1
-        a = (-self.v_pref - cur_vel) / self.time_step / (self.v_pref * 2.0 / inter_num) + inter_num
-        b = (self.v_pref - cur_vel) / self.time_step / (self.v_pref * 2.0 / inter_num) + inter_num
-        if min < a:
-            min = a
-        if max > b:
-            max = b
-        if min == max:
-            index = min
-        else:
-            if min > max:
-                min = 0
-                max = self.speed_samples
-            index = np.random.randint(min, max)
+        min = -(self.speed_samples - 1) / 2
+        # inter_num =
+        max = (self.speed_samples - 1) / 2 + 1
+        # a = (-self.v_pref - cur_vel) / self.time_step / (self.v_pref * 2.0 / inter_num) + inter_num
+        # b = (self.v_pref - cur_vel) / self.time_step / (self.v_pref * 2.0 / inter_num) + inter_num
+        # if min < a:
+        #     min = a
+        # if max > b:
+        #     max = b
+        # if min == max:
+        #     index = min
+        # else:
+        #     if min > max:
+        #         min = 0
+        #         max = self.speed_samples
+        index = np.random.randint(min, max)
         return index
 
     def select_random_action(self, cur_state):
@@ -223,7 +223,7 @@ class TreeSearchRL(Policy):
         # if self.reach_destination(state):
         #     return ActionXY(0, 0) if self.kinematics == 'holonomic' else ActionRot(0, 0)
         if self.action_space is None:
-            self.build_action_space(2.0)
+            self.build_action_space(1.0)
         max_action = None
         origin_max_value = float('-inf')
         state_tensor = state.to_tensor(add_batch_size=True, device=self.device)
@@ -331,8 +331,8 @@ class TreeSearchRL(Policy):
                 next_state[2] = next_state[2] * next_state[7] / np.abs(next_state[2])
             if np.abs(next_state[3]) > next_state[7]:
                 next_state[3] = next_state[3] * next_state[7] / np.abs(next_state[3])
-            angular_vel = (next_state[2] - next_state[3]) / 2.0 / next_state[4]
-            linear_vel = (next_state[2] + next_state[3]) / 2.0
+            angular_vel = (next_state[3] - next_state[2]) / 2.0 / next_state[4]
+            linear_vel = (next_state[3] + next_state[2]) / 2.0
             vx = linear_vel * np.cos(next_state[8])
             vy = linear_vel * np.sin(next_state[8])
             next_state[0] = next_state[0] + vx * self.time_step

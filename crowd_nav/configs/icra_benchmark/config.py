@@ -10,7 +10,8 @@ class Config(object):
     def __init__(self):
         pass
 
-rotation_constraint = np.pi/3
+rotation_constraint = np.pi/6
+interval = 200
 class BaseEnvConfig(object):
     env = Config()
     env.time_limit = 30
@@ -34,7 +35,7 @@ class BaseEnvConfig(object):
     sim.test_scenario = 'circle_crossing'
     sim.square_width = 10
     sim.circle_radius = 4
-    sim.human_num = 5
+    sim.human_num = 1
     sim.nonstop_human = True
     sim.centralized_planning = True
 
@@ -72,8 +73,8 @@ class BasePolicyConfig(object):
     #action_space.kinematics = 'holonomic'
     #action_space.kinematics = 'unicycle'
     action_space.kinematics = 'differential'
-    action_space.speed_samples = 9
-    action_space.rotation_samples = 16
+    action_space.speed_samples = 3
+    action_space.rotation_samples = 8
     action_space.sampling = 'exponential'
     action_space.query_env = False
     action_space.rotation_constraint = rotation_constraint
@@ -146,21 +147,21 @@ class BaseTrainConfig(object):
 
     train = Config()
     train.rl_train_epochs = 1
-    train.rl_learning_rate = 0.001
+    train.rl_learning_rate = 0.005
     # number of batches to train at the end of training episode il_episodes
     train.train_batches = 50
     # training episodes in outer loop
-    train.train_episodes = 15000
+    train.train_episodes = 5000
     # number of episodes sampled in one training episode
     train.sample_episodes = 1
-    train.target_update_interval = 500
-    train.evaluation_interval = 500
+    train.target_update_interval = interval
+    train.evaluation_interval = interval
     # the memory pool can roughly store 2K episodes, total size = episodes * 50
     train.capacity = 100000
     train.epsilon_start = 0.5
     train.epsilon_end = 0.1
-    train.epsilon_decay = 4000
-    train.checkpoint_interval = 500
+    train.epsilon_decay = 2000
+    train.checkpoint_interval = interval
 
     train.train_with_pretend_batch = False
 
