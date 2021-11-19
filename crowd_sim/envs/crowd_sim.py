@@ -385,13 +385,16 @@ class CrowdSim(gym.Env):
                 vel_left = vel_left * self.robot.v_pref / np.abs(vel_left)
             if np.abs(vel_right) > self.robot.v_pref:
                 vel_right = vel_right * self.robot.v_pref / np.abs(vel_right)
-            s_right = vel_right * self.time_step - (vel_right - self.robot.v_right) * (vel_right + self.robot.v_right) / (2 * right_acc + 1e-9)
-            s_left = vel_left * self.time_step - (vel_left - self.robot.v_left) * (vel_left + self.robot.v_left) / (2 * left_acc + 1e-9)
+            t_right = (vel_right - self.robot.v_right) / (right_acc + 1e-9)
+            t_left = (vel_left - self.robot.v_left) / (left_acc + 1e-9)
+            s_right = (vel_right + self.robot.v_right) * (0.5 * t_right) + vel_right * (self.time_step - t_right)
+            s_left = (vel_left + self.robot.v_left) * (0.5 * t_left) + vel_left * (self.time_step - t_left)
             s = (s_right + s_left) * 0.5
             d_theta = (s_right - s_left) / (2 * self.robot.radius)
             end_theta = (self.robot.theta + d_theta) % (2 * np.pi)
-            end_robot_x = self.robot.px + s * np.cos(end_theta)
-            end_robot_y = self.robot.py * s * np.sin(end_theta)
+            s_direction = (self.robot.theta + d_theta * 0.5) % (2 * np.pi)
+            end_robot_x = self.robot.px + s * np.cos(s_direction)
+            end_robot_y = self.robot.py + s * np.sin(s_direction)
             for i, human in enumerate(self.humans):
                 px = human.px - self.robot.px
                 py = human.py - self.robot.py
@@ -701,7 +704,7 @@ class CrowdSim(gym.Env):
                                                            agent_state.py + radius * np.sin(agent_state.theta)))
                     elif self.robot.kinematics == 'differential' and i == 0:
                         arrow_length = 0.5 * (agent_state.vx + agent_state.vy) * radius
-                        ang_vel = 0.5 * (agent_state.v_left - agent_state.v_right) * radius
+                        ang_vel = 0.5 * (agent_state.vy - agent_state.vx) / radius
                         direction = (
                         (agent_state.px, agent_state.py), (agent_state.px + arrow_length * np.cos(agent_state.theta),
                                                            agent_state.py + arrow_length * np.sin(agent_state.theta)))

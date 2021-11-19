@@ -133,18 +133,41 @@ class Agent(object):
         elif self.kinematics == 'differential':
             left_acc = action.al
             right_acc = action.ar
-            v_left = self.v_left + left_acc * self.time_step
-            v_right = self.v_right + right_acc * self.time_step
-            if np.abs(v_left) > self.v_pref:
-                v_left = v_left / np.abs(v_left) * self.v_pref
-            if np.abs(v_right) > self.v_pref:
-                v_right = v_right / np.abs(v_right) * self.v_pref
-            angular_vel = (v_left - v_right) / 2.0 / self.radius
-            linear_vel = (v_left + v_right) / 2.0
-            vx = linear_vel * np.cos(self.theta)
-            vy = linear_vel * np.sin(self.theta)
-            px = self.px + vx * self.time_step
-            py = self.py + vy * self.time_step
+            vel_left = self.v_left + left_acc * self.time_step
+            vel_right = self.v_right + right_acc * self.time_step
+            if np.abs(vel_left) > self.v_pref:
+                vel_left = vel_left * self.v_pref / np.abs(vel_left)
+            if np.abs(vel_right) > self.v_pref:
+                vel_right = vel_right * self.v_pref / np.abs(vel_right)
+            t_right = (vel_right - self.v_right) / (right_acc + 1e-9)
+            t_left = (vel_left - self.v_left) / (left_acc + 1e-9)
+            s_right = (vel_right + self.v_right) * (0.5 * t_right) + vel_right * (self.time_step - t_right)
+            s_left = (vel_left + self.v_left) * (0.5 * t_left) + vel_left * (self.time_step - t_left)
+            s = (s_right + s_left) * 0.5
+            d_theta = (s_right - s_left) / (2 * self.radius)
+            s_direction = (self.theta + d_theta * 0.5) % (2 * np.pi)
+            end_theta = (self.theta + d_theta) % (2 * np.pi)
+            end_robot_x = self.px + s * np.cos(s_direction)
+            end_robot_y = self.py + s * np.sin(s_direction)
+            px = end_robot_x
+            py = end_robot_y
+
+
+
+            # left_acc = action.al
+            # right_acc = action.ar
+            # v_left = self.v_left + left_acc * self.time_step
+            # v_right = self.v_right + right_acc * self.time_step
+            # if np.abs(v_left) > self.v_pref:
+            #     v_left = v_left / np.abs(v_left) * self.v_pref
+            # if np.abs(v_right) > self.v_pref:
+            #     v_right = v_right / np.abs(v_right) * self.v_pref
+            # angular_vel = (v_left - v_right) / 2.0 / self.radius
+            # linear_vel = (v_left + v_right) / 2.0
+            # vx = linear_vel * np.cos(self.theta)
+            # vy = linear_vel * np.sin(self.theta)
+            # px = self.px + vx * self.time_step
+            # py = self.py + vy * self.time_step
         else:
             theta = (self.theta + action.r) % (2 * np.pi)
             vx = action.v * np.cos(theta)
@@ -172,13 +195,16 @@ class Agent(object):
                 vel_left = vel_left * self.v_pref / np.abs(vel_left)
             if np.abs(vel_right) > self.v_pref:
                 vel_right = vel_right * self.v_pref / np.abs(vel_right)
-            s_right = vel_right * self.time_step - (vel_right - self.v_right) * (vel_right + self.v_right) / (2 * right_acc + 1e-9)
-            s_left = vel_left * self.time_step - (vel_left - self.v_left) * (vel_left + self.v_left) / (2 * left_acc + 1e-9)
+            t_right = (vel_right - self.v_right) / (right_acc + 1e-9)
+            t_left = (vel_left - self.v_left) / (left_acc + 1e-9)
+            s_right = (vel_right + self.v_right) * (0.5 * t_right) + vel_right * (self.time_step - t_right)
+            s_left = (vel_left + self.v_left) * (0.5 * t_left) + vel_left * (self.time_step - t_left)
             s = (s_right + s_left) * 0.5
             d_theta = (s_right - s_left) / (2 * self.radius)
+            s_direction = (self.theta + d_theta * 0.5) % (2 * np.pi)
             end_theta = (self.theta + d_theta) % (2 * np.pi)
-            end_robot_x = self.px + s * np.cos(end_theta)
-            end_robot_y = self.py * s * np.sin(end_theta)
+            end_robot_x = self.px + s * np.cos(s_direction)
+            end_robot_y = self.py + s * np.sin(s_direction)
             self.v_left = vel_left
             self.v_right = vel_right
             self.theta = end_theta
@@ -189,7 +215,6 @@ class Agent(object):
             vy = linear_vel * np.sin(self.theta)
             self.vx = vx
             self.vy = vy
-
         else:
             self.theta = (self.theta + action.r) % (2 * np.pi)
             self.vx = action.v * np.cos(self.theta)

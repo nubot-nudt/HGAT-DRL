@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 from torch.nn.functional import softmax, relu
 from torch.nn import Parameter
-from crowd_nav.policy.helpers import mlp
+from crowd_nav.policy.helpers import mlp, GAT #, GraphAttentionLayer
 
 
 class RGL(nn.Module):
@@ -191,21 +191,37 @@ class GAT_RL(nn.Module):
         :return:
         """
         robot_state, human_states = state
-        adj = self.compute_adjectory_matrix(state)
-        # compute feature matrix X
-        robot_state_embedings = self.w_r(robot_state)
-        human_state_embedings = self.w_h(human_states)
-        X = torch.cat([robot_state_embedings, human_state_embedings], dim=1)
-        if robot_state.shape[0]==1:
-            H1, self.attention_weights = self.gat0(X, adj)
+        if human_states is None:
+            robot_state_embedings = self.w_r(robot_state)
+            adj = torch.ones((1, 1))
+            adj = adj.repeat(robot_state.size()[0], 1, 1)
+            X = robot_state_embedings
+            if robot_state.shape[0]==1:
+                H1, self.attention_weights = self.gat0(X, adj)
+            else:
+                H1, _ = self.gat0(X, adj)
+            H2, _ = self.gat1(H1, adj)
+            if self.skip_connection:
+                output = H1 + H2 + X
+            else:
+                output = H2
+            return output
         else:
-            H1, _ = self.gat0(X, adj)
-        H2, _ = self.gat1(H1, adj)
-        if self.skip_connection:
-            output = H1 + H2 + X
-        else:
-            output = H2
-        return output
+            adj = self.compute_adjectory_matrix(state)
+            # compute feature matrix X
+            robot_state_embedings = self.w_r(robot_state)
+            human_state_embedings = self.w_h(human_states)
+            X = torch.cat([robot_state_embedings, human_state_embedings], dim=1)
+            if robot_state.shape[0]==1:
+                H1, self.attention_weights = self.gat0(X, adj)
+            else:
+                H1, _ = self.gat0(X, adj)
+            H2, _ = self.gat1(H1, adj)
+            if self.skip_connection:
+                output = H1 + H2 + X
+            else:
+                output = H2
+            return output
 
 class GraphAttentionLayer(nn.Module):
     """
@@ -218,8 +234,8 @@ class GraphAttentionLayer(nn.Module):
         self.out_features = out_features
         self.concat = concat
 
-        self.w_a = mlp(2 * self.in_features, [2 * self.in_features, 1], last_relu=True)
-        self.leakyrelu = nn.LeakyReLU(negative_slope=0.01)
+        self.w_a = mlp(2 * self.in_features, [2 * self.in_features, 1], last_relu=False)
+        self.leakyrelu = nn.LeakyReLU(negative_slope=0.04)
 
     def forward(self, input, adj):
 

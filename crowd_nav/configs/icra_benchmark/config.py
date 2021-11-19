@@ -11,7 +11,7 @@ class Config(object):
         pass
 
 rotation_constraint = np.pi/6
-interval = 200
+interval = 500
 class BaseEnvConfig(object):
     env = Config()
     env.time_limit = 30
@@ -35,7 +35,7 @@ class BaseEnvConfig(object):
     sim.test_scenario = 'circle_crossing'
     sim.square_width = 10
     sim.circle_radius = 4
-    sim.human_num = 1
+    sim.human_num = 3
     sim.nonstop_human = True
     sim.centralized_planning = True
 
@@ -117,7 +117,7 @@ class BasePolicyConfig(object):
     gcn.planning_dims = [150, 100, 100, 1]
     gcn.similarity_function = 'embedded_gaussian'
     gcn.layerwise_graph = True
-    gcn.skip_connection = False
+    gcn.skip_connection = True
 
     gnn = Config()
     gnn.multiagent_training = True
@@ -135,7 +135,7 @@ class BasePolicyConfig(object):
 
 class BaseTrainConfig(object):
     trainer = Config()
-    trainer.batch_size = 100
+    trainer.batch_size = 128
     trainer.optimizer = 'Adam'
 
     imitation_learning = Config()
@@ -147,11 +147,11 @@ class BaseTrainConfig(object):
 
     train = Config()
     train.rl_train_epochs = 1
-    train.rl_learning_rate = 0.005
+    train.rl_learning_rate = 0.002
     # number of batches to train at the end of training episode il_episodes
     train.train_batches = 50
     # training episodes in outer loop
-    train.train_episodes = 5000
+    train.train_episodes = 10000
     # number of episodes sampled in one training episode
     train.sample_episodes = 1
     train.target_update_interval = interval
