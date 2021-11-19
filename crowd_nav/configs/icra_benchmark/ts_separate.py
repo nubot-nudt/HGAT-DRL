@@ -19,7 +19,7 @@ class PolicyConfig(BasePolicyConfig):
         self.gcn.skip_connection = True
 
         self.model_predictive_rl = Config()
-        self.model_predictive_rl.linear_state_predictor = False
+        self.model_predictive_rl.linear_state_predictor = True
         self.model_predictive_rl.planning_depth = 0
         self.model_predictive_rl.planning_width = 5
         self.model_predictive_rl.do_action_clip = False

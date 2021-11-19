@@ -377,8 +377,6 @@ class CrowdSim(gym.Env):
                 if closest_dist < self.discomfort_dist:
                     safety_penalty = safety_penalty + (closest_dist - self.discomfort_dist)
         elif self.robot.kinematics == 'differential':
-            px = human.px - self.robot.px
-            py = human.py - self.robot.py
             left_acc = action.al
             right_acc = action.ar
             vel_left = self.robot.v_left + left_acc * self.time_step
@@ -395,10 +393,12 @@ class CrowdSim(gym.Env):
             end_robot_x = self.robot.px + s * np.cos(end_theta)
             end_robot_y = self.robot.py * s * np.sin(end_theta)
             for i, human in enumerate(self.humans):
+                px = human.px - self.robot.px
+                py = human.py - self.robot.py
                 end_human_x = human_actions[i].vx * self.time_step + human.px
                 end_human_y = human_actions[i].vy * self.time_step + human.py
-                ex = end_robot_x - end_human_x
-                ey = end_robot_y - end_human_y
+                ex = end_human_x - end_robot_x
+                ey = end_human_y - end_robot_y
                 closest_dist = point_to_segment_dist(px, py, ex, ey, 0, 0) - human.radius - self.robot.radius
                 if closest_dist < 0:
                     collision = True

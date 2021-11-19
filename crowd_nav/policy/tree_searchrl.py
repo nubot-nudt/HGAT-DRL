@@ -179,9 +179,9 @@ class TreeSearchRL(Policy):
         self.action_space = action_space
 
     def select_random_axis(self, cur_vel):
-        min = -(self.speed_samples - 1) / 2
+        min = 0
         # inter_num =
-        max = (self.speed_samples - 1) / 2 + 1
+        max = self.speed_samples
         # a = (-self.v_pref - cur_vel) / self.time_step / (self.v_pref * 2.0 / inter_num) + inter_num
         # b = (self.v_pref - cur_vel) / self.time_step / (self.v_pref * 2.0 / inter_num) + inter_num
         # if min < a:
