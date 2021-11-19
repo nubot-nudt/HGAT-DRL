@@ -353,54 +353,79 @@ class CrowdSim(gym.Env):
         weight_terminal = 1.0
         re_collision = self.collision_penalty
         re_arrival = self.success_reward
-        re_max_vel = 0.0
-        left_acc = 0.0
-        right_acc = 0.0
-        vel_left = 0.0
-        vel_right = 0.0
-        if self.robot.kinematics == 'differential':
-            left_acc = action.al
-            right_acc = action.ar
-            vel_left = self.robot.v_left + left_acc * self.time_step
-            vel_right = self.robot.v_right + right_acc * self.time_step
-            if np.abs(vel_left) > self.robot.v_pref:
-                re_max_vel += -0.5 * (np.abs(vel_left) - self.robot.v_pref)
-            if np.abs(vel_right) > self.robot.v_pref:
-                re_max_vel += -0.5 * (np.abs(vel_right) - self.robot.v_pref)
 
         # collision detection
         dmin = float('inf')
         collision = False
         safety_penalty = 0.0
-        for i, human in enumerate(self.humans):
-            px = human.px - self.robot.px
-            py = human.py - self.robot.py
-            if self.robot.kinematics == 'holonomic':
+        if self.robot.kinematics =="holonomic":
+            for i, human in enumerate(self.humans):
+                px = human.px - self.robot.px
+                py = human.py - self.robot.py
                 vx = human_actions[i].vx - action.vx
                 vy = human_actions[i].vy - action.vy
-            elif self.robot.kinematics == 'differential':
-                if np.abs(vel_left) > self.robot.v_pref:
-                    vel_left = vel_left * self.robot.v_pref / np.abs(vel_left)
-                if np.abs(vel_right) > self.robot.v_pref:
-                    vel_right = vel_right * self.robot.v_pref / np.abs(vel_right)
-                linear_vel = (vel_left + vel_right) / 2.0
-                vx = human_actions[i].vx - linear_vel * np.cos(self.robot.theta)
-                vy = human_actions[i].vy - linear_vel * np.sin(self.robot.theta)
-            else:
+                ex = px + vx * self.time_step
+                ey = py + vy * self.time_step
+                # closest distance between boundaries of two agents
+                closest_dist = point_to_segment_dist(px, py, ex, ey, 0, 0) - human.radius - self.robot.radius
+                if closest_dist < 0:
+                    collision = True
+                    logging.debug("Collision: distance between robot and p{} is {:.2E} at time {:.2E}".format(human.id,
+                                   closest_dist, self.global_time))
+                if closest_dist < dmin:
+                    dmin = closest_dist
+                if closest_dist < self.discomfort_dist:
+                    safety_penalty = safety_penalty + (closest_dist - self.discomfort_dist)
+        elif self.robot.kinematics == 'differential':
+            px = human.px - self.robot.px
+            py = human.py - self.robot.py
+            left_acc = action.al
+            right_acc = action.ar
+            vel_left = self.robot.v_left + left_acc * self.time_step
+            vel_right = self.robot.v_right + right_acc * self.time_step
+            if np.abs(vel_left) > self.robot.v_pref:
+                vel_left = vel_left * self.robot.v_pref / np.abs(vel_left)
+            if np.abs(vel_right) > self.robot.v_pref:
+                vel_right = vel_right * self.robot.v_pref / np.abs(vel_right)
+            s_right = vel_right * self.time_step - (vel_right - self.robot.v_right) * (vel_right + self.robot.v_right) / (2 * right_acc + 1e-9)
+            s_left = vel_left * self.time_step - (vel_left - self.robot.v_left) * (vel_left + self.robot.v_left) / (2 * left_acc + 1e-9)
+            s = (s_right + s_left) * 0.5
+            d_theta = (s_right - s_left) / (2 * self.robot.radius)
+            end_theta = (self.robot.theta + d_theta) % (2 * np.pi)
+            end_robot_x = self.robot.px + s * np.cos(end_theta)
+            end_robot_y = self.robot.py * s * np.sin(end_theta)
+            for i, human in enumerate(self.humans):
+                end_human_x = human_actions[i].vx * self.time_step + human.px
+                end_human_y = human_actions[i].vy * self.time_step + human.py
+                ex = end_robot_x - end_human_x
+                ey = end_robot_y - end_human_y
+                closest_dist = point_to_segment_dist(px, py, ex, ey, 0, 0) - human.radius - self.robot.radius
+                if closest_dist < 0:
+                    collision = True
+                    logging.debug("Collision: distance between robot and p{} is {:.2E} at time {:.2E}".format(human.id,
+                                   closest_dist, self.global_time))
+                if closest_dist < dmin:
+                    dmin = closest_dist
+                if closest_dist < self.discomfort_dist:
+                    safety_penalty = safety_penalty + (closest_dist - self.discomfort_dist)
+        else:
+            for i, human in enumerate(self.humans):
+                px = human.px - self.robot.px
+                py = human.py - self.robot.py
                 vx = human_actions[i].vx - action.v * np.cos(action.r + self.robot.theta)
                 vy = human_actions[i].vy - action.v * np.sin(action.r + self.robot.theta)
-            ex = px + vx * self.time_step
-            ey = py + vy * self.time_step
-            # closest distance between boundaries of two agents
-            closest_dist = point_to_segment_dist(px, py, ex, ey, 0, 0) - human.radius - self.robot.radius
-            if closest_dist < 0:
-                collision = True
-                logging.debug("Collision: distance between robot and p{} is {:.2E} at time {:.2E}".format(human.id, closest_dist, self.global_time))
-            if closest_dist < dmin:
-                dmin = closest_dist
-            if closest_dist < self.discomfort_dist:
-                safety_penalty = safety_penalty + (closest_dist - self.discomfort_dist)
-
+                ex = px + vx * self.time_step
+                ey = py + vy * self.time_step
+                # closest distance between boundaries of two agents
+                closest_dist = point_to_segment_dist(px, py, ex, ey, 0, 0) - human.radius - self.robot.radius
+                if closest_dist < 0:
+                    collision = True
+                    logging.debug("Collision: distance between robot and p{} is {:.2E} at time {:.2E}".format(human.id,
+                                   closest_dist, self.global_time))
+                if closest_dist < dmin:
+                    dmin = closest_dist
+                if closest_dist < self.discomfort_dist:
+                    safety_penalty = safety_penalty + (closest_dist - self.discomfort_dist)
         # collision detection between humans
         human_num = len(self.humans)
         for i in range(human_num):
@@ -444,7 +469,7 @@ class CrowdSim(gym.Env):
             info = Nothing()
         reward_terminal = reward_arrival + reward_col
         reward = weight_terminal * reward_terminal + weight_goal * reward_goal \
-                + weight_safe * safety_penalty + re_max_vel
+                + weight_safe * safety_penalty
 
         if update:
             # store state, action value and attention weights
