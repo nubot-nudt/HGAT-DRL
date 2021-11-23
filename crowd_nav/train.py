@@ -244,9 +244,9 @@ def main(args):
     eps_count = 0
     fw = open(sys_args.output_dir + '/data.txt', 'w')
     print("%f %f %f %f %f" % (0,0,0,0,0), file=fw)
-    robot.policy.set_epsilon(epsilon_start)
-    _, _, nav_time, sum_reward, ave_return, discom_time, total_time = \
-        explorer.run_k_episodes(300, 'train', update_memory=True, episode=episode)
+    # robot.policy.set_epsilon(epsilon_start)
+    # _, _, nav_time, sum_reward, ave_return, discom_time, total_time = \
+    #     explorer.run_k_episodes(300, 'train', update_memory=True, episode=episode)
     while episode < train_episodes:
         if args.resume:
             epsilon = epsilon_end
