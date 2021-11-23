@@ -61,7 +61,6 @@ class TreeSearchRL(Policy):
         # self.set_device(device)
         self.device = device
 
-
         if self.linear_state_predictor:
             self.state_predictor = LinearStatePredictor_batch(config, self.time_step)
             graph_model = RGL(config, self.robot_state_dim, self.human_state_dim)

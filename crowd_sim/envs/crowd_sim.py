@@ -675,7 +675,7 @@ class CrowdSim(gym.Env):
             # sensor_range = plt.Circle(robot_positions[0], self.robot_sensor_range, fill=False, ls='dashed')
             ax.add_artist(robot)
             ax.add_artist(goal)
-
+            direction_length = 1.0
             if len(self.humans) == 0:
                 if display_numbers:
                     if hasattr(self.robot.policy, 'get_attention_weights'):
@@ -690,14 +690,14 @@ class CrowdSim(gym.Env):
                     orientation = []
                     for state in self.states:
                         agent_state = state[0] if i == 0 else state[1][i - 1]
-                        if self.robot.kinematics == 'unicycle' and i == 0:
-                            direction = (
-                            (agent_state.px, agent_state.py), (agent_state.px + radius * np.cos(agent_state.theta),
-                                                               agent_state.py + radius * np.sin(agent_state.theta)))
-                        else:
+                        if self.robot.kinematics =='holonomic' or i!=0:
                             theta = np.arctan2(agent_state.vy, agent_state.vx)
-                            direction = ((agent_state.px, agent_state.py), (agent_state.px + 1.5*radius * np.cos(theta),
-                                                                            agent_state.py + 1.5*radius * np.sin(theta)))
+                            direction = ((agent_state.px, agent_state.py), (agent_state.px + direction_length * radius * np.cos(theta),
+                                                                            agent_state.py + direction_length * radius * np.sin(theta)))
+                        else:
+                            direction = (
+                            (agent_state.px, agent_state.py), (agent_state.px + direction_length * radius * np.cos(agent_state.theta),
+                                                               agent_state.py + direction_length * radius * np.sin(agent_state.theta)))
                         orientation.append(direction)
                     orientations.append(orientation)
                     if i == 0:
@@ -771,14 +771,13 @@ class CrowdSim(gym.Env):
                     orientation = []
                     for state in self.states:
                         agent_state = state[0] if i == 0 else state[1][i - 1]
-                        if self.robot.kinematics == 'unicycle' and i == 0:
-                            direction = (
-                            (agent_state.px, agent_state.py), (agent_state.px + radius * np.cos(agent_state.theta),
-                                                               agent_state.py + radius * np.sin(agent_state.theta)))
-                        else:
+                        if self.robot.kinematics =='holonomic' or i!=0:
                             theta = np.arctan2(agent_state.vy, agent_state.vx)
-                            direction = ((agent_state.px, agent_state.py), (agent_state.px + 1.5*radius * np.cos(theta),
-                                                                            agent_state.py + 1.5*radius * np.sin(theta)))
+                            direction = ((agent_state.px, agent_state.py), (agent_state.px + direction_length * radius * np.cos(theta),
+                                                                            agent_state.py + direction_length * radius * np.sin(theta)))
+                        else:
+                            direction = ((agent_state.px, agent_state.py), (agent_state.px + direction_length * radius * np.cos(agent_state.theta),
+                                                               agent_state.py +direction_length * radius * np.sin(agent_state.theta)))
                         orientation.append(direction)
                     orientations.append(orientation)
                     if i == 0:
