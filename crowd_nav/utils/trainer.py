@@ -172,21 +172,21 @@ class TSRLTrainer(object):
             v_losses += value_loss.data.item()
 
 
-            # optimization with simulated trajectories
-            self.v_optimizer.zero_grad()
-            sim_robot_states, sim_human_states, sim_actions, sim_done, sim_rewards, sim_next_robot_states, sim_next_human_states = self.generate_simulated_batch(
-                robot_states, human_states, next_human_states)
-            sim_outputs = self.value_estimator((sim_robot_states, sim_human_states)).gather(1, sim_actions.unsqueeze(1))
-            sim_max_next_Q_index = torch.max(self.value_estimator((sim_next_robot_states, sim_next_human_states)), dim=1)[1]
-            #利用target model估计最优动作对应的q_value
-            #这就是一个double DQN版本，而不是dqn版本
-            sim_next_Q_value = self.target_model((sim_next_robot_states, sim_next_human_states)).gather(1, sim_max_next_Q_index.unsqueeze(1))
-            sim_done_infos = (1 - sim_done)
-            sim_target_values = sim_rewards + torch.mul(sim_done_infos, sim_next_Q_value * gamma_bar)
-            sim_value_loss = self.criterion(sim_outputs, sim_target_values)
-            sim_value_loss.backward()
-            self.v_optimizer.step()
-            sim_v_losses += sim_value_loss.data.item()
+            # # optimization with simulated trajectories
+            # self.v_optimizer.zero_grad()
+            # sim_robot_states, sim_human_states, sim_actions, sim_done, sim_rewards, sim_next_robot_states, sim_next_human_states = self.generate_simulated_batch(
+            #     robot_states, human_states, next_human_states)
+            # sim_outputs = self.value_estimator((sim_robot_states, sim_human_states)).gather(1, sim_actions.unsqueeze(1))
+            # sim_max_next_Q_index = torch.max(self.value_estimator((sim_next_robot_states, sim_next_human_states)), dim=1)[1]
+            # #利用target model估计最优动作对应的q_value
+            # #这就是一个double DQN版本，而不是dqn版本
+            # sim_next_Q_value = self.target_model((sim_next_robot_states, sim_next_human_states)).gather(1, sim_max_next_Q_index.unsqueeze(1))
+            # sim_done_infos = (1 - sim_done)
+            # sim_target_values = sim_rewards + torch.mul(sim_done_infos, sim_next_Q_value * gamma_bar)
+            # sim_value_loss = self.criterion(sim_outputs, sim_target_values)
+            # sim_value_loss.backward()
+            # self.v_optimizer.step()
+            # sim_v_losses += sim_value_loss.data.item()
 
             # optimize state predictor
             if self.state_predictor.trainable:
