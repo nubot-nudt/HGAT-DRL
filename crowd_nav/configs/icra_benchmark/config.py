@@ -35,7 +35,7 @@ class BaseEnvConfig(object):
     sim.test_scenario = 'circle_crossing'
     sim.square_width = 10
     sim.circle_radius = 4
-    sim.human_num = 3
+    sim.human_num = 5
     sim.nonstop_human = True
     sim.centralized_planning = True
 
@@ -160,7 +160,7 @@ class BaseTrainConfig(object):
     train.capacity = 100000
     train.epsilon_start = 0.5
     train.epsilon_end = 0.1
-    train.epsilon_decay = 2000
+    train.epsilon_decay = 3000
     train.checkpoint_interval = interval
 
     train.train_with_pretend_batch = False
