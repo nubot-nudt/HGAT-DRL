@@ -4,7 +4,7 @@ import numpy as np
 from numpy.linalg import norm
 import itertools
 from crowd_sim.envs.policy.policy import Policy
-from crowd_sim.envs.utils.action import ActionRot, ActionXY
+from crowd_sim.envs.utils.action import ActionRot, ActionXY, ActionAW, ActionDiff
 from crowd_sim.envs.utils.state import tensor_to_joint_state
 from crowd_sim.envs.utils.info import  *
 from crowd_sim.envs.utils.utils import point_to_segment_dist
@@ -162,35 +162,77 @@ class TreeSearchRL(Policy):
         checkpoint = torch.load(file)
         self.load_state_dict(checkpoint)
 
-    def build_action_space(self, v_pref):
+    def build_action_space(self, maximum):
         """
         Action space consists of 25 uniformly sampled actions in permitted range and 25 randomly sampled actions.
         """
+
         holonomic = True if self.kinematics == 'holonomic' else False
         # speeds = [(np.exp((i + 1) / self.speed_samples) - 1) / (np.e - 1) * v_pref for i in range(self.speed_samples)]
-        speeds = [(i+1)/self.speed_samples * v_pref for i in range(self.speed_samples)]
-        if holonomic:
+        speeds = [(i+1)/self.speed_samples * self.v_pref for i in range(self.speed_samples)]
+        if self.kinematics == 'holonomic' :
             rotations = np.linspace(0, 2 * np.pi, self.rotation_samples, endpoint=False)
-        else:
+            action_space = [ActionXY(0, 0)]
+            self.action_group_index.append(0)
+            for i, rotation in enumerate(rotations):
+                for j, speed in enumerate(speeds):
+                    action_index = i * self.speed_samples + j + 1
+                    self.action_group_index.append(action_index)
+                    action_space.append(ActionXY(speed * np.cos(rotation), speed * np.sin(rotation)))
+        elif self.kinematics == 'unicycle' :
             if self.rotation_constraint == np.pi:
                 rotations = np.linspace(-self.rotation_constraint, self.rotation_constraint, self.rotation_samples, endpoint=False)
             else:
                 rotations = np.linspace(-self.rotation_constraint, self.rotation_constraint, self.rotation_samples)
-
-        action_space = [ActionXY(0, 0) if holonomic else ActionRot(0, 0)]
-        self.action_group_index.append(0)
-
-        for i, rotation in enumerate(rotations):
-            for j, speed in enumerate(speeds):
-                action_index = i * self.speed_samples + j + 1
-                self.action_group_index.append(action_index)
-                if holonomic:
-                    action_space.append(ActionXY(speed * np.cos(rotation), speed * np.sin(rotation)))
-                else:
+            action_space = [ActionRot(0, 0)]
+            self.action_group_index.append(0)
+            for i, rotation in enumerate(rotations):
+                for j, speed in enumerate(speeds):
+                    action_index = i * self.speed_samples + j + 1
+                    self.action_group_index.append(action_index)
                     action_space.append(ActionRot(speed, rotation))
-        self.speeds = speeds
-        self.rotations = rotations
-        self.action_space = action_space
+        elif self.kinematics=='differential':
+        # currently, acc_max is 1, and the number of speed samples is 5.
+        # currently, rotation constraint is np.pi/3, and rotation_samples is 5
+            left_accs = np.linspace(-maximum, maximum, self.speed_samples)
+            right_accs = np.linspace(-maximum, maximum, self.speed_samples)
+            action_space = []
+            for i, left_acc in enumerate(left_accs):
+                for j, right_acc in enumerate(right_accs):
+                    action_index = i * self.speed_samples + j
+                    self.action_group_index.append(action_index)
+                    action_space.append(ActionDiff(left_acc, right_acc))
+            self.speeds = left_accs
+            self.rotations = right_accs
+            self.action_space = action_space
+
+    def select_random_axis(self, cur_vel):
+        min = 0
+        # inter_num =
+        max = self.speed_samples
+        # a = (-self.v_pref - cur_vel) / self.time_step / (self.v_pref * 2.0 / inter_num) + inter_num
+        # b = (self.v_pref - cur_vel) / self.time_step / (self.v_pref * 2.0 / inter_num) + inter_num
+        # if min < a:
+        #     min = a
+        # if max > b:
+        #     max = b
+        # if min == max:
+        #     index = min
+        # else:
+        #     if min > max:
+        #         min = 0
+        #         max = self.speed_samples
+        index = np.random.randint(min, max)
+        return index
+
+    def select_random_action(self, cur_state):
+        left_vel = cur_state.robot_state.vx
+        right_vel = cur_state.robot_state.vy
+        left_acc_index = self.select_random_axis(left_vel)
+        right_vel_index = self.select_random_axis(right_vel)
+        action_index = left_acc_index * self.speed_samples + right_vel_index
+        return action_index
+
 
     def predict(self, state):
         """
@@ -199,15 +241,16 @@ class TreeSearchRL(Policy):
 
         """
         self.count=self.count+1
-        # if self.count == 34:
-        #     print('debug')
+        if self.count == 41:
+            print('debug')
         if self.phase is None or self.device is None:
             raise AttributeError('Phase, device attributes have to be set!')
         if self.phase == 'train' and self.epsilon is None:
             raise AttributeError('Epsilon attribute has to be set in training phase')
+
         self.v_pref = state.robot_state.v_pref
-        if self.reach_destination(state):
-            return ActionXY(0, 0) if self.kinematics == 'holonomic' else ActionRot(0, 0)
+        # if self.reach_destination(state):
+        #     return ActionXY(0, 0) if self.kinematics == 'holonomic' else ActionRot(0, 0)
         if self.action_space is None:
             self.build_action_space(self.v_pref)
         max_action = None
@@ -215,7 +258,8 @@ class TreeSearchRL(Policy):
         state_tensor = state.to_tensor(add_batch_size=True, device=self.device)
         probability = np.random.random()
         if self.phase == 'train' and probability < self.epsilon and self.use_noisy_net is False:
-            max_action_index = np.random.choice(len(self.action_space))
+            max_action_index = self.select_random_action(state)
+            # max_action_index = np.random.choice(len(self.action_space))
             max_action = self.action_space[max_action_index]
             self.last_state = self.transform(state)
             return max_action, max_action_index
@@ -366,17 +410,28 @@ class TreeSearchRL(Policy):
         if robot_state.shape[0] != 1:
             raise NotImplementedError
         next_state = robot_state.clone().squeeze()
+        left_acc = action.al
+        right_acc = action.ar
         if self.kinematics == 'holonomic':
             next_state[0] = next_state[0] + action.vx * self.time_step
             next_state[1] = next_state[1] + action.vy * self.time_step
             next_state[2] = action.vx
             next_state[3] = action.vy
-        else:
-            next_state[8] = (next_state[8] + action.r) % (2 * np.pi)
-            next_state[0] = next_state[0] + np.cos(next_state[8]) * action.v * self.time_step
-            next_state[1] = next_state[1] + np.sin(next_state[8]) * action.v * self.time_step
-            next_state[2] = np.cos(next_state[8]) * action.v
-            next_state[3] = np.sin(next_state[8]) * action.v
+        elif self.kinematics == 'differential':
+            # px, py, v_left, v_right, radius, gx, gy, vel_max, heading
+            next_state[2] = next_state[2] + left_acc * self.time_step
+            next_state[3] = next_state[3] + right_acc * self.time_step
+            if np.abs(next_state[2]) > next_state[7]:
+                next_state[2] = next_state[2] * next_state[7] / np.abs(next_state[2])
+            if np.abs(next_state[3]) > next_state[7]:
+                next_state[3] = next_state[3] * next_state[7] / np.abs(next_state[3])
+            angular_vel = (next_state[3] - next_state[2]) / 2.0 / next_state[4]
+            linear_vel = (next_state[3] + next_state[2]) / 2.0
+            vx = linear_vel * np.cos(next_state[8])
+            vy = linear_vel * np.sin(next_state[8])
+            next_state[0] = next_state[0] + vx * self.time_step
+            next_state[1] = next_state[1] + vy * self.time_step
+            next_state[8] = (next_state[8] + angular_vel * self.time_step) % (2 * np.pi)
         return next_state.unsqueeze(0).unsqueeze(0)
 
     def generate_simulated_trajectory(self, robot_state_batch, human_state_batch, action_batch, next_human_state_batch):

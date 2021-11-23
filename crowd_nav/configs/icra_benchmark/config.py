@@ -10,7 +10,9 @@ class Config(object):
     def __init__(self):
         pass
 
-rotation_constraint = np.pi
+
+rotation_constraint = np.pi/6
+interval = 500
 class BaseEnvConfig(object):
     env = Config()
     env.time_limit = 30
@@ -69,10 +71,11 @@ class BasePolicyConfig(object):
     om.om_channel_size = 3
 
     action_space = Config()
-    # action_space.kinematics = 'holonomic'
-    action_space.kinematics = 'unicycle'
-    action_space.speed_samples = 5
-    action_space.rotation_samples = 16
+    #action_space.kinematics = 'holonomic'
+    #action_space.kinematics = 'unicycle'
+    action_space.kinematics = 'differential'
+    action_space.speed_samples = 3
+    action_space.rotation_samples = 8
     action_space.sampling = 'exponential'
     action_space.query_env = False
     action_space.rotation_constraint = rotation_constraint
@@ -115,13 +118,15 @@ class BasePolicyConfig(object):
     gcn.planning_dims = [150, 100, 100, 1]
     gcn.similarity_function = 'embedded_gaussian'
     gcn.layerwise_graph = True
-    gcn.skip_connection = False
+    gcn.skip_connection = True
 
     gnn = Config()
     gnn.multiagent_training = True
     gnn.node_dim = 32
-    gnn.wr_dims = [64, gnn.node_dim]
-    gnn.wh_dims = [64, gnn.node_dim]
+    # gnn.wr_dims = [64, gnn.node_dim]
+    # gnn.wh_dims = [64, gnn.node_dim]
+    gnn.wr_dims = [gnn.node_dim]
+    gnn.wh_dims = [gnn.node_dim]
     gnn.edge_dim = 32
     gnn.planning_dims = [150, 100, 100, 1]
 
@@ -131,7 +136,7 @@ class BasePolicyConfig(object):
 
 class BaseTrainConfig(object):
     trainer = Config()
-    trainer.batch_size = 100
+    trainer.batch_size = 128
     trainer.optimizer = 'Adam'
 
     imitation_learning = Config()
@@ -143,21 +148,21 @@ class BaseTrainConfig(object):
 
     train = Config()
     train.rl_train_epochs = 1
-    train.rl_learning_rate = 0.001
+    train.rl_learning_rate = 0.002
     # number of batches to train at the end of training episode il_episodes
     train.train_batches = 20
     # training episodes in outer loop
     train.train_episodes = 10000
     # number of episodes sampled in one training episode
     train.sample_episodes = 1
-    train.target_update_interval = 500
-    train.evaluation_interval = 500
+    train.target_update_interval = interval
+    train.evaluation_interval = interval
     # the memory pool can roughly store 2K episodes, total size = episodes * 50
     train.capacity = 100000
     train.epsilon_start = 0.5
     train.epsilon_end = 0.1
-    train.epsilon_decay = 4000
-    train.checkpoint_interval = 500
+    train.epsilon_decay = 3000
+    train.checkpoint_interval = interval
 
     train.train_with_pretend_batch = False
 
