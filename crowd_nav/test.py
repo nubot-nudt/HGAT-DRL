@@ -154,6 +154,19 @@ def main(args):
         if robot.visible and info == 'reach goal':
             human_times = env.get_human_times()
             logging.info('Average time for humans to reach goal: %.2f', sum(human_times) / len(human_times))
+
+        positions = []
+        velocity_rec = []
+        rotation_rec = []
+        for i in range(len(actions)):
+            positions.append(i)
+            action = actions[i]
+            velocity_rec.append(action.v)
+            rotation_rec.append(action.r)
+        plt.plot(positions, velocity_rec, color='r', marker='.', linestyle='dashed')
+        plt.plot(positions, rotation_rec, color='b', marker='.', linestyle='dashed')
+        plt.show()
+        print('finish')
     else:
         explorer.run_k_episodes(env.case_size[args.phase], args.phase, print_failure=True)
         if args.plot_test_scenarios_hist:
@@ -163,18 +176,7 @@ def main(args):
             plt.savefig(os.path.join(args.model_dir, 'test_scene_hist.png'))
             plt.close()
 
-    positions = []
-    velocity_rec = []
-    rotation_rec = []
-    for i in range(len(actions)):
-        positions.append(i)
-        action = actions[i]
-        velocity_rec.append(action.v)
-        rotation_rec.append(action.r)
-    plt.plot(positions, velocity_rec, color='r', marker='.', linestyle='dashed')
-    plt.plot(positions, rotation_rec, color='b', marker='.', linestyle='dashed')
-    plt.show()
-    print('finish')
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Parse configuration file')
@@ -184,7 +186,7 @@ if __name__ == '__main__':
     parser.add_argument('--il', default=False, action='store_true')
     parser.add_argument('--rl', default=False, action='store_true')
     parser.add_argument('--gpu', default=False, action='store_true')
-    parser.add_argument('-v', '--visualize', default=True, action='store_true')
+    parser.add_argument('-v', '--visualize', default=False, action='store_true')
     parser.add_argument('--phase', type=str, default='test')
     parser.add_argument('-c', '--test_case', type=int, default=10)
     parser.add_argument('--square', default=False, action='store_true')
