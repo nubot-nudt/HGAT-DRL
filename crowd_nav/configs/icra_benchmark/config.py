@@ -14,7 +14,7 @@ rotation_constraint = np.pi/6
 class BaseEnvConfig(object):
     env = Config()
     env.time_limit = 30
-    env.time_step = 0.25
+    env.time_step = 0.1
     env.val_size = 100
     env.test_size = 1000
     env.train_size = np.iinfo(np.uint32).max - 2000
@@ -34,7 +34,7 @@ class BaseEnvConfig(object):
     sim.test_scenario = 'circle_crossing'
     sim.square_width = 10
     sim.circle_radius = 4
-    sim.human_num = 5
+    sim.human_num = 10
     sim.nonstop_human = True
     sim.centralized_planning = True
 
