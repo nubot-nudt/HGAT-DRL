@@ -663,9 +663,6 @@ class TD3RLTrainer(object):
             if batch_count > num_batches or batch_count == batch_num:
                 break
 
-
-
-
         average_v_loss = v_losses / num_batches
         average_s_loss = s_losses / num_batches
         logging.info('Average loss : %.2E, %.2E', average_v_loss, average_s_loss)

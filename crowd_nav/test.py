@@ -161,8 +161,15 @@ def main(args):
         for i in range(len(actions)):
             positions.append(i)
             action = actions[i]
-            velocity_rec.append(action.v)
-            rotation_rec.append(action.r)
+            if robot.kinematics is 'unicycle':
+                velocity_rec.append(action.v)
+                rotation_rec.append(action.r)
+            elif robot.kinematics is 'holonomic':
+                velocity_rec.append(action.vx)
+                rotation_rec.append(action.vy)
+            elif robot.kinematics is 'differential':
+                velocity_rec.append(action.al)
+                rotation_rec.append(action.ar)
         plt.plot(positions, velocity_rec, color='r', marker='.', linestyle='dashed')
         plt.plot(positions, rotation_rec, color='b', marker='.', linestyle='dashed')
         plt.show()
@@ -180,9 +187,9 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Parse configuration file')
-    parser.add_argument('--config', type=str, default=None)
-    parser.add_argument('--policy', type=str, default='tree_search_rl')
-    parser.add_argument('-m', '--model_dir', type=str, default='data/tsrl10rot/1')#None
+    parser.add_argument('--config', type=str, default='configs/icra_benchmark/td3.py')
+    parser.add_argument('--policy', type=str, default='td3_rl')
+    parser.add_argument('-m', '--model_dir', type=str, default='data/output1')#None
     parser.add_argument('--il', default=False, action='store_true')
     parser.add_argument('--rl', default=False, action='store_true')
     parser.add_argument('--gpu', default=False, action='store_true')

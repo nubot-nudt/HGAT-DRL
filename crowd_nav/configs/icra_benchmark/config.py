@@ -13,6 +13,7 @@ class Config(object):
 interval = 500
 v_pref = 1.0
 rotation_constraint = np.pi/6
+kinematics = 'differential'
 class BaseEnvConfig(object):
     env = Config()
     env.time_limit = 30
@@ -49,6 +50,7 @@ class BaseEnvConfig(object):
 
     robot = Config()
     robot.visible = False
+    robot.kinematics = kinematics
     robot.policy = 'none'
     robot.radius = 0.3
     robot.v_pref = v_pref
@@ -73,7 +75,7 @@ class BasePolicyConfig(object):
     action_space = Config()
     #action_space.kinematics = 'holonomic'
     #action_space.kinematics = 'unicycle'
-    action_space.kinematics = 'differential'
+    action_space.kinematics = kinematics
     action_space.speed_samples = 3
     action_space.rotation_samples = 8
     action_space.sampling = 'exponential'

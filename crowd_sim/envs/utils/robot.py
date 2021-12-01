@@ -6,6 +6,7 @@ class Robot(Agent):
     def __init__(self, config, section):
         super().__init__(config, section)
         self.rotation_constraint = getattr(config, section).rotation_constraint
+        self.kinematics = getattr(config, section).kinematics
 
     def act(self, ob):
         if self.policy is None:
