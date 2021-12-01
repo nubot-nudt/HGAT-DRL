@@ -10,13 +10,13 @@ class Config(object):
     def __init__(self):
         pass
 
-
-rotation_constraint = 0.25
 interval = 500
+v_pref = 1.0
+rotation_constraint = np.pi/6
 class BaseEnvConfig(object):
     env = Config()
     env.time_limit = 30
-    env.time_step = 0.25
+    env.time_step = 0.1
     env.val_size = 100
     env.test_size = 1000
     env.train_size = np.iinfo(np.uint32).max - 2000
@@ -36,7 +36,7 @@ class BaseEnvConfig(object):
     sim.test_scenario = 'circle_crossing'
     sim.square_width = 10
     sim.circle_radius = 4
-    sim.human_num = 5
+    sim.human_num = 10
     sim.nonstop_human = True
     sim.centralized_planning = True
 
@@ -44,14 +44,14 @@ class BaseEnvConfig(object):
     humans.visible = True
     humans.policy = 'orca'
     humans.radius = 0.3
-    humans.v_pref = 1.0
+    humans.v_pref = v_pref
     humans.sensor = 'coordinates'
 
     robot = Config()
     robot.visible = False
     robot.policy = 'none'
     robot.radius = 0.3
-    robot.v_pref = 1.0
+    robot.v_pref = v_pref
     robot.sensor = 'coordinates'
     robot.rotation_constraint = rotation_constraint
 
@@ -79,6 +79,7 @@ class BasePolicyConfig(object):
     action_space.sampling = 'exponential'
     action_space.query_env = False
     action_space.rotation_constraint = rotation_constraint
+    action_space.v_pref = v_pref
 
     cadrl = Config()
     cadrl.mlp_dims = [150, 100, 100, 1]

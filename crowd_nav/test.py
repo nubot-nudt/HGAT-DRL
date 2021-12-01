@@ -12,6 +12,7 @@ from crowd_sim.envs.utils.robot import Robot
 from crowd_sim.envs.policy.orca import ORCA
 from crowd_nav.policy.reward_estimate import Reward_Estimator
 from crowd_sim.envs.utils.info import *
+from crowd_sim.envs.utils.action import ActionRot
 
 def main(args):
     # configure logging and device
@@ -121,6 +122,7 @@ def main(args):
         if robot.policy.name in ['tree_search_rl']:
             policy.model[2].eval()
         rewards = []
+        actions = []
         ob = env.reset(args.phase, args.test_case)
         done = False
         last_pos = np.array(robot.get_position())
@@ -133,6 +135,7 @@ def main(args):
             current_pos = np.array(robot.get_position())
             logging.debug('Speed: %.2f', np.linalg.norm(current_pos - last_pos) / robot.time_step)
             last_pos = current_pos
+            actions.append(action)
         gamma = 0.9
         cumulative_reward = sum([pow(gamma, t * robot.time_step * robot.v_pref)
              * reward for t, reward in enumerate(rewards)])
@@ -151,6 +154,19 @@ def main(args):
         if robot.visible and info == 'reach goal':
             human_times = env.get_human_times()
             logging.info('Average time for humans to reach goal: %.2f', sum(human_times) / len(human_times))
+
+        positions = []
+        velocity_rec = []
+        rotation_rec = []
+        for i in range(len(actions)):
+            positions.append(i)
+            action = actions[i]
+            velocity_rec.append(action.v)
+            rotation_rec.append(action.r)
+        plt.plot(positions, velocity_rec, color='r', marker='.', linestyle='dashed')
+        plt.plot(positions, rotation_rec, color='b', marker='.', linestyle='dashed')
+        plt.show()
+        print('finish')
     else:
         explorer.run_k_episodes(env.case_size[args.phase], args.phase, print_failure=True)
         if args.plot_test_scenarios_hist:
@@ -161,11 +177,12 @@ def main(args):
             plt.close()
 
 
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Parse configuration file')
     parser.add_argument('--config', type=str, default=None)
     parser.add_argument('--policy', type=str, default='tree_search_rl')
-    parser.add_argument('-m', '--model_dir', type=str, default='data/1123/tsrl/0')#None
+    parser.add_argument('-m', '--model_dir', type=str, default='data/tsrl10rot/1')#None
     parser.add_argument('--il', default=False, action='store_true')
     parser.add_argument('--rl', default=False, action='store_true')
     parser.add_argument('--gpu', default=False, action='store_true')
