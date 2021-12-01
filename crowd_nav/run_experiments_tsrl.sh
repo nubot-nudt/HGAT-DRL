@@ -1,9 +1,9 @@
 #!/bin/bash
 day=`date +%m%d`
 echo "The Script begin at $day"
-a=0.5
+a=0.2
 b=-0.25
-c=0.25
+c=1.0
 d=1.0
 # Script to reproduce results
 for ((i=0;i<2;i+=1))
