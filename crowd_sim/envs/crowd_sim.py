@@ -132,10 +132,16 @@ class CrowdSim(gym.Env):
                 high=np.array([1, np.pi]),
                 dtype=np.float32
             )
-        else:
+        elif self.robot.kinematics =='unicycle':
             self.action_space = spaces.Box(
                 low=np.array([0, -self.robot.rotation_constraint]),
                 high=np.array([1, self.robot.rotation_constraint]),
+                dtype=np.float32
+            )
+        elif self.robot.kinematics =='differential':
+            self.action_space = spaces.Box(
+                low=np.array([-1.0,-1.0]),
+                high=np.array([1.0,1.0]),
                 dtype=np.float32
             )
         logging.info('rotation constraint: {}'.format(self.robot.rotation_constraint))

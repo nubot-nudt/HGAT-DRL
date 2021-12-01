@@ -5,7 +5,7 @@ import numpy as np
 from numpy.linalg import norm
 import itertools
 from crowd_sim.envs.policy.policy import Policy
-from crowd_sim.envs.utils.action import ActionRot, ActionXY
+from crowd_sim.envs.utils.action import ActionRot, ActionXY, ActionDiff
 
 from crowd_nav.policy.state_predictor import StatePredictor, LinearStatePredictor_batch
 from crowd_nav.policy.graph_model import RGL, GAT_RL
@@ -158,19 +158,37 @@ class TD3RL(Policy):
                     self.actor(state_tensor).squeeze().detach().numpy()
                     + np.random.normal(0, self.max_action * self.expl_noise, size=self.action_dim)
             ).clip(-self.max_action, self.max_action)
-            speed = action[0]
-            theta = action[1]
-            Action = ActionXY(speed * np.cos(theta), speed * np.sin(theta)) \
-                if self.kinematics == 'holonomic' else ActionRot(speed, theta)
+            Action = None
+            if self.kinematics =='holonomic':
+                speed = action[0]
+                theta = action[1]
+                Action = ActionXY(speed*np.cos(theta), speed * np.sin(theta))
+            elif self.kinematics =='unicycle':
+                speed = action[0]
+                theta = action[1]
+                Action = ActionRot(speed, theta)
+            elif self.kinematics == 'differential':
+                Action = ActionDiff(action[0],action[1])
+            else:
+                print('wrong kinematics')
             return Action, torch.tensor(action).float()
         else:
             with torch.no_grad():
                 action = self.actor(state_tensor).squeeze().numpy()
-                speed = action[0]
-                theta = action[1]
-                Action = ActionXY(speed * np.cos(theta), speed * np.sin(theta)) \
-                    if self.kinematics == 'holonomic' else ActionRot(speed, theta)
-            return Action, torch.tensor(action).float()
+                Action = None
+                if self.kinematics == 'holonomic':
+                    speed = action[0]
+                    theta = action[1]
+                    Action = ActionXY(speed * np.cos(theta), speed * np.sin(theta))
+                elif self.kinematics == 'unicycle':
+                    speed = action[0]
+                    theta = action[1]
+                    Action = ActionRot(speed, theta)
+                elif self.kinematics == 'differential':
+                    Action = ActionDiff(action[0], action[1])
+                else:
+                    print('wrong kinematics')
+                return Action, torch.tensor(action).float()
 
     def get_attention_weights(self):
         return self.actor.graph_model.attention_weights
