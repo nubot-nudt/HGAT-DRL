@@ -2,6 +2,7 @@ import os
 import logging
 import copy
 import torch
+import numpy as np
 from tqdm import tqdm
 from crowd_sim.envs.utils.info import *
 
@@ -171,7 +172,11 @@ class Explorer(object):
                 reward = torch.Tensor([rewards[i]]).to(self.device)
                 done = torch.Tensor([dones[i]]).to(self.device)
 
-            if self.target_policy.name == 'ModelPredictiveRL' or self.target_policy.name == 'TreeSearchRL' or self.target_policy.name == 'TD3RL':
+            if self.target_policy.name == 'ModelPredictiveRL' or self.target_policy.name == 'TreeSearchRL':
+                self.memory.push((state[0], state[1], action, value, done, reward, next_state[0], next_state[1]))
+            elif self.target_policy.name == 'TD3RL':
+                state = rotate_state(state)
+                next_state = rotate_state(next_state)
                 self.memory.push((state[0], state[1], action, value, done, reward, next_state[0], next_state[1]))
             else:
                 self.memory.push((state, value, done, reward, next_state))
@@ -190,3 +195,73 @@ def average(input_list):
         return sum(input_list) / len(input_list)
     else:
         return 0
+
+
+def rotate_state(state):
+    """
+    Transform the coordinate to agent-centric.
+    Input tuple include robot state tensor and human state tensor.
+    robot state tensor is of size (batch_size, number, state_length)(for example 100*1*9)
+    human state tensor is of size (batch_size, number, state_length)(for example 100*5*5)
+    """
+    # for robot
+    # 'px', 'py', 'vx', 'vy', 'radius', 'gx', 'gy', 'v_pref', 'theta'
+    #  0     1      2     3      4        5     6      7         8
+    # for human
+    #  'px', 'py', 'vx', 'vy', 'radius'
+    #  0     1      2     3      4
+    assert len(state[0].shape) == 2
+    if state[1] is None:
+        robot_state = state[0]
+        dx = robot_state[:, 5] - robot_state[:, 0]
+        dy = robot_state[:, 6] - robot_state[:, 1]
+        dx = dx.unsqueeze(1)
+        dy = dy.unsqueeze(1)
+        radius_r = robot_state[:, 4].unsqueeze(1)
+        dg = torch.norm(torch.cat([dx, dy], dim=1), 2, dim=1, keepdim=True)
+        rot = torch.atan2(dy, dx)
+        cos_rot = torch.cos(rot)
+        sin_rot = torch.sin(rot)
+        vx = (robot_state[:, 2].unsqueeze(1) * cos_rot +
+              robot_state[:, 3].unsqueeze(1) * sin_rot).reshape((1, -1))
+        vy = (robot_state[:, 3].unsqueeze(1) * cos_rot -
+              robot_state[:, 2].unsqueeze(1) * sin_rot).reshape((1, -1))
+        v_pref = robot_state[:, 7].unsqueeze(1)
+        theta = robot_state[:, 8].unsqueeze(1)
+        px_r = torch.zeros_like(v_pref)
+        py_r = torch.zeros_like(v_pref)
+        new_robot_state = torch.cat((px_r, py_r, vx, vy, radius_r, dg, rot, v_pref, theta), dim=1)
+        new_state = (new_robot_state, None)
+        return new_state
+    else:
+        robot_state = state[0]
+        human_state = state[1]
+        human_num = state[1].shape[0]
+        dx = robot_state[:, 5] - robot_state[:, 0]
+        dy = robot_state[:, 6] - robot_state[:, 1]
+        dx = dx.unsqueeze(1)
+        dy = dy.unsqueeze(1)
+        dg = torch.norm(torch.cat([dx, dy], dim=1), 2, dim=1, keepdim=True)
+        rot = torch.atan2(dy, dx)
+        cos_rot = torch.cos(rot)
+        sin_rot = torch.sin(rot)
+        transform_matrix = torch.cat((cos_rot, -sin_rot, sin_rot, cos_rot), dim=0).reshape(2, 2)
+        a=robot_state[:, 2:4]
+        robot_velocities = torch.mm(robot_state[:, 2:4], transform_matrix)
+        radius_r = robot_state[:, 4].unsqueeze(1)
+        v_pref = robot_state[:, 7].unsqueeze(1)
+        target_heading = torch.zeros_like(radius_r)
+        pos_r = torch.zeros_like(robot_velocities)
+        cur_heading = (robot_state[:, 8].unsqueeze(1) - rot + np.pi) % (2 * np.pi) - np.pi
+        new_robot_state = torch.cat((pos_r, robot_velocities, radius_r, dg, target_heading, v_pref, cur_heading),
+                                    dim=1)
+        human_positions = human_state[:, 0:2] - robot_state[:, 0:2]
+        human_positions = torch.mm(human_positions, transform_matrix)
+        human_velocities = human_state[:, 2:4]
+        human_velocities = torch.mm(human_velocities, transform_matrix)
+        human_radius = human_state[:, 4].unsqueeze(1) + 0.3
+        new_human_state = torch.cat((human_positions, human_velocities, human_radius), dim=1)
+        new_state = (new_robot_state, new_human_state)
+        return new_state
+
+
