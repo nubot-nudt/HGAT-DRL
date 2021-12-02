@@ -6,7 +6,7 @@ b=-0.25
 c=0.25
 d=1.0
 # Script to reproduce results
-for ((i=0;i<3;i+=1))
+for ((i=1;i<3;i+=1))
 do
 	python train.py \
 	--policy td3_rl \

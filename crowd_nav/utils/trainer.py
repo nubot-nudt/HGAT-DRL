@@ -553,8 +553,8 @@ class TD3RLTrainer(object):
         self.freeze_state_predictor = freeze_state_predictor
         self.detach_state_predictor = detach_state_predictor
 
-        policy_noise = 0.1
-        noise_clip = 0.3
+        policy_noise = 0.2
+        noise_clip = 0.2
         policy_freq = 4
         # parameter for TD3
         self.policy_noise = policy_noise
