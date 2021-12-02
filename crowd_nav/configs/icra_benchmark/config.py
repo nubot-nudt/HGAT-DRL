@@ -14,6 +14,8 @@ interval = 500
 v_pref = 1.0
 rotation_constraint = np.pi/6
 kinematics = 'differential'
+# action_space.kinematics = 'holonomic'
+# action_space.kinematics = 'unicycle'
 class BaseEnvConfig(object):
     env = Config()
     env.time_limit = 30
@@ -37,8 +39,8 @@ class BaseEnvConfig(object):
     sim.test_scenario = 'circle_crossing'
     sim.square_width = 10
     sim.circle_radius = 4
-    sim.human_num = 5
-    sim.nonstop_human = True
+    sim.human_num = 10
+    sim.nonstop_human = False
     sim.centralized_planning = True
 
     humans = Config()
@@ -73,8 +75,6 @@ class BasePolicyConfig(object):
     om.om_channel_size = 3
 
     action_space = Config()
-    #action_space.kinematics = 'holonomic'
-    #action_space.kinematics = 'unicycle'
     action_space.kinematics = kinematics
     action_space.speed_samples = 3
     action_space.rotation_samples = 8

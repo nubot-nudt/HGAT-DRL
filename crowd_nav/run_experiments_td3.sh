@@ -17,7 +17,8 @@ do
 	--goal_weight $a \
 	--re_collision $b \
 	--re_arrival $c \
-	--human_num 5
+	--resume \
+	--human_num 10
 
 #	python train.py \
 #	--policy model-predictive-rl \
