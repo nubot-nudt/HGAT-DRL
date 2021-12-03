@@ -23,8 +23,8 @@ class Critic(nn.Module):
     def forward(self, state, action):
         """ Embed state into a latent space. Take the first row of the feature matrix as state representation.
         """
-        assert len(state[0].shape) == 3
-        assert len(state[1].shape) == 3
+
+        assert len(state.size()) == 3
         # only use the feature of robot node as state representation
         state_embedding1 = self.graph_model1(state)[:, 0, :]
         sa1 = torch.cat([state_embedding1, action], 1)

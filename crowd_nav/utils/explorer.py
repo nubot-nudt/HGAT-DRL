@@ -177,7 +177,7 @@ class Explorer(object):
             elif self.target_policy.name == 'TD3RL':
                 state = rotate_state(state)
                 next_state = rotate_state(next_state)
-                self.memory.push((state[0], state[1], action, value, done, reward, next_state[0], next_state[1]))
+                self.memory.push((state, action, value, done, reward, next_state))
             else:
                 self.memory.push((state, value, done, reward, next_state))
 
@@ -213,6 +213,8 @@ def rotate_state(state):
     assert len(state[0].shape) == 2
     if state[1] is None:
         robot_state = state[0]
+        robot_feature_dim = state[0].shape[1]
+        human_feature_dim = 5
         dx = robot_state[:, 5] - robot_state[:, 0]
         dy = robot_state[:, 6] - robot_state[:, 1]
         dx = dx.unsqueeze(1)
@@ -237,6 +239,11 @@ def rotate_state(state):
         robot_state = state[0]
         human_state = state[1]
         human_num = state[1].shape[0]
+        robot_num = state[0].shape[0]
+        robot_feature_dim = robot_state.shape[1]
+        human_feature_dim = human_state.shape[1]
+        robot_zero_feature = torch.zeros([robot_num,human_feature_dim])
+        human_zero_feature = torch.zeros([human_num, robot_feature_dim])
         dx = robot_state[:, 5] - robot_state[:, 0]
         dy = robot_state[:, 6] - robot_state[:, 1]
         dx = dx.unsqueeze(1)
@@ -255,13 +262,16 @@ def rotate_state(state):
         cur_heading = (robot_state[:, 8].unsqueeze(1) - rot + np.pi) % (2 * np.pi) - np.pi
         new_robot_state = torch.cat((pos_r, robot_velocities, radius_r, dg, target_heading, v_pref, cur_heading),
                                     dim=1)
+        new_robot_state = torch.cat((new_robot_state, robot_zero_feature), dim=1)
         human_positions = human_state[:, 0:2] - robot_state[:, 0:2]
         human_positions = torch.mm(human_positions, transform_matrix)
         human_velocities = human_state[:, 2:4]
         human_velocities = torch.mm(human_velocities, transform_matrix)
         human_radius = human_state[:, 4].unsqueeze(1) + 0.3
         new_human_state = torch.cat((human_positions, human_velocities, human_radius), dim=1)
-        new_state = (new_robot_state, new_human_state)
+
+        new_human_state = torch.cat((human_zero_feature, new_human_state), dim=1)
+        new_state = torch.cat((new_robot_state, new_human_state), dim=0)
         return new_state
 
 

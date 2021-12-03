@@ -26,12 +26,23 @@ class Actor(nn.Module):
     def forward(self, state):
         """ Embed state into a latent space. Take the first row of the feature matrix as state representation.
         """
-        assert len(state[0].shape) == 3
-        assert len(state[1].shape) == 3
+        assert len(state.size()) == 3
 
         # only use the feature of robot node as state representation
         state_embedding = self.graph_model(state)[:, 0, :]
         a = self.action_network(state_embedding)
         action = self.action_middle + self.action_amplitude * torch.tanh(a)
         return action
+
+        # def forward(self, state):
+        #     """ Embed state into a latent space. Take the first row of the feature matrix as state representation.
+        #     """
+        #     assert len(state[0].shape) == 3
+        #     assert len(state[1].shape) == 3
+        #
+        #     # only use the feature of robot node as state representation
+        #     state_embedding = self.graph_model(state)[:, 0, :]
+        #     a = self.action_network(state_embedding)
+        #     action = self.action_middle + self.action_amplitude * torch.tanh(a)
+        #     return action
         # return self.max_action * torch.tanh(a)
