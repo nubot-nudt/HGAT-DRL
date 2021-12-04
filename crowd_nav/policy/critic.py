@@ -10,10 +10,10 @@ class Critic(nn.Module):
         super(Critic, self).__init__()
         # Q1 architecture
         self.graph_model1 = graph_model2
-        self.score_network1 = mlp(config.gcn.X_dim + action_dim, [256, 256, 1])
+        self.score_network1 = mlp(config.gcn.X_dim + 14 + action_dim, [256, 256, 1])
         # Q2 architecture
         self.graph_model2 = graph_model2
-        self.score_network2 = mlp(config.gcn.X_dim + action_dim, [256, 256, 1])
+        self.score_network2 = mlp(config.gcn.X_dim + 14 + action_dim, [256, 256, 1])
         self.action_dim = action_dim
 
     def set_action(self, action_dim):

@@ -8,7 +8,7 @@ class Actor(nn.Module):
     def __init__(self, config, graph_model, action_dim, max_action, min_action):
         super(Actor, self).__init__()
         self.graph_model = graph_model
-        self.action_network = mlp(config.gcn.X_dim, [256, action_dim])
+        self.action_network = mlp(config.gcn.X_dim + 14, [256, action_dim])
         self.max_action = None
         self.min_action = None
         self.action_dim = action_dim

@@ -318,7 +318,7 @@ class PG_GAT_RL(nn.Module):
         self.gatinput = GraphAttentionLayer2(self.state_dim, self.X_dim)
         self.gat0 = GraphAttentionLayer2(self.X_dim, self.X_dim)
         self.gat1 = GraphAttentionLayer2(self.X_dim, self.X_dim)
-
+        self.gat2 = GraphAttentionLayer2(self.X_dim, self.X_dim)
         logging.info('Similarity_func: {}'.format(self.similarity_function))
         logging.info('Layerwise_graph: {}'.format(self.layerwise_graph))
         logging.info('Skip_connection: {}'.format(self.skip_connection))
@@ -368,10 +368,12 @@ class PG_GAT_RL(nn.Module):
                 H1, _ = self.gatinput(state, adj)
             H2, _ = self.gat0(H1, adj)
             H3, _ = self.gat1(H2, adj)
+            H4, _ = self.gat2(H3, adj)
             if self.skip_connection:
-                output = H1 + H2 + H3
+                output = H1 + H2 + H3 + H4
             else:
                 output = H2
+            output = torch.cat((state, output), dim=2)
             return output
 
 
