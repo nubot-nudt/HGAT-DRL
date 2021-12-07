@@ -208,6 +208,7 @@ class CentralizedORCA(ORCA):
             self.sim.addObstacle([(wall.sx, wall.sy),(wall.ex, wall.ey)])
             # self.sim.addObstacle(self.walls[i])
         self.sim.doStep()
-        actions = [ActionXY(*self.sim.getAgentVelocity(i)) for i in range(len(state))]
+        actions = [ActionXY(0.0, 0.0) for i in range(len(state))]
+        # actions = [ActionXY(*self.sim.getAgentVelocity(i)) for i in range(len(state))]
 
         return actions
