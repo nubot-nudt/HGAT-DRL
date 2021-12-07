@@ -39,7 +39,7 @@ class BaseEnvConfig(object):
     sim.test_scenario = 'circle_crossing'
     sim.square_width = 10
     sim.circle_radius = 4
-    sim.human_num = 10
+    sim.human_num = 5
     sim.nonstop_human = False
     sim.centralized_planning = True
 
@@ -67,7 +67,7 @@ class BaseEnvConfig(object):
 
 class BasePolicyConfig(object):
     rl = Config()
-    rl.gamma = 0.9
+    rl.gamma = 0.95
 
     om = Config()
     om.cell_num = 4

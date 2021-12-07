@@ -267,14 +267,14 @@ def main(args):
         nav_time__in_last_interval = nav_time__in_last_interval + nav_time
         discom_time_in_last_interval = discom_time_in_last_interval + discom_time
         total_time_in_last_interval = total_time_in_last_interval + total_time
-        interval = 100
+        interval = 50
         if eps_count % interval == 0:
-            reward_rec.append(reward_in_last_interval/100.0)
-            return_rec.append(return_in_last_interval/100.0)
-            discom_tim_rec.append(discom_time_in_last_interval/100.0)
-            nav_time_rec.append(nav_time__in_last_interval/100.0)
+            reward_rec.append(reward_in_last_interval/interval)
+            return_rec.append(return_in_last_interval/interval)
+            discom_tim_rec.append(discom_time_in_last_interval/interval)
+            nav_time_rec.append(nav_time__in_last_interval/interval)
             total_time_rec.append(total_time_in_last_interval/100.0)
-            logging.info('Train in episode %d reward in last 100 episodes %f %f %f %f %f', eps_count, reward_rec[-1],
+            logging.info('Train in episode %d reward in last %f episodes %f %f %f %f %f', interval, eps_count, reward_rec[-1],
                          return_rec[-1], discom_tim_rec[-1], nav_time_rec[-1], total_time_rec[-1])
             print("%f %f %f %f %f" % (reward_rec[-1], return_rec[-1], discom_tim_rec[-1], nav_time_rec[-1],
                                      total_time_rec[-1]), file=fw)

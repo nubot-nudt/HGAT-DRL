@@ -608,10 +608,10 @@ class TD3RLTrainer(object):
         for data in self.data_loader:
             self.total_iteration += 1
             batch_num = int(self.data_loader.sampler.num_samples // self.batch_size)
-            robot_states, human_states, actions, _, done, rewards, next_robot_states, next_human_states = data
+            cur_states, actions, _, done, rewards, next_states = data
             with torch.no_grad():
-                next_states = (next_robot_states, next_human_states)
-                cur_states = (robot_states, human_states)
+                # next_states = (next_robot_states, next_human_states)
+                # cur_states = (robot_states, human_states)
                 # Select action according to policy and add clipped noise
                 # 在策略优化过程中，往往会添加噪声，使得训练的结果更加地平滑
                 noise = (

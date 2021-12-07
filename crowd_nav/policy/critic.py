@@ -10,10 +10,10 @@ class Critic(nn.Module):
         super(Critic, self).__init__()
         # Q1 architecture
         self.graph_model1 = graph_model2
-        self.score_network1 = mlp(config.gcn.X_dim + action_dim, [256, 256, 1])
+        self.score_network1 = mlp(config.gcn.X_dim + 14 + action_dim, [256, 256, 1])
         # Q2 architecture
         self.graph_model2 = graph_model2
-        self.score_network2 = mlp(config.gcn.X_dim + action_dim, [256, 256, 1])
+        self.score_network2 = mlp(config.gcn.X_dim + 14 + action_dim, [256, 256, 1])
         self.action_dim = action_dim
 
     def set_action(self, action_dim):
@@ -23,8 +23,8 @@ class Critic(nn.Module):
     def forward(self, state, action):
         """ Embed state into a latent space. Take the first row of the feature matrix as state representation.
         """
-        assert len(state[0].shape) == 3
-        assert len(state[1].shape) == 3
+
+        assert len(state.size()) == 3
         # only use the feature of robot node as state representation
         state_embedding1 = self.graph_model1(state)[:, 0, :]
         sa1 = torch.cat([state_embedding1, action], 1)
