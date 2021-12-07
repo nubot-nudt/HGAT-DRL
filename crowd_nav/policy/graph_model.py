@@ -375,7 +375,6 @@ class PG_GAT_RL(nn.Module):
                 output = H1 + H2
             else:
                 output = H2
-            output = torch.cat((state, output), dim=2)
             return output
 
 class GATMultihead(nn.Module):
