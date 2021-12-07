@@ -68,7 +68,6 @@ class BaseEnvConfig(object):
 class BasePolicyConfig(object):
     rl = Config()
     rl.gamma = 0.95
-
     om = Config()
     om.cell_num = 4
     om.cell_size = 1
@@ -133,6 +132,9 @@ class BasePolicyConfig(object):
     gnn.edge_dim = 32
     gnn.planning_dims = [150, 100, 100, 1]
 
+    gat = Config()
+    gat.obstacle_num = 3
+    gat.wall_num = 4
     def __init__(self, debug=False):
         pass
 

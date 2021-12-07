@@ -332,9 +332,9 @@ class PG_GAT_RL(nn.Module):
 
     def compute_adjectory_matrix(self, state):
         robot_num = 1
-        human_num = 5
         obstacle_num = 3
         wall_num = 4
+        human_num = state.shape[1] - robot_num - obstacle_num - wall_num
         Num = robot_num + human_num + obstacle_num + wall_num
         assert state.shape[1] == Num
         adj = torch.zeros((Num, Num))
