@@ -246,7 +246,7 @@ class CrowdSim(gym.Env):
                     min_dist = human.radius + agent.radius + self.discomfort_dist
                     # if norm((px - agent.px, py - agent.py)) == 0.0:
                     #     break
-                    if norm((gx - agent.gx, gy - agent.gy))<min_dist:
+                    if norm((gx - agent.gx, gy - agent.gy)) < min_dist:
                         collide = True
                         break
                 if not collide:
@@ -261,17 +261,14 @@ class CrowdSim(gym.Env):
             obstacle.sample_random_attributes()
         else:
             obstacle.radius = 0.3
-        if np.random.random() > 0.5:
-            sign = -1
-        else:
-            sign = 1
         while True:
-            px = np.random.random() * self.square_width * 0.5 * sign
-            py = (np.random.random() - 0.5) * self.square_width
+            px = (np.random.random() - 0.5) * self.square_width * 0.4
+            py = (np.random.random() - 0.5) * self.circle_radius * 2
             obstacle.set(px, py, obstacle.radius)
             collide = False
             for agent in [self.robot] + self.humans:
-                if norm((px - agent.px, py - agent.py)) < obstacle.radius + agent.radius + self.discomfort_dist:
+                if norm((px - agent.px, py - agent.py)) < obstacle.radius + agent.radius + 0.2 or \
+                        norm((px - agent.gx, py - agent.gy)) < obstacle.radius + agent.radius + 0.2:
                     collide = True
                     break
             if not collide:
@@ -663,7 +660,7 @@ class CrowdSim(gym.Env):
             fig, ax = plt.subplots(figsize=(7, 7))
             ax.tick_params(labelsize=16)
             ax.set_xlim(-self.panel_width/2, self.panel_width/2)
-            ax.set_ylim(-self.panel_height/2, self.panel_height/2)
+            ax.set_ylim(-self.panel_height/2-0.5, self.panel_height/2+0.5)
             ax.set_xlabel('x(m)', fontsize=16)
             ax.set_ylabel('y(m)', fontsize=16)
 
@@ -688,7 +685,15 @@ class CrowdSim(gym.Env):
                 #                             color=human_colors[i],
                 #                             marker='s', linestyle='None', markersize=10)
                 # ax.add_artist(human_start)
+            for i in range(len(self.obstacles)):
+                obstacle = self.obstacles[i]
+                obstacle_mark = plt.Circle(obstacle.get_position(), obstacle.radius, fill=True, color='black')
+                ax.add_artist(obstacle_mark)
 
+            for i in range(len(self.walls)):
+                wall = self.walls[i]
+                wall_line = mlines.Line2D([wall.sx, wall.ex], [wall.sy, wall.ey], color='black', marker='.',linestyle='solid', markersize=5)
+                ax.add_artist(wall_line)
             robot_positions = [self.states[i][0].position for i in range(len(self.states))]
             human_positions = [[self.states[i][1][j].position for j in range(len(self.humans))]
                                for i in range(len(self.states))]
@@ -733,7 +738,7 @@ class CrowdSim(gym.Env):
             fig, ax = plt.subplots(figsize=(7, 7))
             ax.tick_params(labelsize=12)
             ax.set_xlim(-self.panel_width/2, self.panel_width/2)
-            ax.set_ylim(-self.panel_height/2, self.panel_height/2)
+            ax.set_ylim(-self.panel_height/2-0.5, self.panel_height/2+0.5)
             ax.set_xlabel('x(m)', fontsize=14)
             ax.set_ylabel('y(m)', fontsize=14)
             show_human_start_goal = False
@@ -763,6 +768,15 @@ class CrowdSim(gym.Env):
                                  color='red', marker='*', linestyle='None',
                                  markersize=15, label='Goal')
             robot = plt.Circle(robot_positions[0], self.robot.radius, fill=False, color=robot_color)
+            for i in range(len(self.obstacles)):
+                obstacle = self.obstacles[i]
+                obstacle_mark = plt.Circle(obstacle.get_position(), obstacle.radius, fill=True, color='black')
+                ax.add_artist(obstacle_mark)
+
+            for i in range(len(self.walls)):
+                wall = self.walls[i]
+                wall_line = mlines.Line2D([wall.sx, wall.ex], [wall.sy, wall.ey], color='black', marker='.',linestyle='solid', markersize=5)
+                ax.add_artist(wall_line)
             # sensor_range = plt.Circle(robot_positions[0], self.robot_sensor_range, fill=False, ls='dashed')
             ax.add_artist(robot)
             ax.add_artist(goal)
