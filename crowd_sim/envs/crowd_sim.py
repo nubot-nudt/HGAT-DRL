@@ -61,8 +61,8 @@ class CrowdSim(gym.Env):
         self.centralized_planner = None
         self.test_changing_size = False
 
-        self.static_obstacle_num = None
-        self.wall_num = None
+        self.static_obstacle_num = 3
+        self.wall_num = 4
 
         # for visualization
         self.states = None
@@ -256,28 +256,27 @@ class CrowdSim(gym.Env):
         return human
 
     def generate_static_obstcale(self, obstacle=None):
-        if obstacle is None:
-            obstacle = Obstacle(self.config)
-            if self.randomize_attributes:
-                obstacle.sample_random_attributes()
-            else:
-                obstacle.radius = 0.3
-            if np.random.random() > 0.5:
-                sign = -1
-            else:
-                sign = 1
-            while True:
-                px = np.random.random() * self.square_width * 0.5 * sign
-                py = (np.random.random() - 0.5) * self.square_width
-                collide = False
-                for agent in [self.robot] + self.humans:
-                    if norm((px - agent.px, py - agent.py)) < obstacle.radius + agent.radius + self.discomfort_dist:
-                        collide = True
-                        break
-                if not collide:
+        obstacle = Obstacle(self.config)
+        if self.randomize_attributes:
+            obstacle.sample_random_attributes()
+        else:
+            obstacle.radius = 0.3
+        if np.random.random() > 0.5:
+            sign = -1
+        else:
+            sign = 1
+        while True:
+            px = np.random.random() * self.square_width * 0.5 * sign
+            py = (np.random.random() - 0.5) * self.square_width
+            obstacle.set(px, py, obstacle.radius)
+            collide = False
+            for agent in [self.robot] + self.humans:
+                if norm((px - agent.px, py - agent.py)) < obstacle.radius + agent.radius + self.discomfort_dist:
+                    collide = True
                     break
-                obstacle.set(px, py, obstacle.radius)
-            return obstacle
+            if not collide:
+                break
+        return obstacle
 
 
     def generate_wall(self, start_position, end_position, wall=None):
@@ -382,7 +381,10 @@ class CrowdSim(gym.Env):
 
         # get current observation
         if self.robot.sensor == 'coordinates':
-            ob = self.compute_observation_for(self.robot)
+            ob_human = self.compute_observation_for(self.robot)
+            ob_obstacles = [obstacle.get_observable_state() for i, obstacle in enumerate(self.obstacles)]
+            ob_walls = [wall.get_observable_state() for i, wall in enumerate(self.walls)]
+            ob = (ob_human, ob_obstacles, ob_walls)
         elif self.robot.sensor == 'RGB':
             raise NotImplementedError
 
@@ -475,6 +477,29 @@ class CrowdSim(gym.Env):
                     dmin = closest_dist
                 if closest_dist < self.discomfort_dist:
                     safety_penalty = safety_penalty + (closest_dist - self.discomfort_dist)
+                    num_discom = num_discom + 1
+            for i, obstacle in enumerate(self.obstacles):
+                px = obstacle.px - self.robot.px
+                py = obstacle.py - self.robot.py
+                ex = obstacle.px - end_robot_x
+                ey = obstacle.py - end_robot_y
+                closest_dist = point_to_segment_dist(px, py, ex, ey, 0, 0) - obstacle.radius - self.robot.radius
+                if closest_dist < 0:
+                    collision = True
+                    logging.debug("Collision: distance between robot and obstacle{} is {:.2E} at time {:.2E}".format(i,
+                                   closest_dist, self.global_time))
+                    num_discom = num_discom + 1
+
+            for i, wall in enumerate(self.walls):
+                px = wall.sx - self.robot.px
+                py = wall.sy - self.robot.py
+                ex = wall.ex - end_robot_x
+                ey = wall.ey - end_robot_y
+                closest_dist = point_to_segment_dist(px, py, ex, ey, 0, 0) - self.robot.radius
+                if closest_dist < 0:
+                    collision = True
+                    logging.debug("Collision: distance between robot and wall {} is {:.2E} at time {:.2E}".format(i,
+                                   closest_dist, self.global_time))
                     num_discom = num_discom + 1
         else:
             for i, human in enumerate(self.humans):
@@ -579,12 +604,18 @@ class CrowdSim(gym.Env):
 
             # compute the observation
             if self.robot.sensor == 'coordinates':
-                ob = self.compute_observation_for(self.robot)
+                ob_human = [human.get_next_observable_state(action) for human, action in zip(self.humans, human_actions)]
+                ob_obstacles = [obstacle.get_observable_state() for i, obstacle in enumerate(self.obstacles)]
+                ob_walls = [wall.get_observable_state() for i, wall in enumerate(self.walls)]
+                ob = (ob_human, ob_obstacles, ob_walls)
             elif self.robot.sensor == 'RGB':
                 raise NotImplementedError
         else:
             if self.robot.sensor == 'coordinates':
-                ob = [human.get_next_observable_state(action) for human, action in zip(self.humans, human_actions)]
+                ob_human = [human.get_next_observable_state(action) for human, action in zip(self.humans, human_actions)]
+                ob_obstacles = [obstacle.get_observable_state() for i, obstacle in enumerate(self.obstacles)]
+                ob_walls = [wall.get_observable_state() for i, wall in enumerate(self.walls)]
+                ob = (ob_human, ob_obstacles, ob_walls)
             elif self.robot.sensor == 'RGB':
                 raise NotImplementedError
 

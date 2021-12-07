@@ -79,6 +79,7 @@ class Policy(object):
         robot_state_tensor = torch.Tensor([state.robot_state.to_tuple()]).to(self.device)
         human_states_tensor = torch.Tensor([human_state.to_tuple() for human_state in state.human_states]). \
             to(self.device)
-
-        return robot_state_tensor, human_states_tensor
+        obstacle_states_tensor = torch.Tensor([obstacle_state.to_tuple() for obstacle_state in state.obstacle_states])
+        wall_states_tensor = torch.Tensor([wall_state.to_tuple() for wall_state in state.wall_states])
+        return robot_state_tensor, human_states_tensor, obstacle_states_tensor, wall_states_tensor
 

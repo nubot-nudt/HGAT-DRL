@@ -1,7 +1,7 @@
 import abc
 import logging
 import numpy as np
-from crowd_sim.envs.utils.state import ObservableState
+from crowd_sim.envs.utils.state import WallState
 
 
 class Wall(object):
@@ -26,7 +26,7 @@ class Wall(object):
              self.sx, self.sy, self.ex, self.ey))
 
     def get_observable_state(self):
-        return ObservableState(self.sx, self.sy, self.ex, self.ey)
+        return WallState(self.sx, self.sy, self.ex, self.ey)
 
     def get_full_state(self):
         return self.get_observable_state()

@@ -1,7 +1,7 @@
 import abc
 import logging
 import numpy as np
-from crowd_sim.envs.utils.state import ObservableState
+from crowd_sim.envs.utils.state import ObstacleState
 
 
 class Obstacle(object):
@@ -32,7 +32,7 @@ class Obstacle(object):
             self.radius = radius
 
     def get_observable_state(self):
-        return ObservableState(self.px, self.py, self.radius)
+        return ObstacleState(self.px, self.py, self.radius)
 
     def get_full_state(self):
         return self.get_observable_state()

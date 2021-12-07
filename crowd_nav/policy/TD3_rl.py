@@ -208,6 +208,12 @@ class TD3RL(Policy):
         # for human
         #  'px', 'py', 'vx', 'vy', 'radius'
         #  0     1      2     3      4
+        # for obstacle
+        # 'px', 'py', 'radius'
+        #  0     1     2
+        # for wall
+        # 'sx', 'sy', 'ex', 'ey'
+        #  0     1     2     3
         assert len(state[0].shape) == 2
         if state[1] is None:
             robot_state = state[0]
@@ -236,12 +242,22 @@ class TD3RL(Policy):
         else:
             robot_state = state[0]
             human_state = state[1]
-            human_num = state[1].shape[0]
-            robot_num = state[0].shape[0]
+            obstacle_state = state[2]
+            wall_state = state[3]
+            human_num = human_state.shape[0]
+            robot_num = robot_state.shape[0]
+            obstacle_num = obstacle_state.shape[0]
+            wall_num = wall_state.shape[1]
             robot_feature_dim = robot_state.shape[1]
             human_feature_dim = human_state.shape[1]
-            robot_zero_feature = torch.zeros([robot_num, human_feature_dim])
-            human_zero_feature = torch.zeros([human_num, robot_feature_dim])
+            obstacle_feature_dim = obstacle_state.shape[1]
+            wall_feature_dim = wall_state.shape[1]
+            robot_zero_feature = torch.zeros([robot_num, human_feature_dim + obstacle_feature_dim + wall_feature_dim])
+            human_zero_feature1 = torch.zeros([human_num, robot_feature_dim])
+            human_zero_feature2 = torch.zeros([human_num, obstacle_feature_dim + wall_feature_dim])
+            obstacle_zero_feature1 = torch.zeros([obstacle_num, robot_feature_dim + human_feature_dim])
+            obstacle_zero_feature2 = torch.zeros([obstacle_num, wall_feature_dim])
+            wall_zero_feature = torch.zeros([wall_num, robot_feature_dim + human_feature_dim + obstacle_feature_dim])
             dx = robot_state[:, 5] - robot_state[:, 0]
             dy = robot_state[:, 6] - robot_state[:, 1]
             dx = dx.unsqueeze(1)
@@ -261,13 +277,27 @@ class TD3RL(Policy):
             new_robot_state = torch.cat((pos_r, robot_velocities, radius_r, dg, target_heading, v_pref, cur_heading),
                                         dim=1)
             new_robot_state = torch.cat((new_robot_state, robot_zero_feature), dim=1)
+
             human_positions = human_state[:, 0:2] - robot_state[:, 0:2]
             human_positions = torch.mm(human_positions, transform_matrix)
             human_velocities = human_state[:, 2:4]
             human_velocities = torch.mm(human_velocities, transform_matrix)
             human_radius = human_state[:, 4].unsqueeze(1) + 0.3
             new_human_state = torch.cat((human_positions, human_velocities, human_radius), dim=1)
+            new_human_state = torch.cat((human_zero_feature1, new_human_state, human_zero_feature2), dim=1)
 
-            new_human_state = torch.cat((human_zero_feature, new_human_state), dim=1)
-            new_state = torch.cat((new_robot_state, new_human_state), dim=0)
+            obstacle_positions = obstacle_state[:, 0:2] - robot_state[:, 0:2]
+            obstacle_positions = torch.mm(obstacle_positions, transform_matrix)
+            obstacle_radius = obstacle_state[:, 2].unsqueeze(1) + 0.3
+            new_obstacle_states = torch.cat((obstacle_positions, obstacle_radius), dim=1)
+            new_obstacle_states = torch.cat((obstacle_zero_feature1, new_obstacle_states, obstacle_zero_feature2), dim=1)
+
+            wall_start_positions = wall_state[:, 0:2] - robot_state[:, 0:2]
+            wall_start_positions = torch.mm(wall_start_positions, transform_matrix)
+            wall_end_positions = wall_state[:, 2:4] - robot_state[:, 0:2]
+            wall_end_positions = torch.mm(wall_end_positions, transform_matrix)
+            new_wall_states = torch.cat((wall_start_positions, wall_end_positions), dim=1)
+            new_wall_states = torch.cat((new_wall_states, wall_zero_feature), dim=1)
+
+            new_state = torch.cat((new_robot_state, new_human_state, new_obstacle_states, new_wall_states), dim=0)
             return new_state

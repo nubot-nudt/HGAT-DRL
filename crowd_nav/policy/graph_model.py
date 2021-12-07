@@ -310,7 +310,9 @@ class PG_GAT_RL(nn.Module):
         self.similarity_function = similarity_function
         self.robot_state_dim = robot_state_dim
         self.human_state_dim = human_state_dim
-        self.state_dim = self.robot_state_dim + self.human_state_dim
+        self.obstacle_state_dim = 3
+        self.wall_state_dim = 4
+        self.state_dim = self.robot_state_dim + self.human_state_dim + self.obstacle_state_dim + self.wall_state_dim
         self.num_layer = num_layer
         self.X_dim = X_dim
         self.hidden_dim = 32

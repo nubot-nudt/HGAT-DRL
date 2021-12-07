@@ -127,7 +127,7 @@ class Agent(object):
     def compute_position(self, action, delta_time):
         assert self.time_step == delta_time
         self.check_validity(action)
-        if self.kinematics == 'kilonomic' :
+        if self.kinematics == 'holonomic' :
             px = self.px + action.vx * self.time_step
             py = self.py + action.vy * self.time_step
         elif self.kinematics == 'differential':
