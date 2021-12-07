@@ -313,11 +313,11 @@ class PG_GAT_RL(nn.Module):
         self.state_dim = self.robot_state_dim + self.human_state_dim
         self.num_layer = num_layer
         self.X_dim = X_dim
-        self.hidden_dim = 16
+        self.hidden_dim = 32
         self.layerwise_graph = layerwise_graph
         self.skip_connection = skip_connection
-        self.gatinput = GATMultihead(self.state_dim, self.hidden_dim, self.X_dim, 2)
-        self.gat0 = GATMultihead(self.X_dim, self.hidden_dim, self.X_dim, 2)
+        self.gatinput = GATMultihead(self.state_dim, self.hidden_dim, self.X_dim, 4)
+        self.gat0 = GATMultihead(self.X_dim, self.hidden_dim, self.X_dim, 1)
         # self.gat1 = GATMultihead(self.X_dim, self.hidden_dim, self.X_dim, 4)
         # self.gat2 = GraphAttentionLayer2(self.X_dim, self.X_dim)
         logging.info('Similarity_func: {}'.format(self.similarity_function))

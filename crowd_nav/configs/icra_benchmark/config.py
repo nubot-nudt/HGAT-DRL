@@ -67,7 +67,7 @@ class BaseEnvConfig(object):
 
 class BasePolicyConfig(object):
     rl = Config()
-    rl.gamma = 0.9
+    rl.gamma = 0.95
 
     om = Config()
     om.cell_num = 4

@@ -192,8 +192,8 @@ class TD3RL(Policy):
                     print('wrong kinematics')
                 return Action, torch.tensor(action).float()
 
-    def get_attention_weights(self):
-        return self.actor.graph_model.attention_weights
+    # def get_attention_weights(self):
+    #     return self.actor.graph_model.attention_weights
 
     def rotate_state(self, state):
         """
