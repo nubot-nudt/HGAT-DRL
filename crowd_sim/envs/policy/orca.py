@@ -171,6 +171,14 @@ class CentralizedORCA(ORCA):
         self.sampling = None
         self.rotation_constraint = None
         self.time_step = 0.25
+        self.obstacles = None
+        self.walls = None
+
+    def set_static_obstacles(self, obstacles):
+        self.obstacles = obstacles
+
+    def set_walls(self, walls):
+        self.walls = walls
 
     def predict(self, state):
         """ Centralized planning for all agents """
@@ -195,7 +203,10 @@ class CentralizedORCA(ORCA):
             speed = np.linalg.norm(velocity)
             pref_vel = velocity / speed if speed > 1 else velocity
             self.sim.setAgentPrefVelocity(i, (pref_vel[0], pref_vel[1]))
-
+        for i in range(len(self.walls)):
+            wall = self.walls[i]
+            self.sim.addObstacle([(wall.sx, wall.sy),(wall.ex, wall.ey)])
+            # self.sim.addObstacle(self.walls[i])
         self.sim.doStep()
         actions = [ActionXY(*self.sim.getAgentVelocity(i)) for i in range(len(state))]
 

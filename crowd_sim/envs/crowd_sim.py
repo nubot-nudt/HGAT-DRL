@@ -13,6 +13,8 @@ from crowd_sim.envs.policy.policy_factory import policy_factory
 from crowd_sim.envs.utils.state import tensor_to_joint_state, JointState
 from crowd_sim.envs.utils.action import ActionRot, ActionDiff
 from crowd_sim.envs.utils.human import Human
+from crowd_sim.envs.utils.obstacle import Obstacle
+from crowd_sim.envs.utils.wall import Wall
 from crowd_sim.envs.utils.info import *
 from crowd_sim.envs.utils.utils import point_to_segment_dist
 
@@ -32,6 +34,8 @@ class CrowdSim(gym.Env):
         self.time_step = None
         self.robot = None
         self.humans = None
+        self.obstacles = None
+        self.walls = None
         self.global_time = None
         self.robot_sensor_range = None
         # reward function
@@ -56,6 +60,9 @@ class CrowdSim(gym.Env):
         self.centralized_planning = None
         self.centralized_planner = None
         self.test_changing_size = False
+
+        self.static_obstacle_num = None
+        self.wall_num = None
 
         # for visualization
         self.states = None
@@ -103,6 +110,8 @@ class CrowdSim(gym.Env):
         self.square_width = config.sim.square_width
         self.circle_radius = config.sim.circle_radius
         self.human_num = config.sim.human_num
+        self.static_obstacle_num = 3
+        self.wall_num = 4
 
         self.nonstop_human = config.sim.nonstop_human
         self.centralized_planning = config.sim.centralized_planning
@@ -246,6 +255,37 @@ class CrowdSim(gym.Env):
             human.set(px, py, gx, gy, 0, 0, 0)
         return human
 
+    def generate_static_obstcale(self, obstacle=None):
+        if obstacle is None:
+            obstacle = Obstacle(self.config)
+            if self.randomize_attributes:
+                obstacle.sample_random_attributes()
+            else:
+                obstacle.radius = 0.3
+            if np.random.random() > 0.5:
+                sign = -1
+            else:
+                sign = 1
+            while True:
+                px = np.random.random() * self.square_width * 0.5 * sign
+                py = (np.random.random() - 0.5) * self.square_width
+                collide = False
+                for agent in [self.robot] + self.humans:
+                    if norm((px - agent.px, py - agent.py)) < obstacle.radius + agent.radius + self.discomfort_dist:
+                        collide = True
+                        break
+                if not collide:
+                    break
+                obstacle.set(px, py, obstacle.radius)
+            return obstacle
+
+
+    def generate_wall(self, start_position, end_position, wall=None):
+        wall = Wall(self.config)
+        wall.set_position(start_position, end_position)
+        return wall
+
+
     def reset(self, phase='test', test_case=None):
         """
         Set px, py, gx, gy, vx, vy, theta for robot and humans
@@ -291,6 +331,18 @@ class CrowdSim(gym.Env):
                         self.humans.append(self.generate_human())
                 else:
                     self.humans.append(self.generate_human(square=True))
+
+            self.obstacles = []
+            for i in range(self.static_obstacle_num):
+                self.obstacles.append(self.generate_static_obstcale())
+
+            room_width = self.circle_radius * 2
+            room_length = self.square_width
+            self.walls = []
+            wall_vertex = ([-room_width/2, -room_length/2], [room_width/2, -room_length/2], [room_width/2, room_length/2],
+                           [-room_width/2, room_length/2], [-room_width/2, -room_length/2])
+            for i in range(len(wall_vertex)-1):
+                self.walls.append(self.generate_wall(wall_vertex[i], wall_vertex[i+1]))
 
             # case_counter is always between 0 and case_size[phase]
             self.case_counter[phase] = (self.case_counter[phase] + 1) % self.case_size[phase]
@@ -345,6 +397,8 @@ class CrowdSim(gym.Env):
         """
         if self.centralized_planning:
             agent_states = [human.get_full_state() for human in self.humans]
+            self.centralized_planner.set_walls(self.walls)
+            self.centralized_planner.set_static_obstacles(self.obstacles)
             if self.robot.visible:
                 agent_states.append(self.robot.get_full_state())
                 human_actions = self.centralized_planner.predict(agent_states)[:-1]

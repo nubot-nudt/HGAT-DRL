@@ -1,0 +1,48 @@
+import abc
+import logging
+import numpy as np
+from crowd_sim.envs.utils.state import ObservableState
+
+
+class Obstacle(object):
+    def __init__(self, config):
+        """
+        Base class for robot and human. Have the physical attributes of an agent.
+
+        """
+        self.radius = 0.3
+        self.px = None
+        self.py = None
+
+    def print_info(self):
+        logging.info('obstacle locates at {} and {}'.format(
+             self.px, self.py))
+
+    def sample_random_attributes(self):
+        """
+        Sample agent radius and v_pref attribute from certain distribution
+        :return:
+        """
+        self.radius = np.random.uniform(0.3, 0.5)
+
+    def set(self, px, py, radius=None):
+        self.px = px
+        self.py = py
+        if radius is not None:
+            self.radius = radius
+
+    def get_observable_state(self):
+        return ObservableState(self.px, self.py, self.radius)
+
+    def get_full_state(self):
+        return self.get_observable_state()
+
+    def get_position(self):
+        return self.px, self.py
+
+    def set_position(self, position):
+        self.px = position[0]
+        self.py = position[1]
+
+
+
