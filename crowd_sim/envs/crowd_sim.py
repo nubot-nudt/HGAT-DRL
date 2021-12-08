@@ -468,13 +468,14 @@ class CrowdSim(gym.Env):
                 closest_dist = point_to_segment_dist(px, py, ex, ey, 0, 0) - human.radius - self.robot.radius
                 if closest_dist < 0:
                     collision = True
-                    logging.debug("Collision: distance between robot and p{} is {:.2E} at time {:.2E}".format(human.id,
+                    logging.debug("Collision: distance between robot and pedestrian{} is {:.2E} at time {:.2E}".format(human.id,
                                    closest_dist, self.global_time))
                 if closest_dist < dmin:
                     dmin = closest_dist
                 if closest_dist < self.discomfort_dist:
                     safety_penalty = safety_penalty + (closest_dist - self.discomfort_dist)
                     num_discom = num_discom + 1
+
             for i, obstacle in enumerate(self.obstacles):
                 px = obstacle.px - self.robot.px
                 py = obstacle.py - self.robot.py

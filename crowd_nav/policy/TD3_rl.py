@@ -297,7 +297,7 @@ class TD3RL(Policy):
             wall_end_positions = wall_state[:, 2:4] - robot_state[:, 0:2]
             wall_end_positions = torch.mm(wall_end_positions, transform_matrix)
             new_wall_states = torch.cat((wall_start_positions, wall_end_positions), dim=1)
-            new_wall_states = torch.cat((new_wall_states, wall_zero_feature), dim=1)
+            new_wall_states = torch.cat((wall_zero_feature, new_wall_states), dim=1)
 
             new_state = torch.cat((new_robot_state, new_human_state, new_obstacle_states, new_wall_states), dim=0)
             return new_state
