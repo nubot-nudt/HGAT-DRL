@@ -40,7 +40,8 @@ class BaseEnvConfig(object):
     sim.square_width = 10
     sim.circle_radius = 4
     sim.human_num = 2
-    sim.nonstop_human = False
+    sim.nonstop_human = True
+
     sim.centralized_planning = True
 
     humans = Config()
@@ -153,7 +154,7 @@ class BaseTrainConfig(object):
 
     train = Config()
     train.rl_train_epochs = 1
-    train.rl_learning_rate = 0.001
+    train.rl_learning_rate = 0.002
     # number of batches to train at the end of training episode il_episodes
     train.train_batches = 50
     # training episodes in outer loop
