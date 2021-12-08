@@ -553,7 +553,7 @@ class TD3RLTrainer(object):
         self.freeze_state_predictor = freeze_state_predictor
         self.detach_state_predictor = detach_state_predictor
 
-        policy_noise = 0.2
+        policy_noise = 0.1
         noise_clip = 0.2
         policy_freq = 4
         # parameter for TD3
@@ -562,9 +562,9 @@ class TD3RLTrainer(object):
         self.policy_freq = policy_freq
         self.action_dim = policy.action_dim
         self.max_action = policy.max_action
-        self.tau = 0.001
+        self.tau = 0.002
         # for value update
-        self.gamma = 0.9
+        self.gamma = 0.95
         self.time_step = 0.25
         self.v_pref = 1
         self.discount = pow(self.gamma,self.time_step*self.v_pref)

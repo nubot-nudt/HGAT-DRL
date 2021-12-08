@@ -318,7 +318,7 @@ class PG_GAT_RL(nn.Module):
         self.skip_connection = skip_connection
         self.encoder = mlp(self.state_dim, [64, self.X_dim], last_relu=True)
         self.gatinput = GATMultihead(self.X_dim, self.hidden_dim, self.X_dim, 4)
-        self.gat0 = GATMultihead(self.X_dim, self.hidden_dim, self.X_dim, 1)
+        # self.gat0 = GATMultihead(self.X_dim, self.hidden_dim, self.X_dim, 1)
         # self.gat1 = GATMultihead(self.X_dim, self.hidden_dim, self.X_dim, 4)
         # self.gat2 = GraphAttentionLayer2(self.X_dim, self.X_dim)
         logging.info('Similarity_func: {}'.format(self.similarity_function))
@@ -368,13 +368,13 @@ class PG_GAT_RL(nn.Module):
                 H1 = self.gatinput(H0, adj)
             else:
                 H1 = self.gatinput(H0, adj)
-            H2 = self.gat0(H1, adj)
+            # H2 = self.gat0(H1, adj)
             # H3 = self.gat1(H2, adj)
             # H4, _ = self.gat2(H3, adj)
             if self.skip_connection:
-                output = H0 + H1 + H2
+                output = H0 + H1
             else:
-                output = H2
+                output = H1
             # output = torch.cat((state, output), dim=2)
             return output
 
