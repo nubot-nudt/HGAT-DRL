@@ -205,10 +205,15 @@ class CentralizedORCA(ORCA):
             self.sim.setAgentPrefVelocity(i, (pref_vel[0], pref_vel[1]))
         for i in range(len(self.walls)):
             wall = self.walls[i]
-            self.sim.addObstacle([(wall.sx, wall.sy),(wall.ex, wall.ey)])
-            # self.sim.addObstacle(self.walls[i])
+            self.sim.addObstacle([(wall.sx, wall.sy), (wall.ex, wall.ey)])
+            self.sim.processObstacles()
+
+        obstacle_params = 0.0, 0.0, 0.0, 0.0
+        for i in range(len(self.obstacles)):
+            obstacle = self.obstacles[i]
+            self.sim.addAgent((obstacle.px, obstacle.py), *obstacle_params, obstacle.radius, 0.0, (0.0, 0.0))
         self.sim.doStep()
-        actions = [ActionXY(0.0, 0.0) for i in range(len(state))]
-        # actions = [ActionXY(*self.sim.getAgentVelocity(i)) for i in range(len(state))]
+        # actions = [ActionXY(0.0, 0.0) for i in range(len(state))]
+        actions = [ActionXY(*self.sim.getAgentVelocity(i)) for i in range(len(state))]
 
         return actions

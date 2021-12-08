@@ -342,7 +342,7 @@ class PG_GAT_RL(nn.Module):
         for i in range(Num):
             adj[0][i] = 1
         for i in range(robot_num, human_num+robot_num):
-            for j in range(robot_num, human_num + robot_num):
+            for j in range(robot_num, human_num + robot_num + obstacle_num + wall_num):
                 adj[i][j] = 1
         adj = adj.repeat(state.shape[0], 1, 1)
         return adj
