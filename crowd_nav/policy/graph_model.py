@@ -318,8 +318,15 @@ class PG_GAT_RL(nn.Module):
         self.hidden_dim = 32
         self.layerwise_graph = layerwise_graph
         self.skip_connection = skip_connection
-        self.encoder = mlp(self.state_dim, [64, self.X_dim], last_relu=True)
+        # self.encoder = mlp(self.state_dim, [64, self.X_dim], last_relu=True)
+        self.encode_r = mlp(self.robot_state_dim, [64, self.X_dim], last_relu=True)
+        self.encode_h = mlp(self.human_state_dim, [64, self.X_dim], last_relu=True)
+        self.encode_o = mlp(self.obstacle_state_dim, [64, self.X_dim], last_relu=True)
+        self.encode_w = mlp(self.wall_state_dim, [64, self.X_dim], last_relu=True)
         self.gatinput = GATMultihead(self.X_dim, self.hidden_dim, self.X_dim, 4)
+        self.robot_num = 1
+        self.obstacle_num = 3
+        self.wall_num = 4
         # self.gat0 = GATMultihead(self.X_dim, self.hidden_dim, self.X_dim, 1)
         # self.gat1 = GATMultihead(self.X_dim, self.hidden_dim, self.X_dim, 4)
         # self.gat2 = GraphAttentionLayer2(self.X_dim, self.X_dim)
@@ -332,17 +339,14 @@ class PG_GAT_RL(nn.Module):
         self.attention_weights = None
 
     def compute_adjectory_matrix(self, state):
-        robot_num = 1
-        obstacle_num = 3
-        wall_num = 4
-        human_num = state.shape[1] - robot_num - obstacle_num - wall_num
-        Num = robot_num + human_num + obstacle_num + wall_num
+        human_num = state.shape[1] - self.robot_num - self.obstacle_num - self.wall_num
+        Num = state.shape[1]
         assert state.shape[1] == Num
         adj = torch.zeros((Num, Num))
         for i in range(Num):
             adj[0][i] = 1
-        for i in range(robot_num, human_num+robot_num):
-            for j in range(robot_num, human_num + robot_num + obstacle_num + wall_num):
+        for i in range(self.robot_num, human_num+self.robot_num):
+            for j in range(self.robot_num, human_num + self.robot_num + self.obstacle_num + self.wall_num):
                 adj[i][j] = 1
         adj = adj.repeat(state.shape[0], 1, 1)
         return adj
@@ -370,7 +374,19 @@ class PG_GAT_RL(nn.Module):
             return output
         else:
             adj = self.compute_adjectory_matrix(state)
-            H0 = self.encoder(state)
+            robot_state = state[:,0: self.robot_num,0:self.robot_state_dim]
+            robot_state = self.encode_r(robot_state)
+            human_num = state.shape[1] - self.robot_num - self.obstacle_num - self.wall_num
+            human_state = state[:, self.robot_num:self.robot_num+human_num, self.robot_state_dim:self.robot_state_dim+self.human_state_dim]
+            human_state = self.encode_h(human_state)
+            obstacle_state = state[:,self.robot_num+human_num:self.robot_num+human_num+self.obstacle_num,self.robot_state_dim+self.human_state_dim:self.robot_state_dim+self.human_state_dim+self.obstacle_state_dim]
+            obstacle_state = self.encode_o(obstacle_state)
+            wall_state = state[:, self.robot_num+human_num+self.obstacle_num:,self.robot_state_dim+self.human_state_dim+self.obstacle_state_dim:]
+            wall_state = self.encode_w(wall_state)
+            H0=torch.cat((robot_state,human_state,obstacle_state,wall_state), dim=1)
+
+
+            # H0 = self.encoder(state)
             # compute feature matrix X
             if state.shape[0]==1:
                 H1 = self.gatinput(H0, adj)
@@ -442,7 +458,7 @@ class GraphAttentionLayer2(nn.Module):
         attention = nn.functional.softmax(attention, dim=2)
         h_prime = torch.matmul(attention, h)
         h_prime = h_prime + self.bias
-        return nn.functional.elu(h_prime)
+        return nn.functional.relu(h_prime)
 
 
 # class GraphAttentionLayer3(nn.Module):
