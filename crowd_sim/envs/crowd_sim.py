@@ -332,7 +332,7 @@ class CrowdSim(gym.Env):
             for i in range(self.static_obstacle_num):
                 self.obstacles.append(self.generate_static_obstcale())
 
-            room_width = self.circle_radius * 2
+            room_width = self.square_width
             room_length = self.square_width
             self.walls = []
             wall_vertex = ([-room_width/2, -room_length/2], [room_width/2, -room_length/2], [room_width/2, room_length/2],
