@@ -311,7 +311,7 @@ class PG_GAT_RL(nn.Module):
         self.robot_state_dim = robot_state_dim
         self.human_state_dim = human_state_dim
         self.obstacle_state_dim = 3
-        self.wall_state_dim = 4
+        self.wall_state_dim = 5
         self.state_dim = self.robot_state_dim + self.human_state_dim + self.obstacle_state_dim + self.wall_state_dim
         self.num_layer = num_layer
         self.X_dim = X_dim
@@ -323,7 +323,8 @@ class PG_GAT_RL(nn.Module):
         self.encode_h = mlp(self.human_state_dim, [64, self.X_dim], last_relu=True)
         self.encode_o = mlp(self.obstacle_state_dim, [64, self.X_dim], last_relu=True)
         self.encode_w = mlp(self.wall_state_dim, [64, self.X_dim], last_relu=True)
-        self.gatinput = GATMultihead(self.X_dim, self.hidden_dim, self.X_dim, 4)
+        self.gatinput = GATMultihead(self.X_dim, self.hidden_dim, self.X_dim, 1)
+        self.gatoutput = GATMultihead(self.X_dim, self.hidden_dim, self.X_dim, 1)
         self.robot_num = 1
         self.obstacle_num = 3
         self.wall_num = 4
@@ -392,13 +393,13 @@ class PG_GAT_RL(nn.Module):
                 H1 = self.gatinput(H0, adj)
             else:
                 H1 = self.gatinput(H0, adj)
-            # H2 = self.gat0(H1, adj)
+            H2 = self.gatoutput(H1, adj)
             # H3 = self.gat1(H2, adj)
             # H4, _ = self.gat2(H3, adj)
             if self.skip_connection:
-                output = H0 + H1
+                output = H0 + H1 + H2
             else:
-                output = H1
+                output = H2
             return output
 
 class GATMultihead(nn.Module):
