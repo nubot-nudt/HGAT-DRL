@@ -262,7 +262,7 @@ class CrowdSim(gym.Env):
         else:
             obstacle.radius = 0.3
         while True:
-            px = (np.random.random() - 0.5) * self.square_width * 0.4
+            px = (np.random.random() - 0.5) * self.square_width * 0.8
             py = (np.random.random() - 0.5) * self.circle_radius * 2
             obstacle.set(px, py, obstacle.radius)
             collide = False
@@ -332,7 +332,7 @@ class CrowdSim(gym.Env):
             for i in range(self.static_obstacle_num):
                 self.obstacles.append(self.generate_static_obstcale())
 
-            room_width = self.square_width
+            room_width = self.square_width -1
             room_length = self.square_width
             self.walls = []
             wall_vertex = ([-room_width/2, -room_length/2], [room_width/2, -room_length/2], [room_width/2, room_length/2],
