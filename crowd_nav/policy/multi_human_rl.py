@@ -3,7 +3,7 @@ import logging
 import numpy as np
 from crowd_sim.envs.utils.action import ActionRot, ActionXY
 from crowd_nav.policy.cadrl import CADRL
-from crowd_sim.envs.utils.state import tensor_to_joint_state, JointState
+from crowd_sim.envs.utils.state import tensor_to_joint_state_2types, JointState_2tyeps, ObservableState
 
 
 class MultiHumanRL(CADRL):
@@ -16,6 +16,7 @@ class MultiHumanRL(CADRL):
         The input to the value network is always of shape (batch_size, # humans, rotated joint state length)
 
         """
+        state = self.state_transform(state)
         if self.phase is None or self.device is None:
             raise AttributeError('Phase, device attributes have to be set!')
         if self.phase == 'train' and self.epsilon is None:
@@ -50,7 +51,7 @@ class MultiHumanRL(CADRL):
                 else:
                     next_human_states = [self.propagate(human_state, ActionXY(human_state.vx, human_state.vy))
                                          for human_state in state.human_states]
-                    next_state = JointState(next_robot_state, next_human_states)
+                    next_state = JointState_2tyeps(next_robot_state, next_human_states)
                     reward, _ = self.reward_estimator.estimate_reward_on_predictor(state, next_state)
                     rewards.append(reward)
                 batch_next_states = torch.cat([torch.Tensor([next_robot_state + next_human_state]).to(self.device)
@@ -179,4 +180,16 @@ class MultiHumanRL(CADRL):
                 occupancy_maps.append([dm])
 
         return torch.from_numpy(np.concatenate(occupancy_maps, axis=0)).float()
+
+
+    def state_transform(self,state):
+        human_state = state.human_states
+        obstacle_state = state.obstacle_states
+        robot_state = state.robot_state
+        for i in range((len(obstacle_state))):
+            obstacle_human = ObservableState(obstacle_state[i].px, obstacle_state[i].py, 0.0, 0.0, obstacle_state[i].radius)
+
+            human_state.append(obstacle_human)
+        state = JointState_2tyeps(robot_state, human_state)
+        return state
 

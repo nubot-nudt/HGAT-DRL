@@ -13,7 +13,7 @@ class Explorer(object):
         self.device = device
         self.writer = writer
         self.memory = memory
-        self.gamma = gamma
+        self.gamma = 0.95
         self.target_policy = target_policy
         self.statistics = None
         self.use_noisy_net = False
@@ -116,8 +116,6 @@ class Explorer(object):
 
             if pbar:
                 pbar.update(1)
-
-
 
         success_rate = success / k
         collision_rate = collision / k

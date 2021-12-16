@@ -12,7 +12,7 @@ class Config(object):
 
 interval = 200
 v_pref = 1.0
-rotation_constraint = np.pi/6
+rotation_constraint = np.pi
 # kinematics = 'differential'
 kinematics = 'unicycle'
 # action_space.kinematics = 'holonomic'
@@ -69,7 +69,7 @@ class BaseEnvConfig(object):
 
 class BasePolicyConfig(object):
     rl = Config()
-    rl.gamma = 0.9
+    rl.gamma = 0.95
     om = Config()
     om.cell_num = 4
     om.cell_size = 1

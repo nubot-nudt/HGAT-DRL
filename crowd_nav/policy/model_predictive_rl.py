@@ -5,7 +5,7 @@ from numpy.linalg import norm
 import itertools
 from crowd_sim.envs.policy.policy import Policy
 from crowd_sim.envs.utils.action import ActionRot, ActionXY
-from crowd_sim.envs.utils.state import tensor_to_joint_state
+from crowd_sim.envs.utils.state import tensor_to_joint_state_2types
 from crowd_nav.policy.value_estimator import ValueEstimator
 from crowd_nav.policy.state_predictor import StatePredictor, LinearStatePredictor_batch
 from crowd_nav.policy.graph_model import RGL,GAT_RL
@@ -214,6 +214,7 @@ class ModelPredictiveRL(Policy):
             else:
                 action_space_clipped = self.action_space
             state_tensor = state.to_tensor(add_batch_size=True, device=self.device)
+            state_tensor = self.transform_state(state_tensor)
             actions = []
             if self.kinematics == "holonomic":
                 actions.append(ActionXY(0, 0))
@@ -234,7 +235,7 @@ class ModelPredictiveRL(Policy):
                 else:
                     next_robot_states = torch.cat((next_robot_states, next_robot_state), dim=0)
                     next_human_states = torch.cat((next_human_states, next_human_state), dim=0)
-                next_state = tensor_to_joint_state((next_robot_state, next_human_state))
+                next_state = tensor_to_joint_state_2types((next_robot_state, next_human_state))
                 reward_est, _ = self.reward_estimator.estimate_reward_on_predictor(state, next_state)
                 max_next_return, max_next_traj = self.V_planning((next_robot_state, next_human_state), self.planning_depth, self.planning_width)
                 value = reward_est + self.get_normalized_gamma() * max_next_return
@@ -300,7 +301,7 @@ class ModelPredictiveRL(Policy):
                 next_robot_states = torch.cat((next_robot_states, next_robot_state), dim=0)
                 next_human_states = torch.cat((next_human_states, next_human_state), dim=0)
             next_state_tensor = (next_robot_state, next_human_state)
-            next_state = tensor_to_joint_state(next_state_tensor)
+            next_state = tensor_to_joint_state_2types(next_state_tensor)
             reward_est, _ = self.reward_estimator.estimate_reward_on_predictor(state, next_state)
             values.append(reward_est)
         next_return = self.value_estimator((next_robot_states, next_human_states)).squeeze()
@@ -355,8 +356,8 @@ class ModelPredictiveRL(Policy):
             next_robot_staete = self.compute_next_robot_state(state[0], action)
             next_state_est = next_robot_staete, pre_next_state[1]
             # reward_est = self.estimate_reward(state, action)
-            reward_est, _ = self.reward_estimator.estimate_reward_on_predictor(tensor_to_joint_state(state),
-                                                                               tensor_to_joint_state(next_state_est))
+            reward_est, _ = self.reward_estimator.estimate_reward_on_predictor(tensor_to_joint_state_2types(state),
+                                                                               tensor_to_joint_state_2types(next_state_est))
             next_value, next_traj = self.V_planning(next_state_est, depth - 1, self.planning_width)
             return_value = current_state_value / depth + (depth - 1) / depth * (self.get_normalized_gamma() * next_value + reward_est)
             returns.append(return_value)
@@ -514,3 +515,35 @@ class ModelPredictiveRL(Policy):
 
     def get_attention_weights(self):
         return self.value_estimator.graph_model.attention_weights
+
+
+    def transform_state(self, state):
+        """
+        Transform the coordinate to agent-centric.
+        Input tuple include robot state tensor and human state tensor.
+        robot state tensor is of size (batch_size, number, state_length)(for example 100*1*9)
+        human state tensor is of size (batch_size, number, state_length)(for example 100*5*5)
+        """
+        # for robot
+        # 'px', 'py', 'vx', 'vy', 'radius', 'gx', 'gy', 'v_pref', 'theta'
+        #  0     1      2     3      4        5     6      7         8
+        # for human
+        #  'px', 'py', 'vx', 'vy', 'radius'
+        #  0     1      2     3      4
+        # for obstacle
+        # 'px', 'py', 'radius'
+        #  0     1     2
+        # for wall
+        # 'sx', 'sy', 'ex', 'ey'
+        #  0     1     2     3
+        assert len(state[0].shape) == 3
+        robot_state = state[0]
+        human_state = state[1]
+        obstacle_state = state[2]
+        obs_pos = obstacle_state[:, :, 0:2]
+        obs_vel = torch.zeros_like(obs_pos)
+        obs_radius = obstacle_state[:, :, 2]
+        obs_radius = obs_radius.unsqueeze(2)
+        obs_human = torch.cat((obs_pos, obs_vel, obs_radius), dim=2)
+        human_state = torch.cat((human_state, obs_human), dim=1)
+        return (robot_state, human_state)
