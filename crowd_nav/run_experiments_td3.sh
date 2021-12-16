@@ -1,12 +1,12 @@
 #!/bin/bash
 day=`date +%m%d`
 echo "The Script begin at $day"
-a=0.2
-b=-0.25
-c=0.25
+a=0.4
+b=-0.5
+c=0.5
 d=1.0
 # Script to reproduce results
-for ((i=1;i<3;i+=1))
+for ((i=0;i<6;i+=1))
 do
 	python train.py \
 	--policy td3_rl \

@@ -195,12 +195,13 @@ class DQNNetwork(nn.Module):
     def __init__(self, config, graph_model):
         super().__init__()
         config.action_space.rotation_samples
-        self.action_num = config.action_space.speed_samples * config.action_space.speed_samples
+        self.action_num = config.action_space.speed_samples * config.action_space.rotation_samples + 1
         self.graph_model = graph_model
         # self.value_network = mlp(config.gcn.X_dim, config.model_predictive_rl.value_network_dims)
         # self.value_network = DQN(config.gcn.X_dim, 25)
         self.value_network = DuelingDQN(config.gcn.X_dim, self.action_num)
         # self.value_network = NoisyDuelingDQN(config.gcn.X_dim, self.action_num)
+
     def forward(self, state):
         """ Embed state into a latent space. Take the first row of the feature matrix as state representation.
         """
@@ -208,7 +209,7 @@ class DQNNetwork(nn.Module):
         # assert len(state[1].shape) == 3
 
         # only use the feature of robot node as state representation
-        state_embedding = self.graph_model(self.trans_no_rotation(state))[:, 0, :]
+        state_embedding = self.graph_model(self.rotate(state))[:, 0, :]
         value = self.value_network(state_embedding)
         return value
 

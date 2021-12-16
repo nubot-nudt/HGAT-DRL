@@ -20,9 +20,9 @@ class PolicyConfig(BasePolicyConfig):
 
         self.model_predictive_rl = Config()
 
-        self.model_predictive_rl.linear_state_predictor = True
-        self.model_predictive_rl.planning_depth = 0
-        self.model_predictive_rl.planning_width = 5
+        self.model_predictive_rl.linear_state_predictor = False
+        self.model_predictive_rl.planning_depth = 1
+        self.model_predictive_rl.planning_width = 10
         self.model_predictive_rl.do_action_clip = False
         self.model_predictive_rl.motion_predictor_dims = [64, 5]
         self.model_predictive_rl.value_network_dims = [32, 100, 100, 1]

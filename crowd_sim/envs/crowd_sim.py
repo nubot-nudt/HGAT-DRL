@@ -61,7 +61,7 @@ class CrowdSim(gym.Env):
         self.centralized_planner = None
         self.test_changing_size = False
 
-        self.static_obstacle_num = 3
+        self.static_obstacle_num = 0
         self.wall_num = 4
 
         # for visualization
@@ -110,7 +110,7 @@ class CrowdSim(gym.Env):
         self.square_width = config.sim.square_width
         self.circle_radius = config.sim.circle_radius
         self.human_num = config.sim.human_num
-        self.static_obstacle_num = 3
+        self.static_obstacle_num = 1
         self.wall_num = 4
 
         self.nonstop_human = config.sim.nonstop_human
@@ -602,7 +602,7 @@ class CrowdSim(gym.Env):
 
             # compute the observation
             if self.robot.sensor == 'coordinates':
-                ob_human = [human.get_next_observable_state(action) for human, action in zip(self.humans, human_actions)]
+                ob_human = [human.get_observable_state() for human in self.humans]
                 ob_obstacles = [obstacle.get_observable_state() for i, obstacle in enumerate(self.obstacles)]
                 ob_walls = [wall.get_observable_state() for i, wall in enumerate(self.walls)]
                 ob = (ob_human, ob_obstacles, ob_walls)

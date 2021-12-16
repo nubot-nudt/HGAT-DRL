@@ -5,7 +5,7 @@ from numpy.linalg import norm
 import itertools
 from crowd_sim.envs.policy.policy import Policy
 from crowd_sim.envs.utils.action import ActionRot, ActionXY, ActionAW, ActionDiff
-from crowd_sim.envs.utils.state import tensor_to_joint_state
+from crowd_sim.envs.utils.state import tensor_to_joint_state, tensor_to_joint_state_2types
 from crowd_sim.envs.utils.info import  *
 from crowd_sim.envs.utils.utils import point_to_segment_dist
 from crowd_nav.policy.state_predictor import StatePredictor, LinearStatePredictor_batch
@@ -166,8 +166,6 @@ class TreeSearchRL(Policy):
         """
         Action space consists of 25 uniformly sampled actions in permitted range and 25 randomly sampled actions.
         """
-
-        holonomic = True if self.kinematics == 'holonomic' else False
         # speeds = [(np.exp((i + 1) / self.speed_samples) - 1) / (np.e - 1) * v_pref for i in range(self.speed_samples)]
         speeds = [(i+1)/self.speed_samples * self.v_pref for i in range(self.speed_samples)]
         if self.kinematics == 'holonomic' :
@@ -179,7 +177,8 @@ class TreeSearchRL(Policy):
                     action_index = i * self.speed_samples + j + 1
                     self.action_group_index.append(action_index)
                     action_space.append(ActionXY(speed * np.cos(rotation), speed * np.sin(rotation)))
-        elif self.kinematics == 'unicycle' :
+                    self.action_space = action_space
+        elif self.kinematics == 'unicycle':
             if self.rotation_constraint == np.pi:
                 rotations = np.linspace(-self.rotation_constraint, self.rotation_constraint, self.rotation_samples, endpoint=False)
             else:
@@ -191,6 +190,9 @@ class TreeSearchRL(Policy):
                     action_index = i * self.speed_samples + j + 1
                     self.action_group_index.append(action_index)
                     action_space.append(ActionRot(speed, rotation))
+            self.speeds = speeds
+            self.rotations = rotations
+            self.action_space = action_space
         elif self.kinematics=='differential':
         # currently, acc_max is 1, and the number of speed samples is 5.
         # currently, rotation constraint is np.pi/3, and rotation_samples is 5
@@ -210,18 +212,6 @@ class TreeSearchRL(Policy):
         min = 0
         # inter_num =
         max = self.speed_samples
-        # a = (-self.v_pref - cur_vel) / self.time_step / (self.v_pref * 2.0 / inter_num) + inter_num
-        # b = (self.v_pref - cur_vel) / self.time_step / (self.v_pref * 2.0 / inter_num) + inter_num
-        # if min < a:
-        #     min = a
-        # if max > b:
-        #     max = b
-        # if min == max:
-        #     index = min
-        # else:
-        #     if min > max:
-        #         min = 0
-        #         max = self.speed_samples
         index = np.random.randint(min, max)
         return index
 
@@ -253,6 +243,7 @@ class TreeSearchRL(Policy):
         max_action = None
         origin_max_value = float('-inf')
         state_tensor = state.to_tensor(add_batch_size=True, device=self.device)
+        state_tensor = self.transform_state(state_tensor)
         probability = np.random.random()
         if self.phase == 'train' and probability < self.epsilon and self.use_noisy_net is False:
             max_action_index = self.select_random_action(state)
@@ -315,7 +306,7 @@ class TreeSearchRL(Policy):
                     else:
                         next_robot_state_batch = torch.cat((next_robot_state_batch, next_robot_state), dim=0)
                     reward_est[i][j], _ = self.reward_estimator.estimate_reward_on_predictor(
-                        tensor_to_joint_state(cur_state), tensor_to_joint_state((next_robot_state, next_human_state)))
+                        tensor_to_joint_state_2types(cur_state), tensor_to_joint_state_2types((next_robot_state, next_human_state)))
 
             next_state_batch = (next_robot_state_batch, next_human_state_batch)
             if self.planning_depth - depth >= 2 and self.planning_depth > 2:
@@ -377,7 +368,7 @@ class TreeSearchRL(Policy):
                         next_robot_state_batch = torch.cat((next_robot_state_batch, next_robot_state), dim=0)
                         next_human_state_batch = torch.cat((next_human_state_batch, next_human_state), dim=0)
                     reward_est[i][j], _ = self.reward_estimator.estimate_reward_on_predictor(
-                        tensor_to_joint_state(cur_state), tensor_to_joint_state((next_robot_state, next_human_state)))
+                        tensor_to_joint_state_2types(cur_state), tensor_to_joint_state_2types((next_robot_state, next_human_state)))
             next_state_batch = (next_robot_state_batch, next_human_state_batch)
             if self.planning_depth - depth >= 2 and self.planning_depth > 2:
                 cur_width = 1
@@ -407,14 +398,20 @@ class TreeSearchRL(Policy):
         if robot_state.shape[0] != 1:
             raise NotImplementedError
         next_state = robot_state.clone().squeeze()
-        left_acc = action.al
-        right_acc = action.ar
         if self.kinematics == 'holonomic':
             next_state[0] = next_state[0] + action.vx * self.time_step
             next_state[1] = next_state[1] + action.vy * self.time_step
             next_state[2] = action.vx
             next_state[3] = action.vy
+        elif self.kinematics == 'unicycle':
+            next_state[8] = (next_state[8] + action.r) % (2 * np.pi)
+            next_state[0] = next_state[0] + np.cos(next_state[8]) * action.v * self.time_step
+            next_state[1] = next_state[1] + np.sin(next_state[8]) * action.v * self.time_step
+            next_state[2] = np.cos(next_state[8]) * action.v
+            next_state[3] = np.sin(next_state[8]) * action.v
         elif self.kinematics == 'differential':
+            left_acc = action.al
+            right_acc = action.ar
             # px, py, v_left, v_right, radius, gx, gy, vel_max, heading
             next_state[2] = next_state[2] + left_acc * self.time_step
             next_state[3] = next_state[3] + right_acc * self.time_step
@@ -439,10 +436,10 @@ class TreeSearchRL(Policy):
             action = self.action_space[action_batch[i]]
             cur_robot_state = robot_state_batch[i, :, :]
             cur_human_state = human_state_batch[i, :, :]
-            cur_state = tensor_to_joint_state((cur_robot_state, cur_human_state))
+            cur_state = tensor_to_joint_state_2types((cur_robot_state, cur_human_state))
             next_robot_state = self.compute_next_robot_state(cur_robot_state, action)
             next_human_state = next_human_state_batch[i, :, :]
-            next_state = tensor_to_joint_state((next_robot_state, next_human_state))
+            next_state = tensor_to_joint_state_2types((next_robot_state, next_human_state))
             reward, info = self.reward_estimator.estimate_reward_on_predictor(cur_state, next_state)
             expand_reward.append(reward)
             done = False
@@ -481,7 +478,7 @@ class TreeSearchRL(Policy):
         # for wall
         # 'sx', 'sy', 'ex', 'ey'
         #  0     1     2     3
-        assert len(state[0].shape) == 2
+        assert len(state[0].shape) == 3
         robot_state = state[0]
         human_state = state[1]
-        return robot_state, human_state
+        return (robot_state, human_state)

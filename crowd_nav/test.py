@@ -136,7 +136,7 @@ def main(args):
             logging.debug('Speed: %.2f', np.linalg.norm(current_pos - last_pos) / robot.time_step)
             last_pos = current_pos
             actions.append(action)
-        gamma = 0.95
+        gamma = 0.90
         cumulative_reward = sum([pow(gamma, t * robot.time_step * robot.v_pref)
              * reward for t, reward in enumerate(rewards)])
         positions = []
@@ -186,9 +186,9 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Parse configuration file')
-    parser.add_argument('--config', type=str, default='configs/icra_benchmark/td3.py')
-    parser.add_argument('--policy', type=str, default='td3_rl')
-    parser.add_argument('-m', '--model_dir', type=str, default='data/output1')#None
+    parser.add_argument('--config', type=str, default='configs/icra_benchmark/ts_separate.py')
+    parser.add_argument('--policy', type=str, default='tree_search_rl')
+    parser.add_argument('-m', '--model_dir', type=str, default='data/tsrl5rot/tsrl/1')#None
     parser.add_argument('--il', default=False, action='store_true')
     parser.add_argument('--rl', default=False, action='store_true')
     parser.add_argument('--gpu', default=False, action='store_true')
@@ -201,7 +201,7 @@ if __name__ == '__main__':
     parser.add_argument('--video_dir', type=str, default=None)
     parser.add_argument('--traj', default=False, action='store_true')
     parser.add_argument('--debug', default=False, action='store_true')
-    parser.add_argument('--human_num', type=int, default=None)
+    parser.add_argument('--human_num', type=int, default=5)
     parser.add_argument('--safety_space', type=float, default=0.2)
     parser.add_argument('--test_scenario', type=str, default=None)
     parser.add_argument('--plot_test_scenarios_hist', default=True, action='store_true')
@@ -209,7 +209,4 @@ if __name__ == '__main__':
     parser.add_argument('-w', '--planning_width', type=int, default=None)
     parser.add_argument('--sparse_search', default=False, action='store_true')
     sys_args = parser.parse_args()
-    # sys_args.model_dir = 'data/nubot_gzr/0820/tsrl/0'
-    # sys_args.visualize = True
-    # sys_args.test_case = 7
     main(sys_args)

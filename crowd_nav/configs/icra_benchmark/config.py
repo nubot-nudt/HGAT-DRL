@@ -13,13 +13,14 @@ class Config(object):
 interval = 200
 v_pref = 1.0
 rotation_constraint = np.pi/6
-kinematics = 'differential'
+# kinematics = 'differential'
+kinematics = 'unicycle'
 # action_space.kinematics = 'holonomic'
 # action_space.kinematics = 'unicycle'
 class BaseEnvConfig(object):
     env = Config()
     env.time_limit = 30
-    env.time_step = 0.1
+    env.time_step = 0.25
     env.val_size = 100
     env.test_size = 1000
     env.train_size = np.iinfo(np.uint32).max - 2000
@@ -39,7 +40,7 @@ class BaseEnvConfig(object):
     sim.test_scenario = 'circle_crossing'
     sim.square_width = 10
     sim.circle_radius = 4
-    sim.human_num = 2
+    sim.human_num = 5
     sim.nonstop_human = True
 
     sim.centralized_planning = True
@@ -68,7 +69,7 @@ class BaseEnvConfig(object):
 
 class BasePolicyConfig(object):
     rl = Config()
-    rl.gamma = 0.95
+    rl.gamma = 0.9
     om = Config()
     om.cell_num = 4
     om.cell_size = 1
@@ -76,8 +77,8 @@ class BasePolicyConfig(object):
 
     action_space = Config()
     action_space.kinematics = kinematics
-    action_space.speed_samples = 3
-    action_space.rotation_samples = 8
+    action_space.speed_samples = 5
+    action_space.rotation_samples = 16
     action_space.sampling = 'exponential'
     action_space.query_env = False
     action_space.rotation_constraint = rotation_constraint

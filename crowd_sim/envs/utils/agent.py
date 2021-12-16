@@ -151,25 +151,8 @@ class Agent(object):
             end_robot_y = self.py + s * np.sin(s_direction)
             px = end_robot_x
             py = end_robot_y
-
-
-
-            # left_acc = action.al
-            # right_acc = action.ar
-            # v_left = self.v_left + left_acc * self.time_step
-            # v_right = self.v_right + right_acc * self.time_step
-            # if np.abs(v_left) > self.v_pref:
-            #     v_left = v_left / np.abs(v_left) * self.v_pref
-            # if np.abs(v_right) > self.v_pref:
-            #     v_right = v_right / np.abs(v_right) * self.v_pref
-            # angular_vel = (v_left - v_right) / 2.0 / self.radius
-            # linear_vel = (v_left + v_right) / 2.0
-            # vx = linear_vel * np.cos(self.theta)
-            # vy = linear_vel * np.sin(self.theta)
-            # px = self.px + vx * self.time_step
-            # py = self.py + vy * self.time_step
         else:
-            theta = (self.theta + action.r) % (2 * np.pi)
+            theta = (self.theta + action.r + np.pi) % (2 * np.pi) - np.pi
             vx = action.v * np.cos(theta)
             vy = action.v * np.sin(theta)
             px = self.px + vx * self.time_step
@@ -181,6 +164,8 @@ class Agent(object):
         Perform an action and update the state
         """
         self.check_validity(action)
+        # pos = self.compute_position(action, self.time_step)
+        # self.px, self.py = pos
         if self.kinematics == 'holonomic':
             self.px = self.px + action.vx * self.time_step
             self.py = self.py + action.vy * self.time_step
@@ -216,7 +201,7 @@ class Agent(object):
             self.vx = vx
             self.vy = vy
         else:
-            self.theta = (self.theta + action.r) % (2 * np.pi)
+            self.theta = (self.theta + action.r + np.pi) % (2 * np.pi) - np.pi
             self.vx = action.v * np.cos(self.theta)
             self.vy = action.v * np.sin(self.theta)
             self.px = self.px + self.vx * self.time_step
