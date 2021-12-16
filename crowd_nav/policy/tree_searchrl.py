@@ -237,7 +237,9 @@ class TreeSearchRL(Policy):
             raise AttributeError('Epsilon attribute has to be set in training phase')
         # self.v_pref = state.robot_state.v_pref
         if self.reach_destination(state):
-            return ActionXY(0, 0) if self.kinematics == 'holonomic' else ActionRot(0, 0)
+            max_action = ActionXY(0, 0) if self.kinematics == 'holonomic' else ActionRot(0, 0)
+            max_action_index = 0
+            return max_action, max_action_index
         if self.action_space is None:
             self.build_action_space(self.v_pref)
         max_action = None

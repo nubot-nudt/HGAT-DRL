@@ -201,11 +201,69 @@ class Agent(object):
             self.vx = vx
             self.vy = vy
         else:
-            self.theta = (self.theta + action.r + np.pi) % (2 * np.pi) - np.pi
-            self.vx = action.v * np.cos(self.theta)
-            self.vy = action.v * np.sin(self.theta)
-            self.px = self.px + self.vx * self.time_step
-            self.py = self.py + self.vy * self.time_step
+            sim_num = 5
+            dt = self.time_step / sim_num
+            px = self.px
+            py = self.py
+            theta = self.theta
+            t_vel = action.v
+            t_theta = (self.theta + action.r + np.pi) % (2 * np.pi) - np.pi
+            v = t_vel
+            vel_l = self.v_left
+            vel_r = self.v_right
+            radius = self.radius
+            for i in range(sim_num):
+                delta_theta = (theta - t_theta + np.pi) % (2 * np.pi) - np.pi
+                k = -(4 * delta_theta + np.sin(delta_theta))
+                sim_v = t_vel / (1 + 0.2 * np.abs(k))
+                sim_w = sim_v * k
+                sim_v, sim_w = self.limitation(sim_v, sim_w, vel_l, vel_r, radius, dt)
+                px, py, theta, v, w = self.simulation(px, py, theta, sim_v, sim_w, dt)
+                vel_r = v + w * radius
+                vel_l = v - w * radius
+            self.px = px
+            self.py = py
+            self.theta = theta
+            self.vx = v * np.cos(self.theta)
+            self.vy = v * np.sin(self.theta)
+            self.v_left = vel_l
+            self.v_right = vel_r
+            # self.theta = (self.theta + action.r + np.pi) % (2 * np.pi) - np.pi
+            # self.vx = action.v * np.cos(self.theta)
+            # self.vy = action.v * np.sin(self.theta)
+            # self.px = self.px + self.vx * self.time_step
+            # self.py = self.py + self.vy * self.time_step
+    def limitation(self, t_v, t_w, vel_l, vel_r, radius, dt):
+        t_vel_r = t_v + t_w * radius
+        t_vel_l = t_v - t_w * radius
+        if np.abs(t_vel_r) > 1.0:
+            k = 1.0/np.abs(t_vel_r)
+            t_vel_r = t_vel_r * k
+            t_vel_l = t_vel_l * k
+        if np.abs(t_vel_l) > 1.0:
+            k = 1.0/np.abs(t_vel_l)
+            t_vel_l = t_vel_l * k
+            t_vel_r = t_vel_r * k
+
+        delta_vel_r = t_vel_r - vel_r
+        delta_vel_l = t_vel_l - vel_l
+        delta_vel = dt * 1.0
+        if np.abs(delta_vel_r) > delta_vel:
+            t_vel_r = vel_r + np.abs(delta_vel_r)/delta_vel_r*delta_vel
+        if np.abs(delta_vel_l) > delta_vel:
+            t_vel_l = vel_l + np.abs(delta_vel_l)/delta_vel_l*delta_vel
+        t_v = (t_vel_r + t_vel_l)/2.0
+        t_w = (t_vel_r - t_vel_l)/(2.0 * radius)
+        return t_v, t_w
+
+    def simulation(self, px, py, theta, v, w, dt):
+        next_theta = (theta + w * dt + np.pi) % (2*np.pi) - np.pi
+        s = v * dt
+        px = px + s * np.cos((next_theta + theta)/2.0)
+        py = py + s * np.sin((next_theta + theta)/2.0)
+        theta = next_theta
+        v = v
+        return px, py, theta, v, w
 
     def reached_destination(self):
         return norm(np.array(self.get_position()) - np.array(self.get_goal_position())) < self.radius
