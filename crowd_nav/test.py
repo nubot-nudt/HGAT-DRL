@@ -182,8 +182,6 @@ def main(args):
             plt.savefig(os.path.join(args.model_dir, 'test_scene_hist.png'))
             plt.close()
 
-
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Parse configuration file')
     parser.add_argument('--config', type=str, default='configs/icra_benchmark/ts_separate.py')

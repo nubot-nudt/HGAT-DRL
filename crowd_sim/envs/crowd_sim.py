@@ -61,7 +61,7 @@ class CrowdSim(gym.Env):
         self.centralized_planner = None
         self.test_changing_size = False
 
-        self.static_obstacle_num = 0
+        self.static_obstacle_num = 3
         self.wall_num = 4
 
         # for visualization
@@ -110,7 +110,7 @@ class CrowdSim(gym.Env):
         self.square_width = config.sim.square_width
         self.circle_radius = config.sim.circle_radius
         self.human_num = config.sim.human_num
-        self.static_obstacle_num = 1
+        self.static_obstacle_num = 3
         self.wall_num = 4
 
         self.nonstop_human = config.sim.nonstop_human
@@ -500,25 +500,46 @@ class CrowdSim(gym.Env):
                                    closest_dist, self.global_time))
                     num_discom = num_discom + 1
         else:
+            end_robot_x, end_robot_y = self.robot.compute_position(action, self.time_step)
             for i, human in enumerate(self.humans):
                 px = human.px - self.robot.px
                 py = human.py - self.robot.py
-                vx = human_actions[i].vx - action.v * np.cos(action.r + self.robot.theta)
-                vy = human_actions[i].vy - action.v * np.sin(action.r + self.robot.theta)
-                ex = px + vx * self.time_step
-                ey = py + vy * self.time_step
-                # closest distance between boundaries of two agents
+                end_human_x = human_actions[i].vx * self.time_step + human.px
+                end_human_y = human_actions[i].vy * self.time_step + human.py
+                ex = end_human_x - end_robot_x
+                ey = end_human_y - end_robot_y
                 closest_dist = point_to_segment_dist(px, py, ex, ey, 0, 0) - human.radius - self.robot.radius
                 if closest_dist < 0:
                     collision = True
-                    logging.debug("Collision: distance between robot and p{} is {:.2E} at time {:.2E}".format(human.id,
-                                   closest_dist, self.global_time))
+                    logging.debug("Collision: distance between robot and pedestrian{} is {:.2E} "
+                                  "at time {:.2E}".format(human.id, closest_dist, self.global_time))
                 if closest_dist < dmin:
                     dmin = closest_dist
                 if closest_dist < self.discomfort_dist:
                     safety_penalty = safety_penalty + (closest_dist - self.discomfort_dist)
                     num_discom = num_discom + 1
 
+            for i, obstacle in enumerate(self.obstacles):
+                px = obstacle.px - self.robot.px
+                py = obstacle.py - self.robot.py
+                ex = obstacle.px - end_robot_x
+                ey = obstacle.py - end_robot_y
+                closest_dist = point_to_segment_dist(px, py, ex, ey, 0, 0) - obstacle.radius - self.robot.radius
+                if closest_dist < 0:
+                    collision = True
+                    logging.debug("Collision: distance between robot and obstacle{} is {:.2E} at time {:.2E}".format(i, closest_dist, self.global_time))
+                    num_discom = num_discom + 1
+
+            # for i, wall in enumerate(self.walls):
+            #     px = wall.sx - self.robot.px
+            #     py = wall.sy - self.robot.py
+            #     ex = wall.ex - end_robot_x
+            #     ey = wall.ey - end_robot_y
+            #     closest_dist = point_to_segment_dist(px, py, ex, ey, 0, 0) - self.robot.radius
+            #     if closest_dist < 0:
+            #         collision = True
+            #         logging.debug("Collision: distance between robot and wall {} is {:.2E} at time {:.2E}".format(i, closest_dist, self.global_time))
+            #         num_discom = num_discom + 1
         # collision detection between humans
         human_num = len(self.humans)
         for i in range(human_num):

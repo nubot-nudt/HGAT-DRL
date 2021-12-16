@@ -483,4 +483,11 @@ class TreeSearchRL(Policy):
         assert len(state[0].shape) == 3
         robot_state = state[0]
         human_state = state[1]
+        obstacle_state = state[2]
+        obs_pos = obstacle_state[:, :, 0:2]
+        obs_vel = torch.zeros_like(obs_pos)
+        obs_radius = obstacle_state[:, :, 2]
+        obs_radius = obs_radius.unsqueeze(2)
+        obs_human = torch.cat((obs_pos, obs_vel, obs_radius), dim=2)
+        human_state = torch.cat((human_state, obs_human), dim=1)
         return (robot_state, human_state)

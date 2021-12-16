@@ -29,6 +29,7 @@ class Agent(object):
         self.v_right = None
         self.theta = None
         self.time_step = None
+        self.test_acc_limitation = True
 
     def print_info(self):
         logging.info('Agent is {} and has {} kinematic constraint'.format(
@@ -152,11 +153,31 @@ class Agent(object):
             px = end_robot_x
             py = end_robot_y
         else:
-            theta = (self.theta + action.r + np.pi) % (2 * np.pi) - np.pi
-            vx = action.v * np.cos(theta)
-            vy = action.v * np.sin(theta)
-            px = self.px + vx * self.time_step
-            py = self.py + vy * self.time_step
+            if self.test_acc_limitation is True:
+                sim_num = 5
+                dt = self.time_step / sim_num
+                px = self.px
+                py = self.py
+                theta = self.theta
+                t_vel = action.v
+                t_theta = (self.theta + action.r + np.pi) % (2 * np.pi) - np.pi
+                v = t_vel
+                vel_l = self.v_left
+                vel_r = self.v_right
+                radius = self.radius
+                for i in range(sim_num):
+                    delta_theta = (theta - t_theta + np.pi) % (2 * np.pi) - np.pi
+                    k = -(4 * delta_theta + np.sin(delta_theta))
+                    sim_v = t_vel / (1 + 0.2 * np.abs(k))
+                    sim_w = sim_v * k
+                    sim_v, sim_w = self.limitation(sim_v, sim_w, vel_l, vel_r, radius, dt)
+                    px, py, theta, v, w = self.simulation(px, py, theta, sim_v, sim_w, dt)
+                    vel_r = v + w * radius
+                    vel_l = v - w * radius
+            else:
+                theta = self.theta + action.r
+                px = self.px + np.cos(theta) * action.v * delta_time
+                py = self.py + np.sin(theta) * action.v * delta_time
         return px, py
 
     def step(self, action):
@@ -201,38 +222,40 @@ class Agent(object):
             self.vx = vx
             self.vy = vy
         else:
-            sim_num = 5
-            dt = self.time_step / sim_num
-            px = self.px
-            py = self.py
-            theta = self.theta
-            t_vel = action.v
-            t_theta = (self.theta + action.r + np.pi) % (2 * np.pi) - np.pi
-            v = t_vel
-            vel_l = self.v_left
-            vel_r = self.v_right
-            radius = self.radius
-            for i in range(sim_num):
-                delta_theta = (theta - t_theta + np.pi) % (2 * np.pi) - np.pi
-                k = -(4 * delta_theta + np.sin(delta_theta))
-                sim_v = t_vel / (1 + 0.2 * np.abs(k))
-                sim_w = sim_v * k
-                sim_v, sim_w = self.limitation(sim_v, sim_w, vel_l, vel_r, radius, dt)
-                px, py, theta, v, w = self.simulation(px, py, theta, sim_v, sim_w, dt)
-                vel_r = v + w * radius
-                vel_l = v - w * radius
-            self.px = px
-            self.py = py
-            self.theta = theta
-            self.vx = v * np.cos(self.theta)
-            self.vy = v * np.sin(self.theta)
-            self.v_left = vel_l
-            self.v_right = vel_r
-            # self.theta = (self.theta + action.r + np.pi) % (2 * np.pi) - np.pi
-            # self.vx = action.v * np.cos(self.theta)
-            # self.vy = action.v * np.sin(self.theta)
-            # self.px = self.px + self.vx * self.time_step
-            # self.py = self.py + self.vy * self.time_step
+            if self.test_acc_limitation is True:
+                sim_num = 5
+                dt = self.time_step / sim_num
+                px = self.px
+                py = self.py
+                theta = self.theta
+                t_vel = action.v
+                t_theta = (self.theta + action.r + np.pi) % (2 * np.pi) - np.pi
+                v = t_vel
+                vel_l = self.v_left
+                vel_r = self.v_right
+                radius = self.radius
+                for i in range(sim_num):
+                    delta_theta = (theta - t_theta + np.pi) % (2 * np.pi) - np.pi
+                    k = -(4 * delta_theta + np.sin(delta_theta))
+                    sim_v = t_vel / (1 + 0.2 * np.abs(k))
+                    sim_w = sim_v * k
+                    sim_v, sim_w = self.limitation(sim_v, sim_w, vel_l, vel_r, radius, dt)
+                    px, py, theta, v, w = self.simulation(px, py, theta, sim_v, sim_w, dt)
+                    vel_r = v + w * radius
+                    vel_l = v - w * radius
+                self.px = px
+                self.py = py
+                self.theta = theta
+                self.vx = v * np.cos(self.theta)
+                self.vy = v * np.sin(self.theta)
+                self.v_left = vel_l
+                self.v_right = vel_r
+            else:
+                self.theta = (self.theta + action.r + np.pi) % (2 * np.pi) - np.pi
+                self.vx = action.v * np.cos(self.theta)
+                self.vy = action.v * np.sin(self.theta)
+                self.px = self.px + self.vx * self.time_step
+                self.py = self.py + self.vy * self.time_step
     def limitation(self, t_v, t_w, vel_l, vel_r, radius, dt):
         t_vel_r = t_v + t_w * radius
         t_vel_l = t_v - t_w * radius
