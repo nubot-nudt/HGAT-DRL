@@ -241,8 +241,6 @@ class TreeSearchRL(Policy):
 
         """
         self.count=self.count+1
-        if self.count == 41:
-            print('debug')
         if self.phase is None or self.device is None:
             raise AttributeError('Phase, device attributes have to be set!')
         if self.phase == 'train' and self.epsilon is None:
@@ -434,25 +432,6 @@ class TreeSearchRL(Policy):
         return next_state.unsqueeze(0).unsqueeze(0)
 
     def generate_simulated_trajectory(self, robot_state_batch, human_state_batch, action_batch, next_human_state_batch):
-        # next_state = robot_state.clone()
-        # action_list = []
-        # if self.kinematics == 'holonomic':
-        #     for i in range(next_state.shape[0]):
-        #         action = self.action_space[action_index[i]]
-        #         action_list.append([action.vx, action.vy])
-        #     action_tensor = torch.tensor(action_list)
-        #     next_state[:, :, 0:2] = next_state[:, :, 0:2] + action_tensor * self.time_step
-        #     next_state[:, :, 2:4] = action_tensor
-        # else:
-        #     for i in range(next_state.shape[0]):
-        #         action = self.action_space[action_index[i]]
-        #         action_list.append([action.v, action.r])
-        #     action_tensor = torch.tensor(action_list)
-        #     next_state[:, :, 8] = (next_state[:, :, 8] + action_tensor[:, 1]) % (2 * np.pi)
-        #     next_state[:, :, 2] = np.cos(next_state[:, :, 8]) * action_tensor[:, 0]
-        #     next_state[:, :, 3] = np.sin(next_state[:, :, 8]) * action_tensor[:, 0]
-        #     next_state[:, :, 0:2] = next_state[:, :, 0:2] + next_state[:, :, 2:4] * self.time_step
-        # return next_state
         expand_next_robot_state = None
         expand_reward = []
         expand_done = []
@@ -482,3 +461,27 @@ class TreeSearchRL(Policy):
 
     def get_attention_weights(self):
         return self.value_estimator.graph_model.attention_weights
+
+    def transform_state(self, state):
+        """
+        Transform the coordinate to agent-centric.
+        Input tuple include robot state tensor and human state tensor.
+        robot state tensor is of size (batch_size, number, state_length)(for example 100*1*9)
+        human state tensor is of size (batch_size, number, state_length)(for example 100*5*5)
+        """
+        # for robot
+        # 'px', 'py', 'vx', 'vy', 'radius', 'gx', 'gy', 'v_pref', 'theta'
+        #  0     1      2     3      4        5     6      7         8
+        # for human
+        #  'px', 'py', 'vx', 'vy', 'radius'
+        #  0     1      2     3      4
+        # for obstacle
+        # 'px', 'py', 'radius'
+        #  0     1     2
+        # for wall
+        # 'sx', 'sy', 'ex', 'ey'
+        #  0     1     2     3
+        assert len(state[0].shape) == 2
+        robot_state = state[0]
+        human_state = state[1]
+        return robot_state, human_state

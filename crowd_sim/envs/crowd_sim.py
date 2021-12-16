@@ -968,7 +968,6 @@ class CrowdSim(gym.Env):
                         arrows = [patches.FancyArrowPatch(*orientation[frame_num], color=robot_arrow_color,
                                                           arrowstyle=arrow_style)]
                     else:
-                        print(frame_num)
                         arrows.extend([patches.FancyArrowPatch(*orientation[frame_num], color=human_arrow_color,
                                                                arrowstyle=arrow_style)])
                 for arrow in arrows:
@@ -1051,7 +1050,7 @@ class CrowdSim(gym.Env):
 
             if output_file is not None:
                 # save as video
-                ffmpeg_writer = animation.FFMpegWriter(fps=10, metadata=dict(artist='Me'), bitrate=1800)
+                ffmpeg_writer = animation.FFMpegWriter(fps=4, metadata=dict(artist='Me'), bitrate=1800)
                 # writer = ffmpeg_writer(fps=10, metadata=(artist='Me'), bitrate=1800)
                 anim.save(output_file, writer=ffmpeg_writer)
 

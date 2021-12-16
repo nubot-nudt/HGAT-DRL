@@ -139,22 +139,6 @@ def main(args):
         gamma = 0.95
         cumulative_reward = sum([pow(gamma, t * robot.time_step * robot.v_pref)
              * reward for t, reward in enumerate(rewards)])
-
-        if args.traj:
-            env.render('traj', args.video_file)
-        else:
-            if args.video_dir is not None:
-                if policy_config.name == 'gcn':
-                    args.video_file = os.path.join(args.video_dir, policy_config.name + '_' + policy_config.gcn.similarity_function)
-                else:
-                    args.video_file = os.path.join(args.video_dir, policy_config.name)
-                args.video_file = args.video_file + '_' + args.phase + '_' + str(args.test_case) + '.mp4'
-            env.render('video', args.video_file)
-        logging.info('It takes %.2f seconds to finish. Final status is %s, cumulative_reward is %f', env.global_time, info, cumulative_reward)
-        if robot.visible and info == 'reach goal':
-            human_times = env.get_human_times()
-            logging.info('Average time for humans to reach goal: %.2f', sum(human_times) / len(human_times))
-
         positions = []
         velocity_rec = []
         rotation_rec = []
@@ -174,6 +158,21 @@ def main(args):
         plt.plot(positions, rotation_rec, color='b', marker='.', linestyle='dashed')
         plt.show()
         print('finish')
+        if args.traj:
+            env.render('traj', args.video_file)
+        else:
+            if args.video_dir is not None:
+                if policy_config.name == 'gcn':
+                    args.video_file = os.path.join(args.video_dir, policy_config.name + '_' + policy_config.gcn.similarity_function)
+                else:
+                    args.video_file = os.path.join(args.video_dir, policy_config.name)
+                args.video_file = args.video_file + '_' + args.phase + '_' + str(args.test_case) + '.mp4'
+            env.render('video', args.video_file)
+        logging.info('It takes %.2f seconds to finish. Final status is %s, cumulative_reward is %f', env.global_time, info, cumulative_reward)
+        if robot.visible and info == 'reach goal':
+            human_times = env.get_human_times()
+            logging.info('Average time for humans to reach goal: %.2f', sum(human_times) / len(human_times))
+
     else:
         explorer.run_k_episodes(env.case_size[args.phase], args.phase, print_failure=True)
         if args.plot_test_scenarios_hist:
