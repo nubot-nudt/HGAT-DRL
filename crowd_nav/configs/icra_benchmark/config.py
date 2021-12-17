@@ -12,9 +12,9 @@ class Config(object):
 
 interval = 200
 v_pref = 1.0
-rotation_constraint = np.pi
-# kinematics = 'differential'
-kinematics = 'unicycle'
+rotation_constraint = np.pi/6
+kinematics = 'differential'
+# kinematics = 'unicycle'
 # action_space.kinematics = 'holonomic'
 # action_space.kinematics = 'unicycle'
 class BaseEnvConfig(object):

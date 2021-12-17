@@ -10,6 +10,7 @@ from crowd_nav.utils.explorer import Explorer
 from crowd_nav.policy.policy_factory import policy_factory
 from crowd_sim.envs.utils.robot import Robot
 from crowd_sim.envs.policy.orca import ORCA
+from crowd_sim.envs.policy.socialforce import SocialForce
 from crowd_nav.policy.reward_estimate import Reward_Estimator
 from crowd_sim.envs.utils.info import *
 from crowd_sim.envs.utils.action import ActionRot
@@ -65,7 +66,6 @@ def main(args):
         policy_config.model_predictive_rl.planning_width = args.planning_width
     if args.sparse_search:
         policy_config.model_predictive_rl.sparse_search = True
-
     policy.configure(policy_config, device)
     if policy.trainable:
         if args.model_dir is None:
@@ -101,7 +101,7 @@ def main(args):
 
     train_config = config.TrainConfig(args.debug)
     epsilon_end = train_config.train.epsilon_end
-    if not isinstance(robot.policy, ORCA):
+    if not (isinstance(robot.policy, ORCA) or isinstance(robot.policy, SocialForce)):
         robot.policy.set_epsilon(epsilon_end)
 
     policy.set_phase(args.phase)
@@ -186,7 +186,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser('Parse configuration file')
     parser.add_argument('--config', type=str, default=None)
     parser.add_argument('--policy', type=str, default='tree_search_rl')
-    parser.add_argument('-m', '--model_dir', type=str, default='data/5human_invisible_holonomic/sarl/0')#None
+    parser.add_argument('-m', '--model_dir', type=str, default='data/output')#None
     parser.add_argument('--il', default=False, action='store_true')
     parser.add_argument('--rl', default=False, action='store_true')
     parser.add_argument('--gpu', default=False, action='store_true')
