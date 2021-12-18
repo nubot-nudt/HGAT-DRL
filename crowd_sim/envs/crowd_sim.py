@@ -709,7 +709,7 @@ class CrowdSim(gym.Env):
                 # ax.add_artist(human_start)
             for i in range(len(self.obstacles)):
                 obstacle = self.obstacles[i]
-                obstacle_mark = plt.Circle(obstacle.get_position(), obstacle.radius, fill=True, color='black')
+                obstacle_mark = plt.Circle(obstacle.get_position(), obstacle.radius, fill=True, color='grey')
                 ax.add_artist(obstacle_mark)
 
             for i in range(len(self.walls)):
@@ -719,7 +719,10 @@ class CrowdSim(gym.Env):
             robot_positions = [self.states[i][0].position for i in range(len(self.states))]
             human_positions = [[self.states[i][1][j].position for j in range(len(self.humans))]
                                for i in range(len(self.states))]
-
+            goal = mlines.Line2D([self.robot.get_goal_position()[0]], [self.robot.get_goal_position()[1]],
+                                 color='black', marker='*', linestyle='None',
+                                 markersize=15, label='Goal')
+            ax.add_artist(goal)
             for k in range(len(self.states)):
                 if k % 4 == 0 or k == len(self.states) - 1:
                     robot = plt.Circle(robot_positions[k], self.robot.radius/4, fill=True, color=robot_color)
@@ -792,7 +795,7 @@ class CrowdSim(gym.Env):
             robot = plt.Circle(robot_positions[0], self.robot.radius, fill=False, color=robot_color)
             for i in range(len(self.obstacles)):
                 obstacle = self.obstacles[i]
-                obstacle_mark = plt.Circle(obstacle.get_position(), obstacle.radius, fill=True, color='black')
+                obstacle_mark = plt.Circle(obstacle.get_position(), obstacle.radius, fill=True, color='grey')
                 ax.add_artist(obstacle_mark)
 
             for i in range(len(self.walls)):

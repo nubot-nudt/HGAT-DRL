@@ -117,7 +117,7 @@ def main(args):
 
     policy.set_env(env)
     robot.print_info()
-
+    vel_rec = []
     if args.visualize:
         if robot.policy.name in ['tree_search_rl']:
             policy.model[2].eval()
@@ -126,6 +126,7 @@ def main(args):
         ob = env.reset(args.phase, args.test_case)
         done = False
         last_pos = np.array(robot.get_position())
+
         while not done:
             action, action_index = robot.act(ob)
             ob, _, done, info = env.step(action)
@@ -136,26 +137,55 @@ def main(args):
             logging.debug('Speed: %.2f', np.linalg.norm(current_pos - last_pos) / robot.time_step)
             last_pos = current_pos
             actions.append(action)
-        gamma = 0.90
+            last_velocity = np.array(robot.get_velocity())
+            vel_rec.append(last_velocity)
+        last_velocity = np.array(robot.get_velocity())
+        vel_rec.append(last_velocity)
+        gamma = 0.95
         cumulative_reward = sum([pow(gamma, t * robot.time_step * robot.v_pref)
              * reward for t, reward in enumerate(rewards)])
         positions = []
+        velocity_left_rec = []
+        velocity_right_rec = []
         velocity_rec = []
         rotation_rec = []
-        for i in range(len(actions)):
-            positions.append(i)
-            action = actions[i]
+        for i in range(len(vel_rec)):
+            positions.append(i*robot.time_step)
+            vel = vel_rec[i]
             if robot.kinematics is 'unicycle':
-                velocity_rec.append(action.v)
-                rotation_rec.append(action.r)
+                velocity_rec.append(vel[0])
+                rotation_rec.append(vel[1])
+                vel_left = vel[0] - vel[1]*robot.radius
+                vel_right = vel[0] + vel[1]*robot.radius
+                velocity_left_rec.append(vel_left)
+                velocity_right_rec.append(vel_right)
             elif robot.kinematics is 'holonomic':
-                velocity_rec.append(action.vx)
-                rotation_rec.append(action.vy)
+                velocity_rec.append(vel[0])
+                rotation_rec.append(vel[1])
             elif robot.kinematics is 'differential':
-                velocity_rec.append(action.al)
-                rotation_rec.append(action.ar)
-        plt.plot(positions, velocity_rec, color='r', marker='.', linestyle='dashed')
-        plt.plot(positions, rotation_rec, color='b', marker='.', linestyle='dashed')
+                velocity_left_rec.append(vel[0])
+                velocity_right_rec.append((vel[1]))
+                velocity_rec.append((vel[0]+vel[1])*0.5)
+                rotation_rec.append((vel[1]-vel[0])/(2*robot.radius))
+        plt.plot(positions, velocity_left_rec, color='green', marker='*', linestyle='solid')
+        plt.plot(positions, velocity_right_rec, color='magenta', marker='^', linestyle='solid')
+        plt.plot(positions, velocity_rec, color='blue', marker='o', linestyle='solid')
+        plt.plot(positions, rotation_rec, color='red', marker='D', linestyle='solid')
+
+        # for i in range(len(actions)):
+        #     positions.append(i)
+        #     action = actions[i]
+        #     if robot.kinematics is 'unicycle':
+        #         velocity_rec.append(action.v)
+        #         rotation_rec.append(action.r)
+        #     elif robot.kinematics is 'holonomic':
+        #         velocity_rec.append(action.vx)
+        #         rotation_rec.append(action.vy)
+        #     elif robot.kinematics is 'differential':
+        #         velocity_rec.append(action.al)
+        #         rotation_rec.append(action.ar)
+        # plt.plot(positions, velocity_rec, color='r', marker='.', linestyle='dashed')
+        # plt.plot(positions, rotation_rec, color='b', marker='.', linestyle='dashed')
         plt.show()
         print('finish')
         if args.traj:
@@ -186,7 +216,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser('Parse configuration file')
     parser.add_argument('--config', type=str, default=None)
     parser.add_argument('--policy', type=str, default='tree_search_rl')
-    parser.add_argument('-m', '--model_dir', type=str, default='data/output')#None
+    parser.add_argument('-m', '--model_dir', type=str, default='data/success/td3_rl/1')#None
     parser.add_argument('--il', default=False, action='store_true')
     parser.add_argument('--rl', default=False, action='store_true')
     parser.add_argument('--gpu', default=False, action='store_true')
