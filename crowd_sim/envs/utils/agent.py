@@ -103,7 +103,11 @@ class Agent(object):
         return self.sx, self.sy
 
     def get_velocity(self):
-        return self.vx, self.vy
+        if self.kinematics == 'differential':
+            return self.v_left, self.v_right
+        else:
+            return self.vx, self.vy
+
 
     def set_velocity(self, velocity):
         self.vx = velocity[0]
