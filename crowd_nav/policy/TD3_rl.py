@@ -217,7 +217,7 @@ class TD3RL(Policy):
         assert len(state[0].shape) == 2
         if state[1] is None:
             robot_state = state[0]
-            robot_feature_dim = state[0].shape[1]
+            robot_feature_dim = 9
             human_feature_dim = 5
             dx = robot_state[:, 5] - robot_state[:, 0]
             dy = robot_state[:, 6] - robot_state[:, 1]

@@ -281,7 +281,6 @@ def rotate_state(state):
         wall_radius = torch.zeros((wall_state.shape[0], 1)) + 0.3
         new_wall_states = torch.cat((wall_start_positions, wall_end_positions, wall_radius), dim=1)
         if len(obstacle_state.shape) == 2:
-            print(obstacle_state.shape)
             obstacle_positions = obstacle_state[:, 0:2] - robot_state[:, 0:2]
             obstacle_positions = torch.mm(obstacle_positions, transform_matrix)
             obstacle_radius = obstacle_state[:, 2].unsqueeze(1) + 0.3

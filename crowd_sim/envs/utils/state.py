@@ -116,7 +116,7 @@ class JointState(object):
             human_states_tensor.to(device)
             obstacle_states_tensor.to(device)
             wall_states_tensor.to(device)
-        if human_states_tensor.shape[1]==0:
+        if human_states_tensor is None:
             human_states_tensor = None
         return robot_state_tensor, human_states_tensor, obstacle_states_tensor, wall_states_tensor
 

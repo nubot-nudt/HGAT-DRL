@@ -321,10 +321,10 @@ class CrowdSim(gym.Env):
             self.humans = []
             for i in range(human_num):
                 if self.current_scenario == 'circle_crossing':
-                    if human_num > 5 and i > 4:
-                        self.humans.append(self.generate_human(square=True))
-                    else:
-                        self.humans.append(self.generate_human())
+                    # if human_num > 5 and i > 4:
+                    #     self.humans.append(self.generate_human(square=True))
+                    # else:
+                    self.humans.append(self.generate_human())
                 else:
                     self.humans.append(self.generate_human(square=True))
 

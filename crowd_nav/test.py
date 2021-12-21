@@ -153,12 +153,10 @@ def main(args):
             positions.append(i*robot.time_step)
             vel = vel_rec[i]
             if robot.kinematics is 'unicycle':
-                velocity_rec.append(vel[0])
-                rotation_rec.append(vel[1])
-                vel_left = vel[0] - vel[1]*robot.radius
-                vel_right = vel[0] + vel[1]*robot.radius
-                velocity_left_rec.append(vel_left)
-                velocity_right_rec.append(vel_right)
+                velocity_left_rec.append(vel[0])
+                velocity_right_rec.append((vel[1]))
+                velocity_rec.append((vel[0]+vel[1])*0.5)
+                rotation_rec.append((vel[1]-vel[0])/(2*robot.radius))
             elif robot.kinematics is 'holonomic':
                 velocity_rec.append(vel[0])
                 rotation_rec.append(vel[1])
@@ -167,10 +165,14 @@ def main(args):
                 velocity_right_rec.append((vel[1]))
                 velocity_rec.append((vel[0]+vel[1])*0.5)
                 rotation_rec.append((vel[1]-vel[0])/(2*robot.radius))
-        plt.plot(positions, velocity_left_rec, color='green', marker='*', linestyle='solid')
-        plt.plot(positions, velocity_right_rec, color='magenta', marker='^', linestyle='solid')
-        plt.plot(positions, velocity_rec, color='blue', marker='o', linestyle='solid')
-        plt.plot(positions, rotation_rec, color='red', marker='D', linestyle='solid')
+        # plt.plot(positions, velocity_left_rec, color='green', marker='*', linestyle='solid')
+        # plt.plot(positions, velocity_right_rec, color='magenta', marker='^', linestyle='solid')
+
+        plt.xlabel("t(s)")
+        plt.ylim((-2.5, 2.5))
+        plt.plot(positions, velocity_rec, color='blue', marker='o', linestyle='solid', label="linear_velocity(m/s)")
+        plt.plot(positions, rotation_rec, color='red', marker='*', linestyle='solid', label="angular_velocity(rad/s)")
+        plt.legend(loc='upper left')
 
         # for i in range(len(actions)):
         #     positions.append(i)

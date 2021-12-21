@@ -6,11 +6,11 @@ b=-0.25
 c=0.25
 d=1.0
 # Script to reproduce results
-for ((i=1;i<3;i+=1))
+for ((i=1;i<15;i+=1))
 do
 	python train.py \
 	--policy td3_rl \
-	--output_dir data/$day/td3_rl/$i \
+	--output_dir data/resume/td3_rl/$i \
 	--randomseed $i  \
 	--config configs/icra_benchmark/td3.py \
 	--safe_weight $d \

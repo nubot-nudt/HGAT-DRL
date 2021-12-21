@@ -63,7 +63,7 @@ def main(args):
     log_file = os.path.join(args.output_dir, 'output.log')
     in_weight_file = os.path.join(args.output_dir, 'in_model.pth')
     il_weight_file = os.path.join(args.output_dir, 'il_model.pth')
-    rl_weight_file = os.path.join(args.output_dir, 'rl_model.pth')
+    rl_weight_file = os.path.join(args.output_dir, 'best_val.pth')
 
     spec = importlib.util.spec_from_file_location('config', args.config)
     if spec is None:
