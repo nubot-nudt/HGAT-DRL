@@ -14,6 +14,9 @@ interval = 200
 v_pref = 1.0
 rotation_constraint = np.pi/6
 kinematics = 'differential'
+human_num = 5
+obstacle_num = 3
+wall_num = 4
 # kinematics = 'unicycle'
 # action_space.kinematics = 'holonomic'
 # action_space.kinematics = 'unicycle'
@@ -40,8 +43,10 @@ class BaseEnvConfig(object):
     sim.test_scenario = 'circle_crossing'
     sim.square_width = 10
     sim.circle_radius = 4
-    sim.human_num = 5
+    sim.human_num = human_num
     sim.nonstop_human = True
+    sim.obstacle_num = 3
+    sim.wall_num = 4
 
     sim.centralized_planning = True
 
@@ -135,8 +140,13 @@ class BasePolicyConfig(object):
     gnn.planning_dims = [150, 100, 100, 1]
 
     gat = Config()
-    gat.obstacle_num = 3
-    gat.wall_num = 4
+    gat.robot_state_dim = 5
+    gat.human_state_dim = 5
+    gat.obstacle_state_dim = 3
+    gat.wall_state_dim = 5
+    gat.human_num = human_num
+    gat.obstacle_num = obstacle_num
+    gat.wall_num = wall_num
     def __init__(self, debug=False):
         pass
 

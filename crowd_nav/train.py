@@ -95,6 +95,7 @@ def main(args):
     policy = policy_factory[policy_config.name]()
     if not policy.trainable:
         parser.error('Policy has to be trainable')
+    policy_config.gat.human_num = args.human_num
     policy.configure(policy_config, device)
     policy.set_device(device)
 

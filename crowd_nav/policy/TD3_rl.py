@@ -60,6 +60,8 @@ class TD3RL(Policy):
 
     def configure(self, config, device):
         self.set_common_parameters(config)
+        self.robot_state_dim = config.gat.robot_state_dim
+        self.human_state_dim = config.gat.human_state_dim
         self.planning_depth = config.model_predictive_rl.planning_depth
         self.planning_width = config.model_predictive_rl.planning_width
         self.share_graph_model = config.model_predictive_rl.share_graph_model
@@ -217,7 +219,7 @@ class TD3RL(Policy):
         assert len(state[0].shape) == 2
         if state[1] is None:
             robot_state = state[0]
-            robot_feature_dim = 9
+            robot_feature_dim = 5
             human_feature_dim = 5
             dx = robot_state[:, 5] - robot_state[:, 0]
             dy = robot_state[:, 6] - robot_state[:, 1]

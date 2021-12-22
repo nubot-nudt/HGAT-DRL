@@ -66,17 +66,23 @@ def main(args):
         policy_config.model_predictive_rl.planning_width = args.planning_width
     if args.sparse_search:
         policy_config.model_predictive_rl.sparse_search = True
+
+    if args.human_num is not None:
+        env_config.sim.human_num = args.human_num
+        policy_config.gat.human_num = args.human_num
+
+    # configure environment
+    env_config = config.EnvConfig(args.debug)
+
     policy.configure(policy_config, device)
     if policy.trainable:
         if args.model_dir is None:
             parser.error('Trainable policy must be specified with a model weights directory')
         policy.load_model(model_weights)
 
-    # configure environment
-    env_config = config.EnvConfig(args.debug)
 
-    if args.human_num is not None:
-        env_config.sim.human_num = args.human_num
+
+
     env = gym.make('CrowdSim-v0')
     env.configure(env_config)
 

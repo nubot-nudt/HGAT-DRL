@@ -295,8 +295,9 @@ class PG_GAT_RL(nn.Module):
         self.gatinput = GATMultihead(self.X_dim, self.hidden_dim, self.X_dim, 1)
         self.gatoutput = GATMultihead(self.X_dim, self.hidden_dim, self.X_dim, 1)
         self.robot_num = 1
-        self.obstacle_num = 3
-        self.wall_num = 4
+        self.obstacle_num = config.gat.obstacle_num
+        self.wall_num = config.gat.wall_num
+        self.human_num = config.gat.human_num
         # self.gat0 = GATMultihead(self.X_dim, self.hidden_dim, self.X_dim, 1)
         # self.gat1 = GATMultihead(self.X_dim, self.hidden_dim, self.X_dim, 4)
         # self.gat2 = GraphAttentionLayer2(self.X_dim, self.X_dim)
