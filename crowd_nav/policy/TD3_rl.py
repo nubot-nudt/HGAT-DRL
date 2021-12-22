@@ -87,6 +87,10 @@ class TD3RL(Policy):
         self.actor.set_action(action_dims, max_action, min_action)
         self.critic.set_action(action_dims)
 
+    def set_obstacle_num(self, disc_num, wall_num):
+        self.actor.graph_model.wall_num = wall_num
+        self.actor.graph_model.obstacle_num = disc_num
+
     def set_device(self, device):
         self.device = device
         for model in self.model:
@@ -249,7 +253,7 @@ class TD3RL(Policy):
             human_num = human_state.shape[0]
             robot_num = robot_state.shape[0]
             obstacle_num = obstacle_state.shape[0]
-            wall_num = wall_state.shape[1]
+            wall_num = wall_state.shape[0]
 
             dx = robot_state[:, 5] - robot_state[:, 0]
             dy = robot_state[:, 6] - robot_state[:, 1]
