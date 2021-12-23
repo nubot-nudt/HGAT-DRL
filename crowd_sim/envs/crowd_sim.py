@@ -177,8 +177,8 @@ class CrowdSim(gym.Env):
                         break
                 if not collide:
                     break
-            px = 0.0
-            py = 0.0
+            # px = 0.0
+            # py = 0.0
             human.start_pos.append((px, py))
             human.set(px, py, -px, -py, 0, 0, 0)
         elif square is False and non_stop is True:
