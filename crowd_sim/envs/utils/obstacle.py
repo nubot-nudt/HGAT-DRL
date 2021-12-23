@@ -5,7 +5,7 @@ from crowd_sim.envs.utils.state import ObstacleState
 
 
 class Obstacle(object):
-    def __init__(self, config):
+    def __init__(self):
         """
         Base class for robot and human. Have the physical attributes of an agent.
 
@@ -13,6 +13,15 @@ class Obstacle(object):
         self.radius = 0.3
         self.px = None
         self.py = None
+
+    # def __init__(self, px, py):
+    #     """
+    #     Base class for robot and human. Have the physical attributes of an agent.
+    #
+    #     """
+    #     self.radius = 0.3
+    #     self.px = px
+    #     self.py = py
 
     def print_info(self):
         logging.info('obstacle locates at {} and {}'.format(

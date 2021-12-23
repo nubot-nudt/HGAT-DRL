@@ -149,17 +149,22 @@ class sgdqn_planner:
         action_cmd = ActionCmd()
 
         dis = np.sqrt((robot_full_state.px - robot_full_state.gx)**2 + (robot_full_state.py - robot_full_state.gy)**2)
-        if dis < 0.3:
+        if dis < 0.5:
             action_cmd.stop = True
-            action_cmd.vel_x = 0.0
-            action_cmd.vel_y = 0.0
+            action_cmd.vel_x = robot_state.vel_x
+            action_cmd.vel_y = robot_state.vel_y
+            action_cmd.acc_l = 0
+            action_cmd.acc_r = 0
         else:
             print("state callback")
             action_cmd.stop = False
             robot_action, robot_action_index = self.robot_policy.predict(self.cur_state)
             print('robot_action', robot_action.al, robot_action.ar)
-            action_cmd.vel_x = robot_action.al
-            action_cmd.vel_y = robot_action.ar
+            action_cmd.acc_l = robot_action.al
+            action_cmd.acc_r = robot_action.ar
+            action_cmd.vel_x = robot_state.vel_x
+            action_cmd.vel_y = robot_state.vel_y
+            action_cmd.stamp = observe_info.stamp
         self.robot_action_pub.publish(action_cmd)
         # human_actions = self.peds_policy.predict(peds_full_state)
         #

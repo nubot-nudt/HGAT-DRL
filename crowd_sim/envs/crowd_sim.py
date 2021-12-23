@@ -177,6 +177,8 @@ class CrowdSim(gym.Env):
                         break
                 if not collide:
                     break
+            px = 0.0
+            py = 0.0
             human.start_pos.append((px, py))
             human.set(px, py, -px, -py, 0, 0, 0)
         elif square is False and non_stop is True:
@@ -256,7 +258,7 @@ class CrowdSim(gym.Env):
         return human
 
     def generate_static_obstcale(self, obstacle=None):
-        obstacle = Obstacle(self.config)
+        obstacle = Obstacle()
         if self.randomize_attributes:
             obstacle.sample_random_attributes()
         else:
@@ -331,6 +333,17 @@ class CrowdSim(gym.Env):
             self.obstacles = []
             for i in range(self.static_obstacle_num):
                 self.obstacles.append(self.generate_static_obstcale())
+            # obstacle_1 = Obstacle()
+            # obstacle_1.set(2.0, 3.0)
+            # self.obstacles.append(obstacle_1)
+            #
+            # obstacle_2 = Obstacle()
+            # obstacle_2.set(2.0, -3.0)
+            # self.obstacles.append(obstacle_2)
+            #
+            # obstacle_3 = Obstacle()
+            # obstacle_3.set(-2.0, -2.0)
+            # self.obstacles.append(obstacle_3)
 
             room_width = self.square_width -1
             room_length = self.square_width
@@ -414,7 +427,6 @@ class CrowdSim(gym.Env):
         weight_terminal = 1.0
         re_collision = self.collision_penalty
         re_arrival = self.success_reward
-
         # collision detection
         dmin = float('inf')
         collision = False
@@ -572,6 +584,7 @@ class CrowdSim(gym.Env):
             done = True
             info = Collision()
         elif reaching_goal:
+
             reward_arrival = re_arrival
             done = True
             info = ReachGoal()
