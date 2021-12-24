@@ -1,23 +1,24 @@
 #!/bin/bash
 day=`date +%m%d`
 echo "The Script begin at $day"
-a=0.4
-b=-0.5
-c=0.5
-d=2.0
+a=0.2
+b=-0.25
+c=0.25
+d=1.0
 # Script to reproduce results
-for ((i=0;i<2;i+=1))
+for ((i=1;i<3;i+=1))
 do
 	python train.py \
-	--policy tree-search-rl \
-	--output_dir data/$day/tsrl2/$i \
+	--policy td3_rl \
+	--output_dir data/$day/td3_rl/$i \
 	--randomseed $i  \
-	--config configs/icra_benchmark/ts_separate.py \
+	--config configs/icra_benchmark/td3.py \
 	--safe_weight $d \
 	--goal_weight $a \
 	--re_collision $b \
 	--re_arrival $c \
-	--human_num 5
+	--human_num 5 \
+	--resume
 
 #	python train.py \
 #	--policy model-predictive-rl \

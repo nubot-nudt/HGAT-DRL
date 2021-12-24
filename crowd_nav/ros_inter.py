@@ -13,7 +13,7 @@ from crowd_sim.envs.utils.robot import Robot
 from crowd_sim.envs.policy.orca import ORCA
 from crowd_nav.policy.reward_estimate import Reward_Estimator
 import rospy
-from crowd_sim.envs.utils.state import ObservableState, FullState, JointState
+from crowd_sim.envs.utils.state import ObservableState, FullState, JointState, ObstacleState, WallState
 from sgdqn_common.msg import ObserveInfo, ActionCmd
 from crowd_sim.envs.utils.action import ActionXY, ActionRot
 from dynamic_reconfigure.server import Server
@@ -120,12 +120,12 @@ class sgdqn_planner:
 
         # for continous action
         action_dim = env.action_space.shape[0]
-        max_action = env.action_space.high
-        min_action = env.action_space.low
+        max_action = np.array([1.0, 1.0])
+        min_action = np.array([-1.0, -1.0])
         if policy.name == 'TD3RL':
             policy.set_action(action_dim, max_action, min_action)
         self.robot_policy = policy
-        policy.set_v_pref(0.7)
+        policy.set_v_pref(1.0)
         self.robot_policy.set_time_step(env.time_step)
         train_config = config.TrainConfig(args.debug)
         epsilon_end = train_config.train.epsilon_end
@@ -149,22 +149,35 @@ class sgdqn_planner:
                                      robot_state.theta)
         peds_full_state = [ObservableState(ped_state.pos_x, ped_state.pos_y, ped_state.vel_x, ped_state.vel_y,
                                      ped_state.radius) for ped_state in observe_info.ped_states]
-        observable_states = peds_full_state
+        obstacle_states = [ObstacleState(disc_obstacle.pos_x, disc_obstacle.pos_y, disc_obstacle.radius)
+                          for disc_obstacle in observe_info.disc_states]
+        disc_num = len(obstacle_states)
+        wall_states = [WallState(wall_obstacle.start_x, wall_obstacle.start_y, wall_obstacle.end_x,
+                                 wall_obstacle.end_y) for wall_obstacle in observe_info.line_states]
+        wall_num = len(wall_states)
+        if self.robot_policy.name == 'TD3RL':
+            self.robot_policy.set_obstacle_num(disc_num, wall_num)
+        observable_states = (peds_full_state, obstacle_states, wall_states)
         self.cur_state = JointState(robot_full_state, observable_states)
         action_cmd = ActionCmd()
 
         dis = np.sqrt((robot_full_state.px - robot_full_state.gx)**2 + (robot_full_state.py - robot_full_state.gy)**2)
-        if dis < 0.3:
+        if dis < 0.5:
             action_cmd.stop = True
-            action_cmd.vel_x = 0.0
-            action_cmd.vel_y = 0.0
+            action_cmd.vel_x = robot_state.vel_x
+            action_cmd.vel_y = robot_state.vel_y
+            action_cmd.acc_l = 0
+            action_cmd.acc_r = 0
         else:
             print("state callback")
             action_cmd.stop = False
             robot_action, robot_action_index = self.robot_policy.predict(self.cur_state)
-            print('robot_action', robot_action.v, robot_action.r)
-            action_cmd.vel_x = robot_action.v
-            action_cmd.vel_y = robot_action.r
+            print('robot_action', robot_action.al, robot_action.ar)
+            action_cmd.acc_l = robot_action.al
+            action_cmd.acc_r = robot_action.ar
+            action_cmd.vel_x = robot_state.vel_x
+            action_cmd.vel_y = robot_state.vel_y
+            action_cmd.stamp = observe_info.stamp
         self.robot_action_pub.publish(action_cmd)
         # human_actions = self.peds_policy.predict(peds_full_state)
         #
@@ -191,7 +204,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser('Parse configuration file')
     parser.add_argument('--config', type=str, default=None)
     parser.add_argument('--policy', type=str, default='tree_search_rl')
-    parser.add_argument('-m', '--model_dir', type=str, default='data/tsrl5rot/tsrl/1')#None
+    parser.add_argument('-m', '--model_dir', type=str, default='data/success/td3_rl/1')#None
     parser.add_argument('--il', default=False, action='store_true')
     parser.add_argument('--rl', default=False, action='store_true')
     parser.add_argument('--gpu', default=False, action='store_true')

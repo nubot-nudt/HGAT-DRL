@@ -10,6 +10,7 @@ from crowd_nav.utils.explorer import Explorer
 from crowd_nav.policy.policy_factory import policy_factory
 from crowd_sim.envs.utils.robot import Robot
 from crowd_sim.envs.policy.orca import ORCA
+from crowd_sim.envs.policy.socialforce import SocialForce
 from crowd_nav.policy.reward_estimate import Reward_Estimator
 from crowd_sim.envs.utils.info import *
 from crowd_sim.envs.utils.action import ActionRot
@@ -66,17 +67,22 @@ def main(args):
     if args.sparse_search:
         policy_config.model_predictive_rl.sparse_search = True
 
+    if args.human_num is not None:
+        env_config.sim.human_num = args.human_num
+        policy_config.gat.human_num = args.human_num
+
+    # configure environment
+    env_config = config.EnvConfig(args.debug)
+
     policy.configure(policy_config, device)
     if policy.trainable:
         if args.model_dir is None:
             parser.error('Trainable policy must be specified with a model weights directory')
         policy.load_model(model_weights)
 
-    # configure environment
-    env_config = config.EnvConfig(args.debug)
 
-    if args.human_num is not None:
-        env_config.sim.human_num = args.human_num
+
+
     env = gym.make('CrowdSim-v0')
     env.configure(env_config)
 
@@ -97,11 +103,11 @@ def main(args):
         policy.set_action(action_dim, max_action, min_action)
     robot.time_step = env.time_step
     robot.set_policy(policy)
-    explorer = Explorer(env, robot, device, None, gamma=0.9)
+    explorer = Explorer(env, robot, device, None, gamma=0.95)
 
     train_config = config.TrainConfig(args.debug)
     epsilon_end = train_config.train.epsilon_end
-    if not isinstance(robot.policy, ORCA):
+    if not (isinstance(robot.policy, ORCA) or isinstance(robot.policy, SocialForce)):
         robot.policy.set_epsilon(epsilon_end)
 
     policy.set_phase(args.phase)
@@ -117,7 +123,7 @@ def main(args):
 
     policy.set_env(env)
     robot.print_info()
-
+    vel_rec = []
     if args.visualize:
         if robot.policy.name in ['tree_search_rl']:
             policy.model[2].eval()
@@ -126,6 +132,7 @@ def main(args):
         ob = env.reset(args.phase, args.test_case)
         done = False
         last_pos = np.array(robot.get_position())
+
         while not done:
             action, action_index = robot.act(ob)
             ob, _, done, info = env.step(action)
@@ -136,10 +143,59 @@ def main(args):
             logging.debug('Speed: %.2f', np.linalg.norm(current_pos - last_pos) / robot.time_step)
             last_pos = current_pos
             actions.append(action)
-        gamma = 0.9
+            last_velocity = np.array(robot.get_velocity())
+            vel_rec.append(last_velocity)
+        last_velocity = np.array(robot.get_velocity())
+        vel_rec.append(last_velocity)
+        gamma = 0.95
         cumulative_reward = sum([pow(gamma, t * robot.time_step * robot.v_pref)
              * reward for t, reward in enumerate(rewards)])
+        positions = []
+        velocity_left_rec = []
+        velocity_right_rec = []
+        velocity_rec = []
+        rotation_rec = []
+        for i in range(len(vel_rec)):
+            positions.append(i*robot.time_step)
+            vel = vel_rec[i]
+            if robot.kinematics is 'unicycle':
+                velocity_left_rec.append(vel[0])
+                velocity_right_rec.append((vel[1]))
+                velocity_rec.append((vel[0]+vel[1])*0.5)
+                rotation_rec.append((vel[1]-vel[0])/(2*robot.radius))
+            elif robot.kinematics is 'holonomic':
+                velocity_rec.append(vel[0])
+                rotation_rec.append(vel[1])
+            elif robot.kinematics is 'differential':
+                velocity_left_rec.append(vel[0])
+                velocity_right_rec.append((vel[1]))
+                velocity_rec.append((vel[0]+vel[1])*0.5)
+                rotation_rec.append((vel[1]-vel[0])/(2*robot.radius))
+        # plt.plot(positions, velocity_left_rec, color='green', marker='*', linestyle='solid')
+        # plt.plot(positions, velocity_right_rec, color='magenta', marker='^', linestyle='solid')
 
+        plt.xlabel("t(s)")
+        plt.ylim((-2.5, 2.5))
+        plt.plot(positions, velocity_rec, color='blue', marker='o', linestyle='solid', label="linear_velocity(m/s)")
+        plt.plot(positions, rotation_rec, color='red', marker='*', linestyle='solid', label="angular_velocity(rad/s)")
+        plt.legend(loc='upper left')
+
+        # for i in range(len(actions)):
+        #     positions.append(i)
+        #     action = actions[i]
+        #     if robot.kinematics is 'unicycle':
+        #         velocity_rec.append(action.v)
+        #         rotation_rec.append(action.r)
+        #     elif robot.kinematics is 'holonomic':
+        #         velocity_rec.append(action.vx)
+        #         rotation_rec.append(action.vy)
+        #     elif robot.kinematics is 'differential':
+        #         velocity_rec.append(action.al)
+        #         rotation_rec.append(action.ar)
+        # plt.plot(positions, velocity_rec, color='r', marker='.', linestyle='dashed')
+        # plt.plot(positions, rotation_rec, color='b', marker='.', linestyle='dashed')
+        plt.show()
+        print('finish')
         if args.traj:
             env.render('traj', args.video_file)
         else:
@@ -154,6 +210,7 @@ def main(args):
         if robot.visible and info == 'reach goal':
             human_times = env.get_human_times()
             logging.info('Average time for humans to reach goal: %.2f', sum(human_times) / len(human_times))
+
     else:
         explorer.run_k_episodes(env.case_size[args.phase], args.phase, print_failure=True)
         if args.plot_test_scenarios_hist:
@@ -163,28 +220,15 @@ def main(args):
             plt.savefig(os.path.join(args.model_dir, 'test_scene_hist.png'))
             plt.close()
 
-    positions = []
-    velocity_rec = []
-    rotation_rec = []
-    for i in range(len(actions)):
-        positions.append(i)
-        action = actions[i]
-        velocity_rec.append(action.v)
-        rotation_rec.append(action.r)
-    plt.plot(positions, velocity_rec, color='r', marker='.', linestyle='dashed')
-    plt.plot(positions, rotation_rec, color='b', marker='.', linestyle='dashed')
-    plt.show()
-    print('finish')
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Parse configuration file')
     parser.add_argument('--config', type=str, default=None)
     parser.add_argument('--policy', type=str, default='tree_search_rl')
-    parser.add_argument('-m', '--model_dir', type=str, default='data/tsrl5rot/tsrl5rot/tsrl/0/')#None
+    parser.add_argument('-m', '--model_dir', type=str, default='data/success/td3_rl/1')#None
     parser.add_argument('--il', default=False, action='store_true')
     parser.add_argument('--rl', default=False, action='store_true')
     parser.add_argument('--gpu', default=False, action='store_true')
-    parser.add_argument('-v', '--visualize', default=True, action='store_true')
+    parser.add_argument('-v', '--visualize', default=False, action='store_true')
     parser.add_argument('--phase', type=str, default='test')
     parser.add_argument('-c', '--test_case', type=int, default=10)
     parser.add_argument('--square', default=False, action='store_true')
@@ -193,7 +237,7 @@ if __name__ == '__main__':
     parser.add_argument('--video_dir', type=str, default=None)
     parser.add_argument('--traj', default=False, action='store_true')
     parser.add_argument('--debug', default=False, action='store_true')
-    parser.add_argument('--human_num', type=int, default=None)
+    parser.add_argument('--human_num', type=int, default=5)
     parser.add_argument('--safety_space', type=float, default=0.2)
     parser.add_argument('--test_scenario', type=str, default=None)
     parser.add_argument('--plot_test_scenarios_hist', default=True, action='store_true')

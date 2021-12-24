@@ -9,8 +9,17 @@ import numpy as np
 class Config(object):
     def __init__(self):
         pass
-v_pref = 0.7
+
+interval = 200
+v_pref = 1.0
 rotation_constraint = np.pi/6
+kinematics = 'differential'
+human_num = 5
+obstacle_num = 3
+wall_num = 4
+# kinematics = 'unicycle'
+# action_space.kinematics = 'holonomic'
+# action_space.kinematics = 'unicycle'
 class BaseEnvConfig(object):
     env = Config()
     env.time_limit = 30
@@ -34,8 +43,11 @@ class BaseEnvConfig(object):
     sim.test_scenario = 'circle_crossing'
     sim.square_width = 10
     sim.circle_radius = 4
-    sim.human_num = 0
+    sim.human_num = human_num
     sim.nonstop_human = True
+    sim.obstacle_num = 3
+    sim.wall_num = 4
+
     sim.centralized_planning = True
 
     humans = Config()
@@ -47,6 +59,7 @@ class BaseEnvConfig(object):
 
     robot = Config()
     robot.visible = False
+    robot.kinematics = kinematics
     robot.policy = 'none'
     robot.radius = 0.3
     robot.v_pref = v_pref
@@ -61,16 +74,14 @@ class BaseEnvConfig(object):
 
 class BasePolicyConfig(object):
     rl = Config()
-    rl.gamma = 0.9
-
+    rl.gamma = 0.95
     om = Config()
     om.cell_num = 4
     om.cell_size = 1
     om.om_channel_size = 3
 
     action_space = Config()
-    # action_space.kinematics = 'holonomic'
-    action_space.kinematics = 'unicycle'
+    action_space.kinematics = kinematics
     action_space.speed_samples = 5
     action_space.rotation_samples = 16
     action_space.sampling = 'exponential'
@@ -116,23 +127,33 @@ class BasePolicyConfig(object):
     gcn.planning_dims = [150, 100, 100, 1]
     gcn.similarity_function = 'embedded_gaussian'
     gcn.layerwise_graph = True
-    gcn.skip_connection = False
+    gcn.skip_connection = True
 
     gnn = Config()
     gnn.multiagent_training = True
     gnn.node_dim = 32
-    gnn.wr_dims = [64, gnn.node_dim]
-    gnn.wh_dims = [64, gnn.node_dim]
+    # gnn.wr_dims = [64, gnn.node_dim]
+    # gnn.wh_dims = [64, gnn.node_dim]
+    gnn.wr_dims = [gnn.node_dim]
+    gnn.wh_dims = [gnn.node_dim]
     gnn.edge_dim = 32
     gnn.planning_dims = [150, 100, 100, 1]
 
+    gat = Config()
+    gat.robot_state_dim = 5
+    gat.human_state_dim = 5
+    gat.obstacle_state_dim = 3
+    gat.wall_state_dim = 5
+    gat.human_num = human_num
+    gat.obstacle_num = obstacle_num
+    gat.wall_num = wall_num
     def __init__(self, debug=False):
         pass
 
 
 class BaseTrainConfig(object):
     trainer = Config()
-    trainer.batch_size = 100
+    trainer.batch_size = 128
     trainer.optimizer = 'Adam'
 
     imitation_learning = Config()
@@ -146,19 +167,19 @@ class BaseTrainConfig(object):
     train.rl_train_epochs = 1
     train.rl_learning_rate = 0.001
     # number of batches to train at the end of training episode il_episodes
-    train.train_batches = 20
+    train.train_batches = 50
     # training episodes in outer loop
-    train.train_episodes = 10000
+    train.train_episodes = 6000
     # number of episodes sampled in one training episode
     train.sample_episodes = 1
-    train.target_update_interval = 500
-    train.evaluation_interval = 500
+    train.target_update_interval = interval
+    train.evaluation_interval = interval
     # the memory pool can roughly store 2K episodes, total size = episodes * 50
     train.capacity = 100000
     train.epsilon_start = 0.5
     train.epsilon_end = 0.1
-    train.epsilon_decay = 4000
-    train.checkpoint_interval = 500
+    train.epsilon_decay = 3000
+    train.checkpoint_interval = interval
 
     train.train_with_pretend_batch = False
 

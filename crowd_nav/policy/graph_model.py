@@ -5,6 +5,7 @@ import torch.nn as nn
 from torch.nn.functional import softmax, relu
 from torch.nn import Parameter
 from crowd_nav.policy.helpers import mlp, GAT #, GraphAttentionLayer
+# from torch_geometric.nn import GATConv
 
 
 class RGL(nn.Module):
@@ -258,85 +259,222 @@ class GraphAttentionLayer(nn.Module):
         A = self.w_a(pairwise_features).reshape(-1, X.size(1), X.size(1))
         return A
 
-# class GAT_RL2(nn.Module):
-#     def __init__(self, config, robot_state_dim, human_state_dim, device):
-#         """ The current code might not be compatible with models trained with previous version
-#         """
-#         super().__init__()
-#         self.multiagent_training = config.gcn.multiagent_training
-#         num_layer = config.gcn.num_layer
-#         X_dim = config.gcn.X_dim
-#         wr_dims = config.gcn.wr_dims
-#         wh_dims = config.gcn.wh_dims
-#         final_state_dim = config.gcn.final_state_dim
-#         similarity_function = config.gcn.similarity_function
-#         layerwise_graph = config.gcn.layerwise_graph
-#         skip_connection = config.gcn.skip_connection
+class PG_GAT_RL(nn.Module):
+    def __init__(self, config, robot_state_dim, human_state_dim):
+        """ The current code might not be compatible with models trained with previous version
+        """
+        super().__init__()
+        self.multiagent_training = config.gcn.multiagent_training
+        num_layer = config.gcn.num_layer
+        X_dim = config.gcn.X_dim
+        final_state_dim = config.gcn.final_state_dim
+        similarity_function = config.gcn.similarity_function
+        layerwise_graph = config.gcn.layerwise_graph
+        skip_connection = config.gcn.skip_connection
+
+        num_head = 4
+
+        # design choice
+        # 'gaussian', 'embedded_gaussian', 'cosine', 'cosine_softmax', 'concatenation'
+        self.similarity_function = similarity_function
+        self.robot_state_dim = robot_state_dim
+        self.human_state_dim = human_state_dim
+        self.obstacle_state_dim = 3
+        self.wall_state_dim = 5
+        self.state_dim = self.robot_state_dim + self.human_state_dim + self.obstacle_state_dim + self.wall_state_dim
+        self.num_layer = num_layer
+        self.X_dim = X_dim
+        self.hidden_dim = 32
+        self.layerwise_graph = layerwise_graph
+        self.skip_connection = skip_connection
+        # self.encoder = mlp(self.state_dim, [64, self.X_dim], last_relu=True)
+        self.encode_r = mlp(self.robot_state_dim, [64, self.X_dim], last_relu=True)
+        self.encode_h = mlp(self.human_state_dim, [64, self.X_dim], last_relu=True)
+        self.encode_o = mlp(self.obstacle_state_dim, [64, self.X_dim], last_relu=True)
+        self.encode_w = mlp(self.wall_state_dim, [64, self.X_dim], last_relu=True)
+        self.gatinput = GATMultihead(self.X_dim, self.hidden_dim, self.X_dim, 1)
+        self.gatoutput = GATMultihead(self.X_dim, self.hidden_dim, self.X_dim, 1)
+        self.robot_num = 1
+        self.obstacle_num = config.gat.obstacle_num
+        self.wall_num = config.gat.wall_num
+        self.human_num = config.gat.human_num
+        # self.gat0 = GATMultihead(self.X_dim, self.hidden_dim, self.X_dim, 1)
+        # self.gat1 = GATMultihead(self.X_dim, self.hidden_dim, self.X_dim, 4)
+        # self.gat2 = GraphAttentionLayer2(self.X_dim, self.X_dim)
+        logging.info('Similarity_func: {}'.format(self.similarity_function))
+        logging.info('Layerwise_graph: {}'.format(self.layerwise_graph))
+        logging.info('Skip_connection: {}'.format(self.skip_connection))
+        logging.info('Number of layers: {}'.format(self.num_layer))
+
+        # for visualize
+        self.attention_weights = None
+
+    def compute_adjectory_matrix(self, state):
+        human_num = state.shape[1] - self.robot_num - self.obstacle_num - self.wall_num
+        Num = state.shape[1]
+        assert state.shape[1] == Num
+        adj = torch.zeros((Num, Num))
+        for i in range(Num):
+            adj[0][i] = 1
+        for i in range(self.robot_num, human_num+self.robot_num):
+            for j in range(self.robot_num, human_num + self.robot_num + self.obstacle_num + self.wall_num):
+                adj[i][j] = 1
+        adj = adj.repeat(state.shape[0], 1, 1)
+        return adj
+
+    def forward(self, state):
+        """
+        Embed current state tensor pair (robot_state, human_states) into a latent space
+        Each tensor is of shape (batch_size, # of agent, features)
+        :param state:
+        :return:
+        """
+        if state.shape[1] == 1:
+            adj = torch.ones((1, 1))
+            adj = adj.repeat(state.shape[0], 1, 1)
+            X = state
+            if state.shape[0]==1:
+                H1, self.attention_weights = self.gat0(X, adj)
+            else:
+                H1, _ = self.gat0(X, adj)
+            H2, _ = self.gat1(H1, adj)
+            if self.skip_connection:
+                output = H1 + H2 + X
+            else:
+                output = H2
+            return output
+        else:
+            adj = self.compute_adjectory_matrix(state)
+            robot_state = state[:,0: self.robot_num,0:self.robot_state_dim]
+            robot_state = self.encode_r(robot_state)
+            human_num = state.shape[1] - self.robot_num - self.obstacle_num - self.wall_num
+            human_state = state[:, self.robot_num:self.robot_num+human_num, self.robot_state_dim:self.robot_state_dim+self.human_state_dim]
+            human_state = self.encode_h(human_state)
+            obstacle_state = state[:,self.robot_num+human_num:self.robot_num+human_num+self.obstacle_num,self.robot_state_dim+self.human_state_dim:self.robot_state_dim+self.human_state_dim+self.obstacle_state_dim]
+            obstacle_state = self.encode_o(obstacle_state)
+            wall_state = state[:, self.robot_num+human_num+self.obstacle_num:,self.robot_state_dim+self.human_state_dim+self.obstacle_state_dim:]
+            wall_state = self.encode_w(wall_state)
+            H0=torch.cat((robot_state,human_state,obstacle_state,wall_state), dim=1)
+
+
+            # H0 = self.encoder(state)
+            # compute feature matrix X
+            if state.shape[0]==1:
+                H1 = self.gatinput(H0, adj)
+            else:
+                H1 = self.gatinput(H0, adj)
+            H2 = self.gatoutput(H1, adj)
+            # H3 = self.gat1(H2, adj)
+            # H4, _ = self.gat2(H3, adj)
+            if self.skip_connection:
+                output = H0 + H1 + H2
+            else:
+                output = H2
+            return output
+
+class GATMultihead(nn.Module):
+    def __init__(self, nfeat, nhid, noutput, nheads):
+        """Dense version of GAT."""
+        super(GATMultihead, self).__init__()
+
+        self.attentions = [GraphAttentionLayer2(nfeat, nhid, concat=True) for _ in range(nheads)]
+        for i, attention in enumerate(self.attentions):
+            self.add_module('attention_{}'.format(i), attention)
+
+        self.out_att = GraphAttentionLayer2(nhid * nheads, noutput, concat=False)
+
+    def forward(self, x, adj):
+        # x = nn.functional.dropout(x, self.dropout, training=self.training)
+        x = torch.cat([att(x, adj) for att in self.attentions], dim=2)
+        x = relu(self.out_att(x, adj))
+        return x
+
+
+class GraphAttentionLayer2(nn.Module):
+    """
+    Simple GAT layer, similar to https://arxiv.org/abs/1710.10903
+    """
+
+    def __init__(self, in_features, out_features, concat=True):
+        super(GraphAttentionLayer2, self).__init__()
+        # self.dropout = dropout
+        self.in_features = in_features
+        self.out_features = out_features
+        self.alpha = 0.2
+        self.concat = concat
+
+        self.W = nn.Parameter(torch.zeros(size=(in_features, out_features)))
+        nn.init.orthogonal_(self.W.data, gain=1.414)
+        self.a = Parameter(torch.zeros(size=(2*out_features, 1)))
+        nn.init.orthogonal_(self.a.data, gain=1.414)
+        self.bias = nn.Parameter(torch.zeros(size=(1, out_features)))
+        nn.init.orthogonal_(self.bias.data, gain=1.414)
+        self.leakyrelu = nn.LeakyReLU(negative_slope=0.1)
+
+    def forward(self, input, adj):
+
+        # shape of input is batch_size, graph_size,feature_dims
+        # shape of adj is batch_size, graph_size, graph_size
+        assert len(input.shape) == 3
+        assert len(adj.shape) == 3
+        # map input to h
+        h = torch.matmul(input, self.W)
+        N = h.size()[1]
+        batch_size = h.size()[0]
+        a_input = torch.cat([h.repeat(1, 1, N).view(batch_size, N * N, -1), h.repeat(1, N, 1)],
+                            dim=-1).view(batch_size, N, -1, 2 * self.out_features)
+        e = self.leakyrelu(torch.matmul(a_input, self.a).squeeze(3))
+        zero_vec = -9e15*torch.ones_like(e)
+        attention = torch.where(adj > 0, e, zero_vec)
+        attention = nn.functional.softmax(attention, dim=2)
+        h_prime = torch.matmul(attention, h)
+        h_prime = h_prime + self.bias
+        return nn.functional.relu(h_prime)
+
+
+# class GraphAttentionLayer3(nn.Module):
+#     """
+#     Simple GAT layer, similar to https://arxiv.org/abs/1710.10903
+#     """
+#     def __init__(self, in_features, out_features, dropout, alpha, concat=True):
+#         super(GraphAttentionLayer3, self).__init__()
+#         self.dropout = dropout
+#         self.in_features = in_features
+#         self.out_features = out_features
+#         self.alpha = alpha
+#         self.concat = concat
 #
-#         # design choice
+#         self.W = nn.Parameter(torch.empty(size=(in_features, out_features)))
+#         nn.init.xavier_uniform_(self.W.data, gain=1.414)
+#         self.a = nn.Parameter(torch.empty(size=(2*out_features, 1)))
+#         nn.init.xavier_uniform_(self.a.data, gain=1.414)
 #
-#         # 'gaussian', 'embedded_gaussian', 'cosine', 'cosine_softmax', 'concatenation'
-#         self.similarity_function = similarity_function
-#         self.robot_state_dim = robot_state_dim
-#         self.human_state_dim = human_state_dim
-#         self.num_layer = num_layer
-#         self.X_dim = X_dim
-#         self.layerwise_graph = layerwise_graph
-#         self.skip_connection = skip_connection
-#         self.nheads = 1
-#         self.device = device
+#         self.leakyrelu = nn.LeakyReLU(self.alpha)
 #
-#         logging.info('Similarity_func: {}'.format(self.similarity_function))
-#         logging.info('Layerwise_graph: {}'.format(self.layerwise_graph))
-#         logging.info('Skip_connection: {}'.format(self.skip_connection))
-#         logging.info('Number of layers: {}'.format(self.num_layer))
+#     def forward(self, h, adj):
+#         Wh = torch.mm(h, self.W) # h.shape: (N, in_features), Wh.shape: (N, out_features)
+#         e = self._prepare_attentional_mechanism_input(Wh)
 #
-#         self.w_r = mlp(robot_state_dim, wr_dims, last_relu=True)
-#         self.w_h = mlp(human_state_dim, wh_dims, last_relu=True)
+#         zero_vec = -9e15*torch.ones_like(e)
+#         attention = torch.where(adj > 0, e, zero_vec)
+#         attention = nn.functional.softmax(attention, dim=1)
+#         h_prime = torch.matmul(attention, Wh)
 #
-#         # TODO: try other dim size
-#         embedding_dim = self.X_dim
-#         for i in range(self.num_layer):
-#             if i == 0:
-#                 self.gat0 = GAT(in_feats=self.X_dim, hid_feats=embedding_dim, out_feats=embedding_dim, dropout=0.0,
-#                                 alpha=-0.2, nheads=self.nheads)
-#                 self.add_module('GAT0', self.gat0)
-#             if i == self.num_layer - 1:
-#                 self.gat1 = GAT(in_feats=embedding_dim, hid_feats=embedding_dim, out_feats=final_state_dim, dropout=0.0,
-#                                 alpha=-0.2, nheads=self.nheads)
-#                 self.add_module('GAT1', self.gat1)
+#         if self.concat:
+#             return F.elu(h_prime)
+#         else:
+#             return h_prime
 #
-#         # TODO: try other dim size
-#         # for visualization
-#         self.A = None
+#     def _prepare_attentional_mechanism_input(self, Wh):
+#         # Wh.shape (N, out_feature)
+#         # self.a.shape (2 * out_feature, 1)
+#         # Wh1&2.shape (N, 1)
+#         # e.shape (N, N)
+#         Wh1 = torch.matmul(Wh, self.a[:self.out_features, :])
+#         Wh2 = torch.matmul(Wh, self.a[self.out_features:, :])
+#         # broadcast add
+#         e = Wh1 + Wh2.T
+#         return self.leakyrelu(e)
 #
-#     def compute_adjectory_matrix(self, state):
-#         robot_state = state[0]
-#         human_state = state[1]
-#         robot_num = robot_state.size()[1]
-#         human_num = human_state.size()[1]
-#         Num = robot_num + human_num
-#         adj = torch.ones((Num, Num))
-#         for i in range(robot_num, robot_num+human_num):
-#             adj[i][0] = 0
-#         adj = adj.repeat(robot_state.size()[0], 1, 1)
-#         adj = adj.to(self.device)
-#         return adj
-#
-#     def forward(self, state):
-#         """
-#         Embed current state tensor pair (robot_state, human_states) into a latent space
-#         Each tensor is of shape (batch_size, # of agent, features)
-#         :param state:
-#         :return:
-#         """
-#         robot_state, human_states = state
-#         # robot_state.
-#         adj = self.compute_adjectory_matrix(state)
-#         assert robot_state.shape[0] == human_states.shape[0]
-#         robot_state_embedings = self.w_r(robot_state)
-#         human_state_embedings = self.w_h(human_states)
-#         X = torch.cat([robot_state_embedings, human_state_embedings], dim=1)
-#         next_H = self.gat0(X, adj) + X
-#         next_H = self.gat1(next_H, adj) + X
-#         return next_H
+#     def __repr__(self):
+#         return self.__class__.__name__ + ' (' + str(self.in_features) + ' -> ' + str(self.out_features) + ')'

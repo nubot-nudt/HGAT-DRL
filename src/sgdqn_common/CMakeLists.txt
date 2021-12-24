@@ -26,6 +26,8 @@ add_message_files(DIRECTORY msgs FILES ObserveInfo.msg
 RobotState.msg
 PedState.msg
 ActionCmd.msg
+LineState.msg
+DiscState.msg
 )
 generate_messages(DEPENDENCIES std_msgs)
 catkin_package(

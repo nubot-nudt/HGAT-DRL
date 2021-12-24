@@ -33,15 +33,16 @@ def set_random_seeds(seed):
 def main(args):
     set_random_seeds(args.randomseed)
     # configure paths
-    make_new_dir = True
-    if os.path.exists(args.output_dir):
-        if args.overwrite:
-            shutil.rmtree(args.output_dir)
-        else:
-            shutil.rmtree(args.output_dir)
-    if make_new_dir:
-        os.makedirs(args.output_dir)
-        shutil.copy(args.config, os.path.join(args.output_dir, 'config.py'))
+    if args.resume is False:
+        make_new_dir = True
+        if os.path.exists(args.output_dir):
+            if args.overwrite:
+                shutil.rmtree(args.output_dir)
+            else:
+                shutil.rmtree(args.output_dir)
+        if make_new_dir:
+            os.makedirs(args.output_dir)
+            shutil.copy(args.config, os.path.join(args.output_dir, 'config.py'))
 
         # # insert the arguments from command line to the config file
         # with open(os.path.join(args.output_dir, 'config.py'), 'r') as fo:
@@ -62,7 +63,7 @@ def main(args):
     log_file = os.path.join(args.output_dir, 'output.log')
     in_weight_file = os.path.join(args.output_dir, 'in_model.pth')
     il_weight_file = os.path.join(args.output_dir, 'il_model.pth')
-    rl_weight_file = os.path.join(args.output_dir, 'rl_model.pth')
+    rl_weight_file = os.path.join(args.output_dir, 'best_val.pth')
 
     spec = importlib.util.spec_from_file_location('config', args.config)
     if spec is None:
@@ -94,6 +95,7 @@ def main(args):
     policy = policy_factory[policy_config.name]()
     if not policy.trainable:
         parser.error('Policy has to be trainable')
+    policy_config.gat.human_num = args.human_num
     policy.configure(policy_config, device)
     policy.set_device(device)
 
@@ -170,13 +172,13 @@ def main(args):
     explorer = Explorer(env, robot, device, writer, memory, policy.gamma, target_policy=policy)
     policy.save_model(in_weight_file)
     # imitation learning
-    # if args.resume:
-    #     if not os.path.exists(rl_weight_file):
-    #         logging.error('RL weights does not exist')
-    #     policy.load_state_dict(torch.load(rl_weight_file))
-    #     model = policy.get_model()
-    #     rl_weight_file = os.path.join(args.output_dir, 'resumed_rl_model.pth')
-    #     logging.info('Load reinforcement learning trained weights. Resume training')
+    if args.resume:
+        if not os.path.exists(rl_weight_file):
+            logging.error('RL weights does not exist')
+        policy.load_state_dict(torch.load(rl_weight_file))
+        model = policy.get_model()
+        rl_weight_file = os.path.join(args.output_dir, 'resumed_rl_model.pth')
+        logging.info('Load reinforcement learning trained weights. Resume training')
     # elif os.path.exists(il_weight_file):
     #     policy.load_state_dict(torch.load(rl_weight_file))
     #     model = policy.get_model()
@@ -244,6 +246,9 @@ def main(args):
     eps_count = 0
     fw = open(sys_args.output_dir + '/data.txt', 'w')
     print("%f %f %f %f %f" % (0,0,0,0,0), file=fw)
+    # robot.policy.set_epsilon(epsilon_start)
+    # _, _, nav_time, sum_reward, ave_return, discom_time, total_time = \
+    #     explorer.run_k_episodes(300, 'train', update_memory=True, episode=episode)
     while episode < train_episodes:
         if args.resume:
             epsilon = epsilon_end
@@ -263,14 +268,14 @@ def main(args):
         nav_time__in_last_interval = nav_time__in_last_interval + nav_time
         discom_time_in_last_interval = discom_time_in_last_interval + discom_time
         total_time_in_last_interval = total_time_in_last_interval + total_time
-        interval = 100
+        interval = 50
         if eps_count % interval == 0:
-            reward_rec.append(reward_in_last_interval/100.0)
-            return_rec.append(return_in_last_interval/100.0)
-            discom_tim_rec.append(discom_time_in_last_interval/100.0)
-            nav_time_rec.append(nav_time__in_last_interval/100.0)
+            reward_rec.append(reward_in_last_interval/interval)
+            return_rec.append(return_in_last_interval/interval)
+            discom_tim_rec.append(discom_time_in_last_interval/interval)
+            nav_time_rec.append(nav_time__in_last_interval/interval)
             total_time_rec.append(total_time_in_last_interval/100.0)
-            logging.info('Train in episode %d reward in last 100 episodes %f %f %f %f %f', eps_count, reward_rec[-1],
+            logging.info('Train in episode %d reward in last %f episodes %f %f %f %f %f', interval, eps_count, reward_rec[-1],
                          return_rec[-1], discom_tim_rec[-1], nav_time_rec[-1], total_time_rec[-1])
             print("%f %f %f %f %f" % (reward_rec[-1], return_rec[-1], discom_tim_rec[-1], nav_time_rec[-1],
                                      total_time_rec[-1]), file=fw)
@@ -321,9 +326,9 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Parse configuration file')
-    parser.add_argument('--policy', type=str, default='tree_search_rl')
-    parser.add_argument('--config', type=str, default='configs/icra_benchmark/ts_separate.py')
-    parser.add_argument('--output_dir', type=str, default='data/output1')
+    parser.add_argument('--policy', type=str, default='td3_rl')
+    parser.add_argument('--config', type=str, default='configs/icra_benchmark/td3.py')
+    parser.add_argument('--output_dir', type=str, default='data/output')
     parser.add_argument('--overwrite', default=False, action='store_true')
     parser.add_argument('--weights', type=str)
     parser.add_argument('--resume', default=False, action='store_true')
