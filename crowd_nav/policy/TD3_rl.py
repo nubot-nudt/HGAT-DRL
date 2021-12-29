@@ -159,7 +159,7 @@ class TD3RL(Policy):
         if self.reach_destination(state):
             return ActionXY(0, 0) if self.kinematics == 'holonomic' else ActionRot(0, 0)
         state_tensor = state.to_tensor(add_batch_size=False, device=self.device)
-        state_tensor = self.rotate_state(state_tensor)
+        state_tensor = self.rotate_state2(state_tensor)
         state_tensor = state_tensor.unsqueeze(dim=0)
         if self.phase == 'train':
             action = (
@@ -329,3 +329,80 @@ class TD3RL(Policy):
                 new_wall_states = torch.cat((wall_zero_feature, new_wall_states), dim=1)
                 new_state = torch.cat((new_robot_state, new_human_state, new_wall_states), dim=0)
             return new_state
+
+    def rotate_state2(self, state):
+        """
+                    Transform the coordinate to agent-centric.
+                    Input tuple include robot state tensor and human state tensor.
+                    robot state tensor is of size (batch_size, number, state_length)(for example 100*1*9)
+                    human state tensor is of size (batch_size, number, state_length)(for example 100*5*5)
+                    """
+        # for robot
+        # 'px', 'py', 'vx', 'vy', 'radius', 'gx', 'gy', 'v_pref', 'theta'
+        #  0     1      2     3      4        5     6      7         8
+        # for human
+        #  'px', 'py', 'vx', 'vy', 'radius'
+        #  0     1      2     3      4
+        # for obstacle
+        # 'px', 'py', 'radius'
+        #  0     1     2
+        # for wall
+        # 'sx', 'sy', 'ex', 'ey'
+        #  0     1     2     3
+        assert len(state[0].shape) == 2
+        robot_state = state[0]
+        human_state = state[1]
+        obstacle_state = state[2]
+        wall_state = state[3]
+        human_num = human_state.shape[0]
+        robot_num = robot_state.shape[0]
+        obstacle_num = obstacle_state.shape[0]
+        wall_num = wall_state.shape[0]
+
+        dx = robot_state[:, 5] - robot_state[:, 0]
+        dy = robot_state[:, 6] - robot_state[:, 1]
+        dx = dx.unsqueeze(1)
+        dy = dy.unsqueeze(1)
+        dg = torch.norm(torch.cat([dx, dy], dim=1), 2, dim=1, keepdim=True)
+        rot = torch.atan2(dy, dx)
+        cos_rot = torch.cos(rot)
+        sin_rot = torch.sin(rot)
+        transform_matrix = torch.cat((cos_rot, -sin_rot, sin_rot, cos_rot), dim=0).reshape(2, 2)
+        a = robot_state[:, 2:4]
+        robot_velocities = torch.mm(robot_state[:, 2:4], transform_matrix)
+        radius_r = robot_state[:, 4].unsqueeze(1)
+        v_pref = robot_state[:, 7].unsqueeze(1)
+        target_heading = torch.zeros_like(radius_r)
+        pos_r = torch.zeros_like(robot_velocities)
+        cur_heading = (robot_state[:, 8].unsqueeze(1) - rot + np.pi) % (2 * np.pi) - np.pi
+        new_robot_state = torch.cat((robot_velocities, dg, v_pref, cur_heading),
+                                    dim=1)
+
+        human_positions = human_state[:, 0:2] - robot_state[:, 0:2]
+        human_positions = torch.mm(human_positions, transform_matrix)
+        human_velocities = human_state[:, 2:4]
+        human_velocities = torch.mm(human_velocities, transform_matrix)
+        human_radius = human_state[:, 4].unsqueeze(1) + 0.3
+        new_human_state = torch.cat((human_positions, human_velocities, human_radius), dim=1)
+
+        if len(obstacle_state.shape) == 2:
+            obstacle_positions = obstacle_state[:, 0:2] - robot_state[:, 0:2]
+            obstacle_positions = torch.mm(obstacle_positions, transform_matrix)
+            obstacle_radius = obstacle_state[:, 2].unsqueeze(1) + 0.3
+            obstacle_velocity = torch.zeros_like(obstacle_positions)
+            obs_human = torch.cat((obstacle_positions, obstacle_velocity, obstacle_radius), dim=1)
+            new_human_state = torch.cat((new_human_state, obs_human), dim=0)
+            new_obstacle_states = torch.cat((obstacle_positions, obstacle_radius), dim=1)
+            robot_feature_dim = new_robot_state.shape[1]
+            human_feature_dim = new_human_state.shape[1]
+            obstacle_feature_dim = new_obstacle_states.shape[1]
+            wall_feature_dim = 5
+            robot_zero_feature = torch.zeros(
+                [robot_num, human_feature_dim + obstacle_feature_dim + wall_feature_dim])
+            human_zero_feature1 = torch.zeros([human_num+obstacle_num, robot_feature_dim])
+            human_zero_feature2 = torch.zeros([human_num+obstacle_num, obstacle_feature_dim + wall_feature_dim])
+            new_robot_state = torch.cat((new_robot_state, robot_zero_feature), dim=1)
+            new_human_state = torch.cat((human_zero_feature1, new_human_state, human_zero_feature2), dim=1)
+            new_state = torch.cat((new_robot_state, new_human_state),
+                                  dim=0)
+        return new_state

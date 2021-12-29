@@ -292,8 +292,10 @@ class PG_GAT_RL(nn.Module):
         self.encode_h = mlp(self.human_state_dim, [64, self.X_dim], last_relu=True)
         self.encode_o = mlp(self.obstacle_state_dim, [64, self.X_dim], last_relu=True)
         self.encode_w = mlp(self.wall_state_dim, [64, self.X_dim], last_relu=True)
-        self.gatinput = GATMultihead(self.X_dim, self.hidden_dim, self.X_dim, 1)
-        self.gatoutput = GATMultihead(self.X_dim, self.hidden_dim, self.X_dim, 1)
+        # self.gatinput = GATMultihead(self.X_dim, self.hidden_dim, self.X_dim, 1)
+        # self.gatoutput = GATMultihead(self.X_dim, self.hidden_dim, self.X_dim, 1)
+        self.gatinput = GraphAttentionLayer2(self.X_dim, self.X_dim)
+        self.gatoutput= GraphAttentionLayer2(self.X_dim, self.X_dim)
         self.robot_num = 1
         self.obstacle_num = config.gat.obstacle_num
         self.wall_num = config.gat.wall_num
@@ -310,14 +312,14 @@ class PG_GAT_RL(nn.Module):
         self.attention_weights = None
 
     def compute_adjectory_matrix(self, state):
-        human_num = state.shape[1] - self.robot_num - self.obstacle_num - self.wall_num
+        human_num = state.shape[1] - self.robot_num
         Num = state.shape[1]
-        assert state.shape[1] == Num
+        # assert state.shape[1] == Num
         adj = torch.zeros((Num, Num))
         for i in range(Num):
             adj[0][i] = 1
         for i in range(self.robot_num, human_num+self.robot_num):
-            for j in range(self.robot_num, human_num + self.robot_num + self.obstacle_num + self.wall_num):
+            for j in range(self.robot_num, human_num + self.robot_num) :
                 adj[i][j] = 1
         adj = adj.repeat(state.shape[0], 1, 1)
         return adj
@@ -347,14 +349,16 @@ class PG_GAT_RL(nn.Module):
             adj = self.compute_adjectory_matrix(state)
             robot_state = state[:,0: self.robot_num,0:self.robot_state_dim]
             robot_state = self.encode_r(robot_state)
-            human_num = state.shape[1] - self.robot_num - self.obstacle_num - self.wall_num
+            # human_num = state.shape[1] - self.robot_num - self.obstacle_num - self.wall_num
+            human_num = state.shape[1] - self.robot_num
             human_state = state[:, self.robot_num:self.robot_num+human_num, self.robot_state_dim:self.robot_state_dim+self.human_state_dim]
             human_state = self.encode_h(human_state)
-            obstacle_state = state[:,self.robot_num+human_num:self.robot_num+human_num+self.obstacle_num,self.robot_state_dim+self.human_state_dim:self.robot_state_dim+self.human_state_dim+self.obstacle_state_dim]
-            obstacle_state = self.encode_o(obstacle_state)
-            wall_state = state[:, self.robot_num+human_num+self.obstacle_num:,self.robot_state_dim+self.human_state_dim+self.obstacle_state_dim:]
-            wall_state = self.encode_w(wall_state)
-            H0=torch.cat((robot_state,human_state,obstacle_state,wall_state), dim=1)
+            # obstacle_state = state[:,self.robot_num+human_num:self.robot_num+human_num+self.obstacle_num,self.robot_state_dim+self.human_state_dim:self.robot_state_dim+self.human_state_dim+self.obstacle_state_dim]
+            # obstacle_state = self.encode_o(obstacle_state)
+            # wall_state = state[:, self.robot_num+human_num+self.obstacle_num:,self.robot_state_dim+self.human_state_dim+self.obstacle_state_dim:]
+            # wall_state = self.encode_w(wall_state)
+            H0=torch.cat((robot_state, human_state), dim=1)
+            # H0=torch.cat((robot_state,human_state,obstacle_state,wall_state), dim=1)
 
 
             # H0 = self.encoder(state)

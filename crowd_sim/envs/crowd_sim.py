@@ -499,18 +499,24 @@ class CrowdSim(gym.Env):
                     logging.debug("Collision: distance between robot and obstacle{} is {:.2E} at time {:.2E}".format(i,
                                    closest_dist, self.global_time))
                     num_discom = num_discom + 1
-
-            for i, wall in enumerate(self.walls):
-                px = wall.sx - self.robot.px
-                py = wall.sy - self.robot.py
-                ex = wall.ex - end_robot_x
-                ey = wall.ey - end_robot_y
-                closest_dist = point_to_segment_dist(px, py, ex, ey, 0, 0) - self.robot.radius
-                if closest_dist < 0:
-                    collision = True
-                    logging.debug("Collision: distance between robot and wall {} is {:.2E} at time {:.2E}".format(i,
-                                   closest_dist, self.global_time))
-                    num_discom = num_discom + 1
+                if self.phase == 'train':
+                    if closest_dist < dmin:
+                        dmin = closest_dist
+                    if closest_dist < self.discomfort_dist:
+                        safety_penalty = safety_penalty + (closest_dist - self.discomfort_dist)
+                        num_discom = num_discom + 1
+            #
+            # for i, wall in enumerate(self.walls):
+            #     px = wall.sx - self.robot.px
+            #     py = wall.sy - self.robot.py
+            #     ex = wall.ex - end_robot_x
+            #     ey = wall.ey - end_robot_y
+            #     closest_dist = point_to_segment_dist(px, py, ex, ey, 0, 0) - self.robot.radius
+            #     if closest_dist < 0:
+            #         collision = True
+            #         logging.debug("Collision: distance between robot and wall {} is {:.2E} at time {:.2E}".format(i,
+            #                        closest_dist, self.global_time))
+            #         num_discom = num_discom + 1
         else:
             end_robot_x, end_robot_y = self.robot.compute_position(action, self.time_step)
             for i, human in enumerate(self.humans):
