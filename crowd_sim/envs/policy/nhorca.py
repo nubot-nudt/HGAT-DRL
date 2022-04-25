@@ -4,21 +4,8 @@ from crowd_sim.envs.policy.policy import Policy
 from crowd_sim.envs.utils.action import ActionXY, ActionRot
 from crowd_sim.envs.utils.state import ObservableState, JointState_2tyeps
 
-def rotate_2d_point(theta, point):
-    cos = np.cos(theta)
-    sin = np.sin(theta)
-    rotated_point_x = point[0] * cos - point[1] * sin
-    rotated_point_y = point[0] * sin + point[1] * cos
-    return (rotated_point_x, rotated_point_y)
 
-def rotate_2d_points(theta, points):
-    rotated_2d_points = []
-    for point in points:
-        rotated_2d_point = rotate_2d_point(theta, point)
-        rotated_2d_points.append(rotated_2d_point)
-    return rotated_2d_points
-
-class ORCA(Policy):
+class NHORCA(Policy):
     def __init__(self):
         """
         timeStep        The time step of the simulation.
@@ -67,7 +54,7 @@ class ORCA(Policy):
 
         """
         super().__init__()
-        self.name = 'ORCA'
+        self.name = 'NHORCA'
         self.trainable = False
         self.multiagent_training = True
         self.kinematics = 'holonomic'
@@ -118,23 +105,14 @@ class ORCA(Policy):
             self.sim = None
         if self.sim is None:
             self.sim = rvo2.PyRVOSimulator(self.time_step, *params, self.radius, self.max_speed)
-            robot_no = self.sim.addAgent(robot_state.position, *params, robot_state.radius + 0.1, # + self.safety_space,
+            robot__no = self.sim.addAgent(robot_state.position, *params, robot_state.radius, # + self.safety_space,
                               robot_state.v_pref, robot_state.velocity)
-            AHVVertices = [(-0.2, -0.12), (0.4, -0.4), (0.97, -0.26), (0.97, 0.26), (0.4, 0.4), (-0.2, 0.12)]
-            rotated_AHVVertices = rotate_2d_points(robot_state.theta, AHVVertices)
-            vertices_no = self.sim.setAHVConstraint(robot_no, rotated_AHVVertices)
-            # print(vertices_no)
             for human_state in state.human_states:
                 self.sim.addAgent(human_state.position, *params, human_state.radius + self.safety_space,
                                   self.max_speed, human_state.velocity)
         else:
             self.sim.setAgentPosition(0, robot_state.position)
             self.sim.setAgentVelocity(0, robot_state.velocity)
-            AHVVertices = [(-0.2, -0.12), (0.4, -0.4), (0.97, -0.26), (0.97, 0.26), (0.4, 0.4), (-0.2, 0.12)]
-            rotated_AHVVertices = rotate_2d_points(robot_state.theta, AHVVertices)
-            vertices_no = self.sim.setAHVConstraint(0, rotated_AHVVertices)
-            # print(vertices_no)
-
             for i, human_state in enumerate(state.human_states):
                 self.sim.setAgentPosition(i + 1, human_state.position)
                 self.sim.setAgentVelocity(i + 1, human_state.velocity)
