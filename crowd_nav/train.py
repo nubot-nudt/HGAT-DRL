@@ -336,7 +336,7 @@ if __name__ == '__main__':
     parser.add_argument('--debug', default=False, action='store_true')
     parser.add_argument('--test_after_every_eval', default=False, action='store_true')
     parser.add_argument('--randomseed', type=int, default=7)
-    parser.add_argument('--human_num', type=int, default=5)
+    parser.add_argument('--human_num', type=int, default=1)
     parser.add_argument('--safe_weight', type=float, default=1.0)
     parser.add_argument('--goal_weight', type=float, default=0.2)
     parser.add_argument('--re_collision', type=float, default=-0.25)
