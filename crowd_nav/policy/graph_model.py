@@ -5,7 +5,8 @@ import torch.nn as nn
 from torch.nn.functional import softmax, relu
 from torch.nn import Parameter
 from crowd_nav.policy.helpers import mlp, GAT #, GraphAttentionLayer
-# from torch_geometric.nn import GATConv
+from crowd_nav.policy.rgcn import RGCN
+import dgl
 
 
 class RGL(nn.Module):
@@ -211,18 +212,19 @@ class GAT_RL(nn.Module):
             adj = self.compute_adjectory_matrix(state)
             # compute feature matrix X
             robot_state_embedings = self.w_r(robot_state)
-            human_state_embedings = self.w_h(human_states)
-            X = torch.cat([robot_state_embedings, human_state_embedings], dim=1)
-            if robot_state.shape[0]==1:
-                H1, self.attention_weights = self.gat0(X, adj)
-            else:
-                H1, _ = self.gat0(X, adj)
-            H2, _ = self.gat1(H1, adj)
-            if self.skip_connection:
-                output = H1 + H2 + X
-            else:
-                output = H2
-            return output
+            return robot_state_embedings
+            # human_state_embedings = self.w_h(human_states)
+            # X = torch.cat([robot_state_embedings, human_state_embedings], dim=1)
+            # if robot_state.shape[0]==1:
+            #     H1, self.attention_weights = self.gat0(X, adj)
+            # else:
+            #     H1, _ = self.gat0(X, adj)
+            # H2, _ = self.gat1(H1, adj)
+            # if self.skip_connection:
+            #     output = H1 + H2 + X
+            # else:
+            #     output = H2
+            # return output
 
 class GraphAttentionLayer(nn.Module):
     """
@@ -375,6 +377,54 @@ class PG_GAT_RL(nn.Module):
             else:
                 output = H2
             return output
+
+class DGL_RGCN_RL(nn.Module):
+    def __init__(self, config, robot_state_dim, human_state_dim):
+        """ The current code might not be compatible with models trained with previous version
+        """
+        super().__init__()
+        self.multiagent_training = config.gcn.multiagent_training
+        self.robot_state_dim = 9
+        self.human_state_dim = 5
+        self.obstacle_state_dim = 3
+        self.wall_state_dim = 5
+        self.in_features = self.robot_state_dim + self.human_state_dim + self.obstacle_state_dim + self.wall_state_dim + 4
+        X_dim = config.gcn.X_dim
+        self.out_features = X_dim
+        self.gnn_layers = 3
+        self.num_hidden = [64, 128]
+        self.num_rels = 6
+        self.dropout = 0.0
+        self.num_bases = self.num_rels
+        self.final_activation = 'relu',
+        self.activation = 'relu',
+        self.g = None
+        self.model = self.rgcn()
+
+    def rgcn(self):
+        return RGCN(self.g, self.gnn_layers, self.in_features, self.out_features, self.num_hidden, self.num_rels,
+                    self.activation, self.final_activation, self.dropout, self.num_bases)
+
+    def forward(self, state_graph):
+        """
+        Embed current state tensor pair (robot_state, human_states) into a latent space
+        Each tensor is of shape (batch_size, # of agent, features)
+        :param state:
+        :return:
+        """
+        subgraph = state_graph
+        node_features = state_graph.ndata['h']
+        etypes = state_graph.edata['rel_type'].squeeze()
+        subgraph.set_n_initializer(dgl.init.zero_initializer)
+        subgraph.set_e_initializer(dgl.init.zero_initializer)
+        # self.g = subgraph
+        # self.model.g = subgraph
+        # for layer in self.model.layers:
+        #     layer.g = subgraph
+        # feature = state_graph.ndata['h'].to(torch.device('cpu'))
+        # etypes = state_graph.edata['rel_type'].squeeze().to(torch.device('cpu'))
+        output = self.model(subgraph, node_features, etypes)
+        return output
 
 class GATMultihead(nn.Module):
     def __init__(self, nfeat, nhid, noutput, nheads):
