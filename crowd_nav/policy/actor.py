@@ -136,7 +136,7 @@ class GraphActor(nn.Module):
         # exploration or test phase
         if state.batch_size == 1:
             cur_state = copy.deepcopy(state)
-            robot_state = state.ndata['h'][0, 4:13]
+            robot_state = state.ndata['h'][0, 4:9]
             # state_embedding = self.graph_model(state)[0, :]
             # state_embedding = torch.cat((robot_state, state_embedding), dim=0)
 
