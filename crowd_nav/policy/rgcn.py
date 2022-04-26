@@ -9,7 +9,7 @@ class RGCN(nn.Module):
         super(RGCN, self).__init__()
         self.g = g
         self.in_dim = in_dim
-        self.hidden_dimensions = [32, 64]
+        self.hidden_dimensions = [64]
         self.out_dim = out_dim
         self.num_rels = 5
         self.feat_drop = feat_drop
@@ -29,7 +29,7 @@ class RGCN(nn.Module):
         i2h = self.build_input_layer()
         self.layers.append(i2h)
         # hidden to hidden
-        for i in range(1):
+        for i in range(len(self.hidden_dimensions) - 1):
             h2h = self.build_hidden_layer(i)
             self.layers.append(h2h)
         # hidden to output

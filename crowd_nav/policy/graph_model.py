@@ -494,7 +494,7 @@ class DGL_RGCN_RL(nn.Module):
         """
         super().__init__()
         self.multiagent_training = config.gcn.multiagent_training
-        self.robot_state_dim = 9
+        self.robot_state_dim = 5
         self.human_state_dim = 5
         self.obstacle_state_dim = 3
         self.wall_state_dim = 5
