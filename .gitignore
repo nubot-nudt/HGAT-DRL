@@ -17,4 +17,5 @@ videos/
 
 build/
 devel/
+crowd_nav/useless/*
 .catkin_workspace

@@ -211,20 +211,18 @@ class GAT_RL(nn.Module):
         else:
             adj = self.compute_adjectory_matrix(state)
             # compute feature matrix X
-            robot_state_embedings = self.w_r(robot_state)
-            return robot_state_embedings
-            # human_state_embedings = self.w_h(human_states)
-            # X = torch.cat([robot_state_embedings, human_state_embedings], dim=1)
-            # if robot_state.shape[0]==1:
-            #     H1, self.attention_weights = self.gat0(X, adj)
-            # else:
-            #     H1, _ = self.gat0(X, adj)
-            # H2, _ = self.gat1(H1, adj)
-            # if self.skip_connection:
-            #     output = H1 + H2 + X
-            # else:
-            #     output = H2
-            # return output
+            human_state_embedings = self.w_h(human_states)
+            X = torch.cat([robot_state_embedings, human_state_embedings], dim=1)
+            if robot_state.shape[0]==1:
+                H1, self.attention_weights = self.gat0(X, adj)
+            else:
+                H1, _ = self.gat0(X, adj)
+            H2, _ = self.gat1(H1, adj)
+            if self.skip_connection:
+                output = H1 + H2 + X
+            else:
+                output = H2
+            return output
 
 class GraphAttentionLayer(nn.Module):
     """
@@ -360,23 +358,22 @@ class PG_GAT_RL(nn.Module):
             # wall_state = state[:, self.robot_num+human_num+self.obstacle_num:,self.robot_state_dim+self.human_state_dim+self.obstacle_state_dim:]
             # wall_state = self.encode_w(wall_state)
             H0=torch.cat((robot_state, human_state), dim=1)
-            # H0=torch.cat((robot_state,human_state,obstacle_state,wall_state), dim=1)
-
-
-            # H0 = self.encoder(state)
-            # compute feature matrix X
-            if state.shape[0]==1:
-                H1 = self.gatinput(H0, adj)
-            else:
-                H1 = self.gatinput(H0, adj)
-            H2 = self.gatoutput(H1, adj)
-            # H3 = self.gat1(H2, adj)
-            # H4, _ = self.gat2(H3, adj)
-            if self.skip_connection:
-                output = H0 + H1 + H2
-            else:
-                output = H2
-            return output
+            return H0
+            # # H0=torch.cat((robot_state,human_state,obstacle_state,wall_state), dim=1)
+            # # H0 = self.encoder(state)
+            # # compute feature matrix X
+            # # if state.shape[0]==1:
+            # #     H1 = self.gatinput(H0, adj)
+            # # else:
+            # #     H1 = self.gatinput(H0, adj)
+            # # H2 = self.gatoutput(H1, adj)
+            # # # H3 = self.gat1(H2, adj)
+            # # # H4, _ = self.gat2(H3, adj)
+            # # if self.skip_connection:
+            # #     output = H0 + H1 + H2
+            # # else:
+            # #     output = H2
+            # return output
 
 class DGL_RGCN_RL(nn.Module):
     def __init__(self, config, robot_state_dim, human_state_dim):

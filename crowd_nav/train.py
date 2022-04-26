@@ -11,8 +11,8 @@ import git
 import re
 from tensorboardX import SummaryWriter
 from crowd_sim.envs.utils.robot import Robot
-from crowd_nav.utils.trainer import VNRLTrainer, MPRLTrainer, TSRLTrainer, TD3RLTrainer
-from crowd_nav.utils.memory import ReplayMemory
+from crowd_nav.utils.trainer import VNRLTrainer, MPRLTrainer, TSRLTrainer, TD3RLTrainer, RGCNRLTrainer
+from crowd_nav.utils.memory import ReplayMemory, GraphReplayMemory
 from crowd_nav.utils.explorer import Explorer
 from crowd_nav.policy.policy_factory import policy_factory
 from crowd_nav.policy.reward_estimate import Reward_Estimator
@@ -136,7 +136,10 @@ def main(args):
     checkpoint_interval = train_config.train.checkpoint_interval
 
     # configure trainer and explorer
-    memory = ReplayMemory(capacity)
+    if policy_config.name == "rgcn_rl":
+        memory = GraphReplayMemory(capacity)
+    else:
+        memory = ReplayMemory(capacity)
     model = policy.get_model()
     batch_size = train_config.trainer.batch_size
     optimizer = train_config.trainer.optimizer
@@ -163,6 +166,13 @@ def main(args):
     elif policy_config.name == 'td3_rl':
         policy.set_action(action_dim, max_action, min_action)
         trainer = TD3RLTrainer(policy.actor, policy.critic, policy.state_predictor, memory, device, policy, writer,
+                              batch_size, optimizer, env.human_num, reduce_sp_update_frequency=train_config.train.reduce_sp_update_frequency,
+                              freeze_state_predictor=train_config.train.freeze_state_predictor,
+                              detach_state_predictor=train_config.train.detach_state_predictor,
+                              share_graph_model=policy_config.model_predictive_rl.share_graph_model)
+    elif policy_config.name == 'rgcn_rl':
+        policy.set_action(action_dim, max_action, min_action)
+        trainer = RGCNRLTrainer(policy.actor, policy.critic, policy.state_predictor, memory, device, policy, writer,
                               batch_size, optimizer, env.human_num, reduce_sp_update_frequency=train_config.train.reduce_sp_update_frequency,
                               freeze_state_predictor=train_config.train.freeze_state_predictor,
                               detach_state_predictor=train_config.train.detach_state_predictor,
@@ -327,7 +337,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Parse configuration file')
     parser.add_argument('--policy', type=str, default='td3_rl')
-    parser.add_argument('--config', type=str, default='configs/icra_benchmark/td3.py')
+    parser.add_argument('--config', type=str, default='configs/icra_benchmark/rgcnrl.py')
     parser.add_argument('--output_dir', type=str, default='data/output')
     parser.add_argument('--overwrite', default=False, action='store_true')
     parser.add_argument('--weights', type=str)

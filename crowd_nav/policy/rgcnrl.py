@@ -13,10 +13,10 @@ from crowd_nav.policy.actor import GraphActor
 from crowd_nav.policy.critic import GraphCritic
 from crowd_nav.utils.crowdgraph import CrowdNavGraph
 
-class GraphRL(Policy):
+class RGCNRL(Policy):
     def __init__(self):
         super().__init__()
-        self.name = 'GraphRL'
+        self.name = 'RGCNRL'
         self.trainable = True
         self.multiagent_training = True
         self.kinematics = None
