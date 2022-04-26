@@ -87,7 +87,7 @@ class RGCNRL(Policy):
         self.model = [graph_model1, graph_model2, graph_model3, graph_model4, self.actor.action_network,
                       self.critic.score_network1, self.critic.score_network2,
                       self.state_predictor.human_motion_predictor]
-        logging.info('TD3 action_dim is : {}'.format(self.action_dim))
+        logging.info('RGCN action_dim is : {}'.format(self.action_dim))
 
     def set_action(self, action_dims, max_action, min_action):
         self.action_dim = action_dims

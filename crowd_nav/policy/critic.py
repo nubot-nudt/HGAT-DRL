@@ -79,8 +79,13 @@ class Critic0(nn.Module):
             q2 = self.score_network2(sa2)
         # batch training phase
         else:
-            num_nodes = state._batch_num_nodes['_N']
-            robot_ids = torch.cat((torch.zeros(1), num_nodes[:-1]), dim=0).type(torch.int64)
+            num_nodes = state._batch_num_nodes['_N'].numpy()
+            robot_ids = []
+            robot_id = 0
+            for i in range(num_nodes.shape[0]):
+                robot_ids.append(robot_id)
+                robot_id = robot_id + num_nodes[i]
+            robot_ids = torch.LongTensor(robot_ids)
             
             cur_state1 = copy.deepcopy(state)
             cur_features = cur_state1.ndata['h']
@@ -121,8 +126,13 @@ class Critic0(nn.Module):
             q1 = self.score_network1(sa1)
         # batch training phase
         else:
-            num_nodes = state._batch_num_nodes['_N']
-            robot_ids = torch.cat((torch.zeros(1), num_nodes[:-1]), dim=0).type(torch.int64)
+            num_nodes = state._batch_num_nodes['_N'].numpy()
+            robot_ids = []
+            robot_id = 0
+            for i in range(num_nodes.shape[0]):
+                robot_ids.append(robot_id)
+                robot_id = robot_id + num_nodes[i]
+            robot_ids = torch.LongTensor(robot_ids)
 
             cur_state1 = copy.deepcopy(state)
             cur_features = cur_state1.ndata['h']

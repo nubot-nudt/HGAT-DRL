@@ -388,9 +388,6 @@ class PG_GAT_RL0(nn.Module):
         similarity_function = config.gcn.similarity_function
         layerwise_graph = config.gcn.layerwise_graph
         skip_connection = config.gcn.skip_connection
-
-        num_head = 4
-
         # design choice
         # 'gaussian', 'embedded_gaussian', 'cosine', 'cosine_softmax', 'concatenation'
         self.similarity_function = similarity_function

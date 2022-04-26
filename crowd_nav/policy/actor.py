@@ -87,8 +87,14 @@ class Actor0(nn.Module):
             cur_features = cur_state.ndata['h']
             actor_state = copy.deepcopy(state)
             # state_embedding = self.graph_model(actor_state)
-            num_nodes = actor_state._batch_num_nodes['_N']
-            robot_ids = torch.cat((torch.zeros(1), num_nodes[:-1]), dim=0).type(torch.int64)
+            num_nodes = actor_state._batch_num_nodes['_N'].numpy()
+            robot_ids = []
+            robot_id = 0
+            for i in range(num_nodes.shape[0]):
+                robot_ids.append(robot_id)
+                robot_id = robot_id + num_nodes[i]
+            robot_ids = torch.LongTensor(robot_ids)
+            # robot_ids = torch.cat((torch.zeros(1), num_nodes[:-1]), dim=0).type(torch.int64)
             cur_robot_feature = torch.index_select(cur_features, 0, robot_ids)
             robot_state = cur_robot_feature[:, 4:13]
             robot_state = robot_state.unsqueeze(dim=1)
