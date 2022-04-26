@@ -116,7 +116,7 @@ class Critic0(nn.Module):
     def Q1(self, state, action):
         if state.batch_size == 1:
             cur_state1 = copy.deepcopy(state)
-            robot_state1 = cur_state1.ndata['h'][0, 4:13]
+            robot_state1 = cur_state1.ndata['h'][0, 4:9]
             robot_state1 = robot_state1.unsqueeze(dim=0)
             robot_state1 = robot_state1.unsqueeze(dim=0)
             # state_embedding = self.graph_model(state)[0, :]
@@ -246,7 +246,7 @@ class GraphCritic(nn.Module):
             # batch_state_embedding1 = torch.index_select(state_embedding1, 0, robot_ids)
             # batch_state_embedding1 = torch.cat((cur_robot_feature[:,4:13], batch_state_embedding1), dim=1)
 
-            batch_state_embedding1 = self.encode_r1(cur_robot_feature[:,4:13])
+            batch_state_embedding1 = self.encode_r1(cur_robot_feature[:,4:9])
             sa1 = torch.cat([batch_state_embedding1, action], 1)
             q1 = self.score_network1(sa1)
         return q1
