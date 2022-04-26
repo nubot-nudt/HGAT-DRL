@@ -110,8 +110,8 @@ class GraphActor(nn.Module):
     def __init__(self, config, graph_model, action_dim, max_action, min_action):
         super(GraphActor, self).__init__()
         self.graph_model = graph_model
-        # self.action_network = mlp(config.gcn.X_dim + 9, [64, 128, action_dim])
-        self.action_network = mlp(5, [256, action_dim])
+        self.action_network = mlp(config.gcn.X_dim + 5, [256, action_dim])
+        # self.action_network = mlp(5, [256, action_dim])
         self.encode_r = mlp(5, [64, 32], last_relu=True)
         self.max_action = None
         self.min_action = None
@@ -137,11 +137,11 @@ class GraphActor(nn.Module):
         if state.batch_size == 1:
             cur_state = copy.deepcopy(state)
             robot_state = state.ndata['h'][0, 4:9]
-            # state_embedding = self.graph_model(state)[0, :]
-            # state_embedding = torch.cat((robot_state, state_embedding), dim=0)
+            state_embedding = self.graph_model(cur_state)[0, :]
+            state_embedding = torch.cat((robot_state, state_embedding), dim=0)
 
             # state_embedding = self.encode_r(robot_state)
-            state_embedding = robot_state
+            # state_embedding = robot_state
             a = self.action_network(state_embedding)
             action = self.action_middle + self.action_amplitude * torch.tanh(a)
         # batch training phase
@@ -157,11 +157,11 @@ class GraphActor(nn.Module):
                 robot_id = robot_id + num_nodes[i]
             robot_ids = torch.LongTensor(robot_ids)
             cur_robot_feature = torch.index_select(cur_features, 0, robot_ids)
-            # state_embedding = self.graph_model(actor_state)
-            # batch_state_embedding = torch.index_select(state_embedding, 0, robot_ids)
-            # batch_state_embedding = torch.cat((cur_robot_feature[:, 4:13], batch_state_embedding), dim=1)\
+            state_embedding = self.graph_model(actor_state)
+            batch_state_embedding = torch.index_select(state_embedding, 0, robot_ids)
+            batch_state_embedding = torch.cat((cur_robot_feature[:, 4:9], batch_state_embedding), dim=1)\
             # batch_state_embedding = self.encode_r(cur_robot_feature[:, 4:9])
-            batch_state_embedding = cur_robot_feature[:, 4:9]
+            # batch_state_embedding = cur_robot_feature[:, 4:9]
             a = self.action_network(batch_state_embedding)
             action = self.action_middle + self.action_amplitude * torch.tanh(a)
         return action
