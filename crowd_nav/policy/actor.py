@@ -96,7 +96,7 @@ class Actor0(nn.Module):
             robot_ids = torch.LongTensor(robot_ids)
             # robot_ids = torch.cat((torch.zeros(1), num_nodes[:-1]), dim=0).type(torch.int64)
             cur_robot_feature = torch.index_select(cur_features, 0, robot_ids)
-            robot_state = cur_robot_feature[:, 4:13]
+            robot_state = cur_robot_feature[:, 4:9]
             robot_state = robot_state.unsqueeze(dim=1)
             # batch_state_embedding = torch.index_select(state_embedding, 0, robot_ids)
             # batch_state_embedding = torch.cat((cur_robot_feature[:, 4:13], batch_state_embedding), dim=1)
@@ -112,7 +112,7 @@ class GraphActor(nn.Module):
         self.graph_model = graph_model
         # self.action_network = mlp(config.gcn.X_dim + 9, [64, 128, action_dim])
         self.action_network = mlp(32, [256, action_dim])
-        self.encode_r = mlp(9, [64, 32], last_relu=True)
+        self.encode_r = mlp(5, [64, 32], last_relu=True)
         self.max_action = None
         self.min_action = None
         self.action_dim = action_dim
@@ -148,31 +148,19 @@ class GraphActor(nn.Module):
             cur_state = copy.deepcopy(state)
             cur_features = cur_state.ndata['h']
             actor_state = copy.deepcopy(state)
-            # state_embedding = self.graph_model(actor_state)
-            num_nodes = actor_state._batch_num_nodes['_N']
-            robot_ids = torch.cat((torch.zeros(1), num_nodes[:-1]), dim=0).type(torch.int64)
+            num_nodes = actor_state._batch_num_nodes['_N'].numpy()
+            robot_ids = []
+            robot_id = 0
+            for i in range(num_nodes.shape[0]):
+                robot_ids.append(robot_id)
+                robot_id = robot_id + num_nodes[i]
+            robot_ids = torch.LongTensor(robot_ids)
             cur_robot_feature = torch.index_select(cur_features, 0, robot_ids)
+            # state_embedding = self.graph_model(actor_state)
             # batch_state_embedding = torch.index_select(state_embedding, 0, robot_ids)
             # batch_state_embedding = torch.cat((cur_robot_feature[:, 4:13], batch_state_embedding), dim=1)
-
-            batch_state_embedding = self.encode_r(cur_robot_feature[:, 4:13])
-
-
+            batch_state_embedding = self.encode_r(cur_robot_feature[:, 4:9])
             a = self.action_network(batch_state_embedding)
-            # actor_state.ndata['h'] = state_embedding
-            # graph_list = dgl.unbatch(actor_state)
-            # unbatch1 = time.clock()
-            # batch_state_embedding = None
-            # for graph in graph_list:
-            #     if batch_state_embedding is None:
-            #         graph_embedding_tensor = graph.ndata['h'][0, :]
-            #         batch_state_embedding = graph_embedding_tensor.unsqueeze(dim=0)
-            #     else:
-            #         graph_embedding_tensor = graph.ndata['h'][0, :]
-            #         graph_embedding_tensor = graph_embedding_tensor.unsqueeze(dim=0)
-            #         batch_state_embedding = torch.cat([batch_state_embedding, graph_embedding_tensor], dim=0)
-            # unbatch = time.clock()
-
             action = self.action_middle + self.action_amplitude * torch.tanh(a)
         return action
 
