@@ -8,9 +8,9 @@ from crowd_sim.envs.policy.policy import Policy
 from crowd_sim.envs.utils.action import ActionRot, ActionXY, ActionDiff
 
 from crowd_nav.policy.state_predictor import StatePredictor, LinearStatePredictor_batch
-from crowd_nav.policy.graph_model import DGL_RGCN_RL
-from crowd_nav.policy.actor import GraphActor
-from crowd_nav.policy.critic import GraphCritic
+from crowd_nav.policy.graph_model import DGL_RGCN_RL, PG_GAT_RL0
+from crowd_nav.policy.actor import GraphActor, Actor0
+from crowd_nav.policy.critic import GraphCritic, Critic0
 from crowd_nav.utils.crowdgraph import CrowdNavGraph
 
 class RGCNRL(Policy):
@@ -51,7 +51,7 @@ class RGCNRL(Policy):
         # max_action must be a tensor
         self.max_action = None
         self.min_action = None
-        self.expl_noise = 0.5
+        self.expl_noise = 0.2
 
     def set_common_parameters(self, config):
         self.gamma = config.rl.gamma
@@ -66,14 +66,24 @@ class RGCNRL(Policy):
         self.linear_state_predictor = config.model_predictive_rl.linear_state_predictor
         # self.set_device(device)
         self.device = device
-        graph_model1 = DGL_RGCN_RL(config, self.robot_state_dim, self.human_state_dim)
-        self.actor = GraphActor(config, graph_model1, self.action_dim, self.max_action, self.min_action)
-        graph_model2 = DGL_RGCN_RL(config, self.robot_state_dim, self.human_state_dim)
-        graph_model3 = DGL_RGCN_RL(config, self.robot_state_dim, self.human_state_dim)
-        self.critic = GraphCritic(config, graph_model2, graph_model3, self.action_dim)
+        # graph_model1 = DGL_RGCN_RL(config, self.robot_state_dim, self.human_state_dim)
+        # self.actor = GraphActor(config, graph_model1, self.action_dim, self.max_action, self.min_action)
+        # graph_model2 = DGL_RGCN_RL(config, self.robot_state_dim, self.human_state_dim)
+        # graph_model3 = DGL_RGCN_RL(config, self.robot_state_dim, self.human_state_dim)
+        # self.critic = GraphCritic(config, graph_model2, graph_model3, self.action_dim)
+        #
+        # graph_model4 = DGL_RGCN_RL(config, self.robot_state_dim, self.human_state_dim)
+        # self.state_predictor = StatePredictor(config, graph_model4, self.time_step)
 
-        graph_model4 = DGL_RGCN_RL(config, self.robot_state_dim, self.human_state_dim)
+        graph_model1 = PG_GAT_RL0(config, self.robot_state_dim, self.human_state_dim)
+        self.actor = Actor0(config, graph_model1, self.action_dim, self.max_action, self.min_action)
+        graph_model2 = PG_GAT_RL0(config, self.robot_state_dim, self.human_state_dim)
+        graph_model3 = PG_GAT_RL0(config, self.robot_state_dim, self.human_state_dim)
+        self.critic = Critic0(config, graph_model2, graph_model3, self.action_dim)
+
+        graph_model4 = PG_GAT_RL0(config, self.robot_state_dim, self.human_state_dim)
         self.state_predictor = StatePredictor(config, graph_model4, self.time_step)
+
         self.model = [graph_model1, graph_model2, graph_model3, graph_model4, self.actor.action_network,
                       self.critic.score_network1, self.critic.score_network2,
                       self.state_predictor.human_motion_predictor]

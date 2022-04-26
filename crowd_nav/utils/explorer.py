@@ -59,10 +59,6 @@ class Explorer(object):
                 action, action_index = self.robot.act(ob)
                 ob, reward, done, info = self.env.step(action)
                 states.append(self.robot.policy.last_state)
-                # if(self.robot.policy.name in ['TD3RL']):
-                #     actions.append(torch.tensor((action.vx, action.vy)).float())
-                # else:
-
                 # for TD3rl, append the velocity and theta
                 actions.append(action_index)
                 # rewards.append(reward)

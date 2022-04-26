@@ -67,7 +67,7 @@ class CrowdNavGraph():
         target_heading = torch.zeros_like(radius_r)
         pos_r = torch.zeros_like(robot_velocities)
         cur_heading = (robot_state[:, 8].unsqueeze(1) - rot + np.pi) % (2 * np.pi) - np.pi
-        new_robot_state = torch.cat((robot_linear_velocity, robot_angular_velocity, robot_velocities, radius_r,
+        new_robot_state = torch.cat((pos_r, robot_velocities, radius_r,
                                      target_heading, dg, v_pref, cur_heading),
                                     dim=1)
 

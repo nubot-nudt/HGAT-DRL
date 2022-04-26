@@ -8,8 +8,7 @@ from crowd_sim.envs.policy.policy import Policy
 from crowd_sim.envs.utils.action import ActionRot, ActionXY, ActionDiff
 
 from crowd_nav.policy.state_predictor import StatePredictor, LinearStatePredictor_batch
-from crowd_nav.policy.graph_model import RGL, GAT_RL, PG_GAT_RL
-from crowd_nav.policy.value_estimator import DQNNetwork, Noisy_DQNNetwork
+from crowd_nav.policy.graph_model import PG_GAT_RL
 from crowd_nav.policy.actor import Actor
 from crowd_nav.policy.critic import Critic
 

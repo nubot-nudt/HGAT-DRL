@@ -13,7 +13,7 @@ class PolicyConfig(BasePolicyConfig):
 
         # gcn
         self.gcn.num_layer = 1
-        self.gcn.X_dim = 128
+        self.gcn.X_dim = 32
         self.gcn.similarity_function = 'concatenation'
         self.gcn.layerwise_graph = False
         self.gcn.skip_connection = True
