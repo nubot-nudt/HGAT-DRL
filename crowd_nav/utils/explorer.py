@@ -176,6 +176,8 @@ class Explorer(object):
                 state = rotate_state2(state)
                 next_state = rotate_state2(next_state)
                 self.memory.push((state, action, value, done, reward, next_state))
+            elif self.target_policy.name == 'RGCNRL':
+                self.memory.push((state, action, value, done, reward, next_state))
             else:
                 self.memory.push((state, value, done, reward, next_state))
 

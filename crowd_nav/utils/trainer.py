@@ -685,6 +685,8 @@ class TD3RLTrainer(object):
         self.target_critic_network.eval()
         self.target_actor_network.eval()
         return average_v_loss, average_s_loss
+
+
 class RGCNRLTrainer(object):
     def __init__(self, actor_network, critic_network, state_predictor, memory, device, policy, writer, batch_size, optimizer_str, human_num,
                  reduce_sp_update_frequency, freeze_state_predictor, detach_state_predictor, share_graph_model):
@@ -716,14 +718,14 @@ class RGCNRLTrainer(object):
 
         policy_noise = 0.2
         noise_clip = 0.2
-        policy_freq = 4
+        policy_freq = 8
         # parameter for TD3
         self.policy_noise = policy_noise
         self.noise_clip = noise_clip
         self.policy_freq = policy_freq
         self.action_dim = policy.action_dim
         self.max_action = policy.max_action
-        self.tau = 0.0001
+        self.tau = 0.001
         # for value update
         self.gamma = 0.95
         self.time_step = 0.25
