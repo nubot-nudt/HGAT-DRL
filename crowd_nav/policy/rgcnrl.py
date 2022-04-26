@@ -8,10 +8,9 @@ from crowd_sim.envs.policy.policy import Policy
 from crowd_sim.envs.utils.action import ActionRot, ActionXY, ActionDiff
 
 from crowd_nav.policy.state_predictor import StatePredictor, LinearStatePredictor_batch
-from crowd_nav.policy.graph_model import RGL, GAT_RL, PG_GAT_RL, DGL_RGCN_RL
-from crowd_nav.policy.value_estimator import DQNNetwork, Noisy_DQNNetwork
-from crowd_nav.policy.actor import Actor
-from crowd_nav.policy.critic import Critic
+from crowd_nav.policy.graph_model import DGL_RGCN_RL
+from crowd_nav.policy.actor import GraphActor
+from crowd_nav.policy.critic import GraphCritic
 from crowd_nav.utils.crowdgraph import CrowdNavGraph
 
 class GraphRL(Policy):
@@ -68,10 +67,10 @@ class GraphRL(Policy):
         # self.set_device(device)
         self.device = device
         graph_model1 = DGL_RGCN_RL(config, self.robot_state_dim, self.human_state_dim)
-        self.actor = Actor(config, graph_model1, self.action_dim, self.max_action, self.min_action)
+        self.actor = GraphActor(config, graph_model1, self.action_dim, self.max_action, self.min_action)
         graph_model2 = DGL_RGCN_RL(config, self.robot_state_dim, self.human_state_dim)
         graph_model3 = DGL_RGCN_RL(config, self.robot_state_dim, self.human_state_dim)
-        self.critic = Critic(config, graph_model2, graph_model3, self.action_dim)
+        self.critic = GraphCritic(config, graph_model2, graph_model3, self.action_dim)
 
         graph_model4 = DGL_RGCN_RL(config, self.robot_state_dim, self.human_state_dim)
         self.state_predictor = StatePredictor(config, graph_model4, self.time_step)
