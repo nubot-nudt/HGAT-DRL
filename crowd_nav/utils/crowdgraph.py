@@ -178,24 +178,38 @@ class CrowdNavGraph():
                 # add obstacle_to_human edges
 
                 b = torch.tensor(range(obstacle_num)) + robot_num + human_num
-                o2h_obstacle_id = torch.cat(o2h_obstacle_id, torch.tensor(range(obstacle_num)) + robot_num + human_num)
-                o2h_human_id = torch.cat(o2h_human_id, torch.ones_like(torch.tensor(range(obstacle_num))) * i)
-                w2h_wall_id = torch.cat(w2h_wall_id,
-                                        torch.tensor(range(wall_num)) + robot_num + human_num + obstacle_num)
-                w2h_human_id = torch.cat(w2h_human_id, torch.ones_like(torch.tensor(range(wall_num))) * i)
-                if human_num > 1:
-                    h2h_src_id = torch.cat(h2h_src_id, torch.tensor(range(i) + range(i + 1, human_num)))
-                    h2h_dst_id = torch.cat(h2h_dst_id, torch.ones_like(
-                        torch.tensor(list(range(i)) + list(range(i + 1, human_num)))) * i)
+                o2h_obstacle_id = torch.cat((o2h_obstacle_id, torch.tensor(range(obstacle_num)) + robot_num + human_num), dim=0)
+                o2h_human_id = torch.cat((o2h_human_id, torch.ones_like(torch.tensor(range(obstacle_num))) * i), dim=0)
+                w2h_wall_id = torch.cat((w2h_wall_id,
+                                        torch.tensor(range(wall_num)) + robot_num + human_num + obstacle_num), dim=0)
+                w2h_human_id = torch.cat((w2h_human_id, torch.ones_like(torch.tensor(range(wall_num))) * i), dim=0)
+                # if human_num > 1:
+                #     h2h_src_id = torch.cat(h2h_src_id, torch.tensor(range(i) + range(i + 1, human_num)))
+                #     h2h_dst_id = torch.cat(h2h_dst_id, torch.ones_like(
+                #         torch.tensor(list(range(i)) + list(range(i + 1, human_num)))) * i)
 
         if human_num > 1:
-            self.graph = dgl.heterograph({('human', 'h2r', 'robot'): (src_human_id, h2r_robot_id),
-                                          ('obstacle', 'o2r', 'robot'): (src_obstacle_id, o2r_robot_id),
-                                          ('wall', 'w2r', 'robot'): (src_wall_id, w2r_robot_id),
-                                          ('obstacle', 'o2h', 'human'): (o2h_obstacle_id, o2h_human_id),
-                                          ('wall', 'w2h', 'human'): (w2h_wall_id, w2h_human_id),
-                                          ('human', 'h2h', 'human'): (h2h_src_id, h2h_dst_id)
-                                          })
+            o2h_edge_types = torch.ones_like(o2h_human_id) * torch.LongTensor([self.rels.index('o2h')])
+            o2h_edge_norm = torch.ones_like(o2h_human_id) * (1.0)
+
+            w2h_edge_types = torch.ones_like(w2h_human_id) * torch.LongTensor([self.rels.index('w2h')])
+            w2h_edge_norm = torch.ones_like(w2h_human_id) * (1.0)
+
+            edge_types = torch.cat([h2r_edge_types, o2r_edge_types, w2r_edge_types, o2h_edge_types, w2h_edge_types],
+                                   dim=0)
+            edge_norm = torch.cat([h2r_edge_norm, o2r_edge_norm, w2r_edge_norm, o2h_edge_norm, w2h_edge_norm], dim=0)
+            edge_norm = edge_norm.unsqueeze(dim=1)
+
+            src_id = torch.cat([src_human_id, src_obstacle_id, src_wall_id, o2h_obstacle_id, w2h_wall_id], dim=0)
+            dst_id = torch.cat([h2r_robot_id, o2r_robot_id, w2r_robot_id, o2h_human_id, w2h_human_id], dim=0)
+            self.graph = dgl.graph((src_id, dst_id), num_nodes=total_node_num, idtype=torch.int32, )
+            # self.graph = dgl.heterograph({('human', 'h2r', 'robot'): (src_human_id, h2r_robot_id),
+            #                               ('obstacle', 'o2r', 'robot'): (src_obstacle_id, o2r_robot_id),
+            #                               ('wall', 'w2r', 'robot'): (src_wall_id, w2r_robot_id),
+            #                               ('obstacle', 'o2h', 'human'): (o2h_obstacle_id, o2h_human_id),
+            #                               ('wall', 'w2h', 'human'): (w2h_wall_id, w2h_human_id),
+            #                               ('human', 'h2h', 'human'): (h2h_src_id, h2h_dst_id)
+            #                               })
         else:
             # add edges
             o2h_edge_types = torch.ones_like(o2h_human_id) * torch.LongTensor([self.rels.index('o2h')])

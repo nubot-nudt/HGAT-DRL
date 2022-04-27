@@ -99,7 +99,7 @@ def main(args):
     action_dim = env.action_space.shape[0]
     max_action = env.action_space.high
     min_action = env.action_space.low
-    if policy.name == 'TD3RL':
+    if policy.name == 'TD3RL' or policy.name == 'RGCNRL':
         policy.set_action(action_dim, max_action, min_action)
     robot.time_step = env.time_step
     robot.set_policy(policy)
