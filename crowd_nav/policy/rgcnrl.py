@@ -65,16 +65,7 @@ class RGCNRL(Policy):
         self.planning_width = config.model_predictive_rl.planning_width
         self.share_graph_model = config.model_predictive_rl.share_graph_model
         self.linear_state_predictor = config.model_predictive_rl.linear_state_predictor
-        # self.set_device(device)
         self.device = device
-        # graph_model1 = DGL_RGCN_RL(config, self.robot_state_dim, self.human_state_dim)
-        # self.actor = GraphActor(config, graph_model1, self.action_dim, self.max_action, self.min_action)
-        # graph_model2 = DGL_RGCN_RL(config, self.robot_state_dim, self.human_state_dim)
-        # graph_model3 = DGL_RGCN_RL(config, self.robot_state_dim, self.human_state_dim)
-        # self.critic = GraphCritic(config, graph_model2, graph_model3, self.action_dim)
-        #
-        # graph_model4 = DGL_RGCN_RL(config, self.robot_state_dim, self.human_state_dim)
-        # self.state_predictor = StatePredictor(config, graph_model4, self.time_step)
 
         graph_model1 = DGL_RGCN_RL(config, self.robot_state_dim, self.human_state_dim)
         self.actor = GraphActor(config, graph_model1, self.action_dim, self.max_action, self.min_action)

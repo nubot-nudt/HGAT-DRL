@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from dgl.nn.pytorch.conv.relgraphconv import RelGraphConv
+from crowd_nav.policy.helpers import mlp
 
 class RGCN(nn.Module):
     def __init__(self, g, gnn_layers, in_dim, out_dim, hidden_dimensions, num_rels, activation,  final_activation,
@@ -9,6 +10,7 @@ class RGCN(nn.Module):
         super(RGCN, self).__init__()
         self.g = g
         self.in_dim = in_dim
+        self.encoder_dim = [64,32]
         self.hidden_dimensions = [64]
         self.out_dim = out_dim
         self.num_rels = num_rels
@@ -25,6 +27,7 @@ class RGCN(nn.Module):
 
     def build_model(self):
         self.layers = nn.ModuleList()
+        self.encoder = mlp(self.in_dim, self.encoder_dim, last_relu=True)
         # input to hidden
         # i2h = self.build_input_layer()
         # self.layers.append(i2h)
@@ -55,12 +58,13 @@ class RGCN(nn.Module):
                             dropout=self.feat_drop, num_bases=self.num_bases, activation=self.final_activation)
 
     def build_i2o_layer(self):
-        print('Building an I2O  layer of {}x{}'.format(self.in_dim, self.out_dim))
-        return RelGraphConv(self.in_dim, self.out_dim, self.num_rels,
+        print('Building an I2O  layer of {}x{}'.format(self.encoder_dim[-1], self.out_dim))
+        return RelGraphConv(self.encoder_dim[-1], self.out_dim, self.num_rels,
                             dropout=self.feat_drop, num_bases=self.num_bases, activation=self.final_activation)
 
     def forward(self, state_graph, node_features, edgetypes):
         h = node_features
+        h = self.encoder(h)
         norm = state_graph.edata['norm']
         for layer in self.layers:
             h = layer(state_graph, h, edgetypes)
