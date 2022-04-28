@@ -11,7 +11,7 @@ class RGCN(nn.Module):
         self.in_dim = in_dim
         self.hidden_dimensions = [64]
         self.out_dim = out_dim
-        self.num_rels = 5
+        self.num_rels = num_rels
         self.feat_drop = feat_drop
         self.num_bases = num_bases
         self.activation = torch.nn.ReLU()
