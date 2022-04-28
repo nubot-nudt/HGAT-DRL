@@ -198,7 +198,7 @@ class RGCNRL(Policy):
         if self.phase == 'train':
             action = (
                     self.actor(state_graph).squeeze().detach().numpy()
-                    + self.ounoise
+                    + self.ounoise()
             ).clip(-self.max_action, self.max_action)
             # action = (
             #         self.actor(state_graph).squeeze().detach().numpy()
