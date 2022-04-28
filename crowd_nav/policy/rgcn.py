@@ -26,30 +26,37 @@ class RGCN(nn.Module):
     def build_model(self):
         self.layers = nn.ModuleList()
         # input to hidden
-        i2h = self.build_input_layer()
-        self.layers.append(i2h)
+        # i2h = self.build_input_layer()
+        # self.layers.append(i2h)
         # hidden to hidden
-        for i in range(len(self.hidden_dimensions) - 1):
-            h2h = self.build_hidden_layer(i)
-            self.layers.append(h2h)
+        # for i in range(len(self.hidden_dimensions) - 1):
+        #     h2h = self.build_hidden_layer(i)
+        #     self.layers.append(h2h)
         # hidden to output
-        h2o = self.build_output_layer()
-        self.layers.append(h2o)
+        # h2o = self.build_output_layer()
+        # self.layers.append(h2o)
+        i2o = self.build_i2o_layer()
+        self.layers.append(i2o)
 
     def build_input_layer(self):
         print('Building an INPUT  layer of {}x{}'.format(self.in_dim, self.hidden_dimensions[0]))
-        return RelGraphConv(self.in_dim, self.hidden_dimensions[0], self.num_rels, regularizer='basis',
+        return RelGraphConv(self.in_dim, self.hidden_dimensions[0], self.num_rels,
                             dropout=self.feat_drop, num_bases=self.num_bases, activation=F.leaky_relu)
 
 
     def build_hidden_layer(self, i):
         print('Building an HIDDEN  layer of {}x{}'.format(self.hidden_dimensions[i], self.hidden_dimensions[i+1]))
-        return RelGraphConv(self.hidden_dimensions[i], self.hidden_dimensions[i+1],  self.num_rels, regularizer='basis',
+        return RelGraphConv(self.hidden_dimensions[i], self.hidden_dimensions[i+1],  self.num_rels,
                             dropout=self.feat_drop, num_bases=self.num_bases, activation=F.leaky_relu)
 
     def build_output_layer(self):
         print('Building an OUTPUT  layer of {}x{}'.format(self.hidden_dimensions[-1], self.out_dim))
-        return RelGraphConv(self.hidden_dimensions[-1], self.out_dim, self.num_rels, regularizer='basis',
+        return RelGraphConv(self.hidden_dimensions[-1], self.out_dim, self.num_rels,
+                            dropout=self.feat_drop, num_bases=self.num_bases, activation=self.final_activation)
+
+    def build_i2o_layer(self):
+        print('Building an I2O  layer of {}x{}'.format(self.in_dim, self.out_dim))
+        return RelGraphConv(self.in_dim, self.out_dim, self.num_rels,
                             dropout=self.feat_drop, num_bases=self.num_bases, activation=self.final_activation)
 
     def forward(self, state_graph, node_features, edgetypes):

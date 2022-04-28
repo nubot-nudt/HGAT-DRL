@@ -262,4 +262,4 @@ class CrowdNavGraph():
 
         self.graph.ndata['h'] = features
         self.graph.edata.update({'rel_type': edge_types, 'norm': edge_norm})
-        self.graph = dgl.add_self_loop(self.graph)
+        # self.graph = dgl.add_self_loop(self.graph)
