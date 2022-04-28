@@ -48,6 +48,8 @@ class Explorer(object):
 
         for i in range(k):
             ob = self.env.reset(phase)
+            if hasattr(self.robot.policy, 'ounoise'):
+                self.robot.policy.ounoise.reset()
             done = False
             states = []
             actions = []
