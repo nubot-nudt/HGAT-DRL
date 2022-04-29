@@ -10,8 +10,8 @@ class RGCN(nn.Module):
         super(RGCN, self).__init__()
         self.g = g
         self.in_dim = in_dim
-        self.encoder_dim = [64,32]
-        self.hidden_dimensions = [64]
+        self.encoder_dim = [64, out_dim]
+        self.hidden_dimensions = [32]
         self.out_dim = out_dim
         self.num_rels = num_rels
         self.feat_drop = feat_drop
@@ -64,11 +64,14 @@ class RGCN(nn.Module):
 
     def forward(self, state_graph, node_features, edgetypes):
         h = node_features
-        h = self.encoder(h)
+        h0 = self.encoder(h)
         norm = state_graph.edata['norm']
+        output = h0
         for layer in self.layers:
-            h = layer(state_graph, h, edgetypes)
-        return h
+            h1 = layer(state_graph, output, edgetypes)
+            output = output + h1
+        ## skip connection???
+        return output
 
 
 
