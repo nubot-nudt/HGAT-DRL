@@ -155,6 +155,10 @@ class CrowdSim(gym.Env):
             )
         logging.info('rotation constraint: {}'.format(self.robot.rotation_constraint))
 
+    def set_human_num(self, human_num):
+        self.human_num = human_num
+        logging.info('human number is {}'.format(self.human_num))
+
     def generate_human(self, human=None, non_stop=False, square=False):
         if human is None:
             human = Human(self.config, 'humans')
