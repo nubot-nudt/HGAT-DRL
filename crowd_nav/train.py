@@ -20,6 +20,8 @@ from crowd_nav.policy.reward_estimate import Reward_Estimator
 import matplotlib.pyplot as plt
 from matplotlib.pyplot import plot, savefig
 import numpy as np
+episode_phase1 = 5000
+episode_phase2 = 5000
 
 def set_random_seeds(seed):
     """
@@ -270,9 +272,9 @@ def main(args):
         robot.policy.set_epsilon(epsilon)
         if episode == 0:
             env.set_human_num(1)
-        elif episode == 5000:
+        elif episode == episode_phase1:
             env.set_human_num(3)
-        elif episode == 10000:
+        elif episode == episode_phase1 + episode_phase2:
             env.set_human_num(5)
         # sample k episodes into memory and optimize over the generated memory
         _, _, nav_time, sum_reward, ave_return, discom_time, total_time = \
@@ -317,7 +319,7 @@ def main(args):
             _, _, _, reward, average_return, _, _ = explorer.run_k_episodes(env.case_size['val'], 'val', episode=episode)
             explorer.log('val', episode // evaluation_interval)
 
-            if episode % checkpoint_interval == 0 and average_return > best_val_return:
+            if episode % checkpoint_interval == 0 and average_return > best_val_return and episode > episode_phase1 + episode_phase2:
                 best_val_return = average_return
                 best_val_model = copy.deepcopy(policy.get_state_dict())
         # test after every evaluation to check how the generalization performance evolves
