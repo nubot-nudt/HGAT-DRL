@@ -270,9 +270,9 @@ def main(args):
         robot.policy.set_epsilon(epsilon)
         if episode == 0:
             env.set_human_num(1)
-        elif episode == 6000:
+        elif episode == 5000:
             env.set_human_num(3)
-        elif episode == 12000:
+        elif episode == 10000:
             env.set_human_num(5)
         # sample k episodes into memory and optimize over the generated memory
         _, _, nav_time, sum_reward, ave_return, discom_time, total_time = \
