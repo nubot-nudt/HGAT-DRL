@@ -61,6 +61,8 @@ class Explorer(object):
                 states.append(self.robot.policy.last_state)
                 # for TD3rl, append the velocity and theta
                 actions.append(action_index)
+                if phase in ['test', 'train', 'val']:
+                    self.env.render(mode='debug')
                 # rewards.append(reward)
                 # actually, final states of timeout cases is not terminal states
                 if isinstance(info, Timeout):
@@ -95,8 +97,6 @@ class Explorer(object):
                 raise ValueError('Invalid end signal from environment')
 
             if update_memory:
-                # if isinstance(info, ReachGoal) or isinstance(info, Collision):
-                    # only add positive(success) or negative(collision) experience in experience set
                 self.update_memory(states, actions, rewards, dones, imitation_learning)
             discomfort_nums.append(sum(num_discoms))
             # cumulative_rewards.append(sum([pow(self.gamma, t * self.robot.time_step * self.robot.v_pref)

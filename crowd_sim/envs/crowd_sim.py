@@ -64,6 +64,9 @@ class CrowdSim(gym.Env):
         self.static_obstacle_num = 3
         self.wall_num = 4
 
+        self.fig = None
+        self.ax = None
+
         # for visualization
         self.states = None
         self.action_values = None
@@ -110,8 +113,8 @@ class CrowdSim(gym.Env):
         self.square_width = config.sim.square_width
         self.circle_radius = config.sim.circle_radius
         self.human_num = config.sim.human_num
-        self.static_obstacle_num = 3
-        self.wall_num = 4
+        self.static_obstacle_num = 1
+        self.wall_num = 1
 
         self.nonstop_human = config.sim.nonstop_human
         self.centralized_planning = config.sim.centralized_planning
@@ -287,6 +290,38 @@ class CrowdSim(gym.Env):
         wall.set_position(start_position, end_position)
         return wall
 
+    def generate_line_obstacle(self, wall=None):
+        wall = Wall(self.config)
+        while True:
+            start_x = (np.random.random() - 0.5) * self.square_width * 0.8
+            start_y = (np.random.random() - 0.5) * self.square_width * 0.8
+            end_x = (np.random.random() - 0.5) * self.square_width * 0.8
+            end_y = (np.random.random() - 0.5) * self.square_width * 0.8
+            mean_length = self.circle_radius * 0.75
+            wall_length = np.random.normal(mean_length, 0.1)
+            dis = np.sqrt((end_x - start_x)**2 + (end_x -start_y)**2)
+            if dis == 0.0:
+                break
+            else:
+                k = wall_length / dis
+                end_y = start_y + (end_y - start_y) * k
+                end_x = start_x + (end_x - start_x) * k
+                end_y = np.clip(end_y,-5,5)
+                end_x = np.clip(end_x, -5, 5)
+            collide = False
+            for agent in [self.robot] + self.humans:
+                if point_to_segment_dist(agent.px, agent.py, start_x, start_y, end_x, end_y) < agent.radius + 0.2 or \
+                        point_to_segment_dist(agent.gx, agent.gy, start_x, start_y, end_x, end_y) < agent.radius + 0.2:
+                    collide = True
+                    break
+            for agent in self.obstacles:
+                if point_to_segment_dist(agent.px, agent.py, start_x, start_y, end_x, end_y) < agent.radius + 0.1 :
+                    collide = True
+                    break
+            if not collide:
+                wall.set_position([start_x, start_y], [end_x,end_y])
+                break
+        return wall
 
     def reset(self, phase='test', test_case=None):
         """
@@ -356,6 +391,8 @@ class CrowdSim(gym.Env):
                            [-room_width/2, room_length/2], [-room_width/2, -room_length/2])
             for i in range(len(wall_vertex)-1):
                 self.walls.append(self.generate_wall(wall_vertex[i], wall_vertex[i+1]))
+            for i in range(self.wall_num):
+                self.walls.append(self.generate_line_obstacle())
 
             # case_counter is always between 0 and case_size[phase]
             self.case_counter[phase] = (self.case_counter[phase] + 1) % self.case_size[phase]
@@ -1105,5 +1142,236 @@ class CrowdSim(gym.Env):
                 # anim.save(output_file, writer='imagemagic', fps=12)
             else:
                 plt.show()
+        elif mode == 'debug':
+            def update():
+                self.ax.clear()
+                self.ax.tick_params(labelsize=12)
+                self.ax.set_xlim(-self.panel_width / 2, self.panel_width / 2)
+                self.ax.set_ylim(-self.panel_height / 2 - 0.5, self.panel_height / 2 + 0.5)
+                self.ax.set_xlabel('x(m)', fontsize=14)
+                self.ax.set_ylabel('y(m)', fontsize=14)
+                robot_color = 'black'
+                # add human positions and goals
+                human_colors = [cmap(20) for i in range(len(self.humans))]
+                # add robot and its goal
+                goal = mlines.Line2D([self.robot.get_goal_position()[0]], [self.robot.get_goal_position()[1]],
+                                     color='red', marker='*', linestyle='None',
+                                     markersize=15, label='Goal')
+                robot = plt.Circle(self.robot.get_position(), self.robot.radius, fill=False, color=robot_color)
+                self.ax.add_artist(robot)
+                self.ax.add_artist(goal)
+
+                for i in range(len(self.obstacles)):
+                    obstacle = self.obstacles[i]
+                    obstacle_mark = plt.Circle(obstacle.get_position(), obstacle.radius, fill=True, color='grey')
+                    self.ax.add_artist(obstacle_mark)
+
+                for i in range(len(self.walls)):
+                    wall = self.walls[i]
+                    wall_line = mlines.Line2D([wall.sx, wall.ex], [wall.sy, wall.ey], color='black', marker='.',
+                                              linestyle='solid', markersize=5)
+                    self.ax.add_artist(wall_line)
+                # sensor_range = plt.Circle(robot_positions[0], self.robot_sensor_range, fill=False, ls='dashed')
+                direction_length = 1.0
+
+                if len(self.humans) == 0:
+                    print('no human')
+                else:
+                    # add humans and their numbers
+                    human_positions = [human.get_position() for human in self.humans]
+                    humans = [plt.Circle(human_positions[i], self.humans[i].radius, fill=False, color=human_colors[i])
+                              for i in range(len(self.humans))]
+                    # disable showing human numbers
+                    if display_numbers:
+                        human_numbers = [
+                            plt.text(humans[i].center[0] - x_offset, humans[i].center[1] + y_offset, str(i + 1),
+                                     color='black', fontsize=12) for i in range(len(self.humans))]
+                        if hasattr(self.robot.policy, 'get_attention_weights'):
+                            if self.test_changing_size is True:
+                                robot_attention = [plt.text(robot.center[0] + x_offset, robot.center[1] + y_offset,
+                                                            '{:.2f}'.format(self.attention_weights[0][0]),
+                                                            color='black',
+                                                            fontsize=12)]
+                                human_attentions = []
+                                count = 0
+                                for i in range(len(self.humans)):
+                                    human = humans[i]
+                                    dis2 = (human.center[0] - robot.center[0]) * (human.center[0] - robot.center[0]) + (
+                                            human.center[1] - robot.center[1]) * (human.center[1] - robot.center[1])
+                                    if dis2 < self.robot_sensor_range * self.robot_sensor_range:
+                                        human_attentions = human_attentions + [
+                                            plt.text(humans[i].center[0] + x_offset, humans[i].center[1] + y_offset,
+                                                     '{:.2f}'.format(self.attention_weights[0][count + 1]),
+                                                     color='black', fontsize=12)]
+                                        count = count + 1
+                                    else:
+                                        human_attentions = human_attentions + [
+                                            plt.text(humans[i].center[0] + x_offset, humans[i].center[1] + y_offset,
+                                                     'n',
+                                                     color='red', fontsize=12)]
+                                attentions = robot_attention + human_attentions
+                            else:
+                                attentions = [plt.text(robot.center[0] + x_offset, robot.center[1] + y_offset,
+                                                       '{:.2f}'.format(self.attention_weights[0][0]), color='black',
+                                                       fontsize=12)] + \
+                                             [plt.text(humans[i].center[0] + x_offset, humans[i].center[1] + y_offset,
+                                                       '{:.2f}'.format(self.attention_weights[0][i + 1]),
+                                                       color='black', fontsize=12) for i in range(len(self.humans))]
+                    for i, human in enumerate(humans):
+                        self.ax.add_artist(human)
+                        if display_numbers:
+                            self.ax.add_artist(human_numbers[i])
+
+                    # add time annotation
+                    time = plt.text(0.4, 6.02, 'Time: {}'.format(self.global_time), fontsize=16)
+                    self.ax.add_artist(time)
+
+                    # compute orientation in each step and use arrow to show the direction
+                    radius = self.robot.radius
+                    orientation = []
+                    for i in range(self.human_num + 1):
+                        agent_state = self.robot if i == 0 else self.humans[i - 1]
+                        if agent_state.kinematics == 'holonomic' or i != 0:
+                            theta = np.arctan2(agent_state.vy, agent_state.vx)
+                            direction = ((agent_state.px, agent_state.py),
+                                         (agent_state.px + direction_length * radius * np.cos(theta),
+                                          agent_state.py + direction_length * radius * np.sin(theta)))
+                            orientation.append(direction)
+                        else:
+                            direction = ((agent_state.px, agent_state.py),
+                                         (agent_state.px + direction_length * radius * np.cos(agent_state.theta),
+                                          agent_state.py + direction_length * radius * np.sin(agent_state.theta)))
+                            orientation.append(direction)
+                        if i == 0:
+                            robot_arrow_color = 'red'
+                            arrows = [
+                                patches.FancyArrowPatch(*orientation[0], color=robot_arrow_color,
+                                                        arrowstyle=arrow_style)]
+                        else:
+                            human_arrow_color = 'black'
+                            arrows.extend(
+                                [patches.FancyArrowPatch(*orientation[i], color=human_arrow_color,
+                                                         arrowstyle=arrow_style)])
+                    for arrow in arrows:
+                        self.ax.add_artist(arrow)
+            if self.fig is None:
+                self.fig, self.ax = plt.subplots(figsize=(7, 7))
+                self.ax.tick_params(labelsize=12)
+                self.ax.set_xlim(-self.panel_width / 2, self.panel_width / 2)
+                self.ax.set_ylim(-self.panel_height / 2 - 0.5, self.panel_height / 2 + 0.5)
+                self.ax.set_xlabel('x(m)', fontsize=14)
+                self.ax.set_ylabel('y(m)', fontsize=14)
+                plt.ion()
+                show_human_start_goal = False
+                robot_color = 'black'
+                # add human positions and goals
+                human_colors = [cmap(20) for i in range(len(self.humans))]
+                # add robot and its goal
+
+                robot_positions = self.robot.get_position()
+                goal = mlines.Line2D([self.robot.get_goal_position()[0]], [self.robot.get_goal_position()[1]],
+                                     color='red', marker='*', linestyle='None',
+                                     markersize=15, label='Goal')
+                robot = plt.Circle(self.robot.get_position(), self.robot.radius, fill=False, color=robot_color)
+                self.ax.add_artist(robot)
+                self.ax.add_artist(goal)
+
+                for i in range(len(self.obstacles)):
+                    obstacle = self.obstacles[i]
+                    obstacle_mark = plt.Circle(obstacle.get_position(), obstacle.radius, fill=True, color='grey')
+                    self.ax.add_artist(obstacle_mark)
+
+                for i in range(len(self.walls)):
+                    wall = self.walls[i]
+                    wall_line = mlines.Line2D([wall.sx, wall.ex], [wall.sy, wall.ey], color='black', marker='.',
+                                              linestyle='solid', markersize=5)
+                    self.ax.add_artist(wall_line)
+                # sensor_range = plt.Circle(robot_positions[0], self.robot_sensor_range, fill=False, ls='dashed')
+                direction_length = 1.0
+
+                if len(self.humans) == 0:
+                    print('no human')
+                else:
+                    # add humans and their numbers
+                    human_positions = [human.get_position() for human in self.humans]
+                    humans = [plt.Circle(human_positions[i], self.humans[i].radius, fill=False, color=human_colors[i])
+                              for i in range(len(self.humans))]
+                    # disable showing human numbers
+                    if display_numbers:
+                        human_numbers = [
+                            plt.text(humans[i].center[0] - x_offset, humans[i].center[1] + y_offset, str(i + 1),
+                                     color='black', fontsize=12) for i in range(len(self.humans))]
+                        if hasattr(self.robot.policy, 'get_attention_weights'):
+                            if self.test_changing_size is True:
+                                robot_attention = [plt.text(robot.center[0] + x_offset, robot.center[1] + y_offset,
+                                                            '{:.2f}'.format(self.attention_weights[0][0]),
+                                                            color='black',
+                                                            fontsize=12)]
+                                human_attentions = []
+                                count = 0
+                                for i in range(len(self.humans)):
+                                    human = humans[i]
+                                    dis2 = (human.center[0] - robot.center[0]) * (human.center[0] - robot.center[0]) + (
+                                            human.center[1] - robot.center[1]) * (human.center[1] - robot.center[1])
+                                    if dis2 < self.robot_sensor_range * self.robot_sensor_range:
+                                        human_attentions = human_attentions + [
+                                            plt.text(humans[i].center[0] + x_offset, humans[i].center[1] + y_offset,
+                                                     '{:.2f}'.format(self.attention_weights[0][count + 1]),
+                                                     color='black', fontsize=12)]
+                                        count = count + 1
+                                    else:
+                                        human_attentions = human_attentions + [
+                                            plt.text(humans[i].center[0] + x_offset, humans[i].center[1] + y_offset,
+                                                     'n',
+                                                     color='red', fontsize=12)]
+                                attentions = robot_attention + human_attentions
+                            else:
+                                attentions = [plt.text(robot.center[0] + x_offset, robot.center[1] + y_offset,
+                                                       '{:.2f}'.format(self.attention_weights[0][0]), color='black',
+                                                       fontsize=12)] + \
+                                             [plt.text(humans[i].center[0] + x_offset, humans[i].center[1] + y_offset,
+                                                       '{:.2f}'.format(self.attention_weights[0][i + 1]),
+                                                       color='black', fontsize=12) for i in range(len(self.humans))]
+                    for i, human in enumerate(humans):
+                        self.ax.add_artist(human)
+                        if display_numbers:
+                            self.ax.add_artist(human_numbers[i])
+
+                    # add time annotation
+                    time = plt.text(0.4, 1.02, 'Time: {}'.format(self.global_time), fontsize=16)
+                    self.ax.add_artist(time)
+
+                    # compute orientation in each step and use arrow to show the direction
+                    radius = self.robot.radius
+                    orientation = []
+                    for i in range(self.human_num + 1):
+                        agent_state = self.robot if i == 0 else self.humans[i - 1]
+                        if agent_state.kinematics == 'holonomic' or i != 0:
+                            theta = np.arctan2(agent_state.vy, agent_state.vx)
+                            direction = ((agent_state.px, agent_state.py),
+                                         (agent_state.px + direction_length * radius * np.cos(theta),
+                                          agent_state.py + direction_length * radius * np.sin(theta)))
+                            orientation.append(direction)
+                        else:
+                            direction = ((agent_state.px, agent_state.py),
+                                         (agent_state.px + direction_length * radius * np.cos(agent_state.theta),
+                                          agent_state.py + direction_length * radius * np.sin(agent_state.theta)))
+                            orientation.append(direction)
+                        if i == 0:
+                            robot_arrow_color = 'red'
+                            arrows = [
+                                patches.FancyArrowPatch(*orientation[0], color=robot_arrow_color,
+                                                        arrowstyle=arrow_style)]
+                        else:
+                            human_arrow_color = 'black'
+                            arrows.extend(
+                                [patches.FancyArrowPatch(*orientation[i], color=human_arrow_color,
+                                                         arrowstyle=arrow_style)])
+                    for arrow in arrows:
+                        self.ax.add_artist(arrow)
+                plt.pause(0.001)
+            else:
+                update()
+                plt.pause(0.001)
         else:
             raise NotImplementedError
