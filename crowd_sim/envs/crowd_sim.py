@@ -113,8 +113,9 @@ class CrowdSim(gym.Env):
         self.square_width = config.sim.square_width
         self.circle_radius = config.sim.circle_radius
         self.human_num = config.sim.human_num
-        self.static_obstacle_num = 1
-        self.wall_num = 1
+        self.human_num = 0
+        self.static_obstacle_num = 3
+        self.wall_num = 3
 
         self.nonstop_human = config.sim.nonstop_human
         self.centralized_planning = config.sim.centralized_planning
@@ -1176,7 +1177,8 @@ class CrowdSim(gym.Env):
                 direction_length = 1.0
 
                 if len(self.humans) == 0:
-                    print('no human')
+                    assert self.humans == 0
+                    # print('no human')
                 else:
                     # add humans and their numbers
                     human_positions = [human.get_position() for human in self.humans]
