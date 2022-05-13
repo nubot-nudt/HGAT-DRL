@@ -299,23 +299,24 @@ class CrowdSim(gym.Env):
             end_y = (np.random.random() - 0.5) * self.square_width * 0.8
             mean_length = self.circle_radius * 0.75
             wall_length = np.random.normal(mean_length, 0.1)
-            dis = np.sqrt((end_x - start_x)**2 + (end_x -start_y)**2)
+            dis = np.sqrt((end_x - start_x)**2 + (end_y -start_y)**2)
             if dis == 0.0:
+                print('error')
                 break
             else:
                 k = wall_length / dis
                 end_y = start_y + (end_y - start_y) * k
                 end_x = start_x + (end_x - start_x) * k
-                end_y = np.clip(end_y,-5,5)
-                end_x = np.clip(end_x, -5, 5)
+                end_y = np.clip(end_y, -0.5*self.square_width, 0.5*self.square_width)
+                end_x = np.clip(end_x, -0.5*self.square_width, 0.5*self.square_width)
             collide = False
             for agent in [self.robot] + self.humans:
-                if point_to_segment_dist(agent.px, agent.py, start_x, start_y, end_x, end_y) < agent.radius + 0.2 or \
-                        point_to_segment_dist(agent.gx, agent.gy, start_x, start_y, end_x, end_y) < agent.radius + 0.2:
+                if point_to_segment_dist(start_x, start_y, end_x, end_y, agent.px, agent.py) < agent.radius + 0.2 or \
+                        point_to_segment_dist(start_x, start_y, end_x, end_y, agent.gx, agent.gy,) < agent.radius + 0.2:
                     collide = True
                     break
             for agent in self.obstacles:
-                if point_to_segment_dist(agent.px, agent.py, start_x, start_y, end_x, end_y) < agent.radius + 0.1 :
+                if point_to_segment_dist(start_x, start_y, end_x, end_y, agent.px, agent.py) < agent.radius + 0.1 :
                     collide = True
                     break
             if not collide:
@@ -384,7 +385,7 @@ class CrowdSim(gym.Env):
             # obstacle_3.set(-2.0, -2.0)
             # self.obstacles.append(obstacle_3)
 
-            room_width = self.square_width -1
+            room_width = self.square_width
             room_length = self.square_width
             self.walls = []
             wall_vertex = ([-room_width/2, -room_length/2], [room_width/2, -room_length/2], [room_width/2, room_length/2],
