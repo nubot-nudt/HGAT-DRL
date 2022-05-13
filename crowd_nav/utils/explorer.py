@@ -61,8 +61,8 @@ class Explorer(object):
                 states.append(self.robot.policy.last_state)
                 # for TD3rl, append the velocity and theta
                 actions.append(action_index)
-                if phase in ['test', 'train', 'val']:
-                    self.env.render(mode='debug')
+                # if phase in ['test', 'train', 'val']:
+                #     self.env.render(mode='debug')
                 # rewards.append(reward)
                 # actually, final states of timeout cases is not terminal states
                 if isinstance(info, Timeout):

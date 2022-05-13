@@ -1176,10 +1176,10 @@ class CrowdSim(gym.Env):
                 # sensor_range = plt.Circle(robot_positions[0], self.robot_sensor_range, fill=False, ls='dashed')
                 direction_length = 1.0
 
-                if len(self.humans) == 0:
-                    assert self.humans == 0
+                # if len(self.humans) == 0:
+
                     # print('no human')
-                else:
+                if len(self.humans) > 0:
                     # add humans and their numbers
                     human_positions = [human.get_position() for human in self.humans]
                     humans = [plt.Circle(human_positions[i], self.humans[i].radius, fill=False, color=human_colors[i])
