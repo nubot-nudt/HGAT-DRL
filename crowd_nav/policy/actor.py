@@ -110,7 +110,7 @@ class GraphActor(nn.Module):
     def __init__(self, config, graph_model, action_dim, max_action, min_action):
         super(GraphActor, self).__init__()
         self.graph_model = graph_model
-        self.action_network = mlp(config.gcn.X_dim + 5, [256, action_dim])
+        self.action_network = mlp(config.gcn.X_dim, [256, action_dim])
         # self.action_network = mlp(5, [256, action_dim])
         self.encode_r = mlp(5, [64, 32], last_relu=True)
         self.max_action = None
@@ -159,7 +159,7 @@ class GraphActor(nn.Module):
             cur_robot_feature = torch.index_select(cur_features, 0, robot_ids)
             state_embedding = self.graph_model(actor_state)
             batch_state_embedding = torch.index_select(state_embedding, 0, robot_ids)
-            batch_state_embedding = torch.cat((cur_robot_feature[:, 4:9], batch_state_embedding), dim=1)\
+            # batch_state_embedding = torch.cat((cur_robot_feature[:, 4:9], batch_state_embedding), dim=1)\
             # batch_state_embedding = self.encode_r(cur_robot_feature[:, 4:9])
             # batch_state_embedding = cur_robot_feature[:, 4:9]
             a = self.action_network(batch_state_embedding)
