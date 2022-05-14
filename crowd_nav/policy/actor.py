@@ -138,7 +138,7 @@ class GraphActor(nn.Module):
             cur_state = copy.deepcopy(state)
             robot_state = state.ndata['h'][0, 4:9]
             state_embedding = self.graph_model(cur_state)[0, :]
-            state_embedding = torch.cat((robot_state, state_embedding), dim=0)
+            # state_embedding = torch.cat((robot_state, state_embedding), dim=0)
 
             # state_embedding = self.encode_r(robot_state)
             # state_embedding = robot_state
