@@ -24,3 +24,12 @@ def point_to_segment_dist(x1, y1, x2, y2, x3, y3):
     y = y1 + u * py
 
     return np.linalg.norm((x - x3, y-y3))
+
+def counterclockwise(x1, y1, x2, y2, x3, y3):
+    vec1 = np.array([x3 - x1, y3 - y1])
+    vec2 = np.array([x2 - x2, y2 - y1])
+    if np.cross(vec1, vec2) > 0:
+        return True
+    else:
+        return False
+

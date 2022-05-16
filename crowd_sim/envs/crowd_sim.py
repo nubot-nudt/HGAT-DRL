@@ -16,7 +16,7 @@ from crowd_sim.envs.utils.human import Human
 from crowd_sim.envs.utils.obstacle import Obstacle
 from crowd_sim.envs.utils.wall import Wall
 from crowd_sim.envs.utils.info import *
-from crowd_sim.envs.utils.utils import point_to_segment_dist
+from crowd_sim.envs.utils.utils import point_to_segment_dist, counterclockwise
 
 
 class CrowdSim(gym.Env):
@@ -586,10 +586,10 @@ class CrowdSim(gym.Env):
                                    closest_dist, self.global_time))
                     num_discom = num_discom + 1
 
-                if closest_dist < dmin:
-                    dmin = closest_dist
-                if closest_dist < self.discomfort_dist:
-                    safety_penalty = safety_penalty + (closest_dist - self.discomfort_dist * 0.5) * 0.2
+                # if closest_dist < dmin:
+                #     dmin = closest_dist
+                if closest_dist < self.discomfort_dist * 0.5:
+                    safety_penalty = safety_penalty + (closest_dist - self.discomfort_dist * 0.5) * 0.5
                     num_discom = num_discom + 1
             #
             for i, wall in enumerate(self.walls):
@@ -597,17 +597,33 @@ class CrowdSim(gym.Env):
                 py = wall.sy - self.robot.py
                 ex = wall.ex - end_robot_x
                 ey = wall.ey - end_robot_y
-                closest_dist = point_to_segment_dist(px, py, ex, ey, 0, 0) - self.robot.radius
+                closest_dist = 0.0
+                # across the wall #
+                if (counterclockwise(wall.sx, wall.sy, wall.ex, wall.ey, self.robot.px, self.robot.py) *
+                    counterclockwise(wall.sx, wall.sy, wall.ex, wall.ey, end_robot_x, end_robot_y) < 0.0) and \
+                    (counterclockwise(self.robot.px, self.robot.py, end_robot_x, end_robot_y, wall.sx, wall.sy) *
+                    counterclockwise(self.robot.px, self.robot.py, end_robot_x, end_robot_y, wall.ex, wall.ey) < 0.0):
+                    closest_dist = 0.0
+
+                else:
+                    min_dis_start = point_to_segment_dist(wall.sx, wall.sy, wall.ex, wall.ey, self.robot.px,
+                                                          self.robot.py)
+                    min_dis_end = point_to_segment_dist(wall.sx, wall.sy, wall.ex, wall.ey, end_robot_x, end_robot_y)
+                    if min_dis_end < min_dis_start:
+                        closest_dist = min_dis_end
+                    else:
+                        closest_dist = min_dis_start
+                closest_dist = closest_dist - self.robot.radius
                 if closest_dist < 0:
                     collision = True
                     logging.debug("Collision: distance between robot and wall {} is {:.2E} at time {:.2E}".format(i,
                                    closest_dist, self.global_time))
                     num_discom = num_discom + 1
-
-                if closest_dist < dmin:
-                    dmin = closest_dist
-                if closest_dist < self.discomfort_dist:
-                    safety_penalty = safety_penalty + (closest_dist - self.discomfort_dist * 0.5) * 0.2
+                #
+                # if closest_dist < dmin:
+                #     dmin = closest_dist
+                if closest_dist < self.discomfort_dist * 0.5:
+                    safety_penalty = safety_penalty + (closest_dist - self.discomfort_dist * 0.5) * 0.5
                     num_discom = num_discom + 1
         else:
             end_robot_x, end_robot_y = self.robot.compute_position(action, self.time_step)
