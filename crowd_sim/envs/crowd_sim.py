@@ -589,7 +589,7 @@ class CrowdSim(gym.Env):
                 if closest_dist < dmin:
                     dmin = closest_dist
                 if closest_dist < self.discomfort_dist:
-                    safety_penalty = safety_penalty + (closest_dist - self.discomfort_dist)
+                    safety_penalty = safety_penalty + (closest_dist - self.discomfort_dist * 0.5) * 0.2
                     num_discom = num_discom + 1
             #
             for i, wall in enumerate(self.walls):
@@ -607,7 +607,7 @@ class CrowdSim(gym.Env):
                 if closest_dist < dmin:
                     dmin = closest_dist
                 if closest_dist < self.discomfort_dist:
-                    safety_penalty = safety_penalty + (closest_dist - self.discomfort_dist)
+                    safety_penalty = safety_penalty + (closest_dist - self.discomfort_dist * 0.5) * 0.2
                     num_discom = num_discom + 1
         else:
             end_robot_x, end_robot_y = self.robot.compute_position(action, self.time_step)
