@@ -459,34 +459,11 @@ class PG_GAT_RL0(nn.Module):
             return output
         else:
             # adj = self.compute_adjectory_matrix(state)
-            robot_state = state[:,0: self.robot_num,0:self.robot_state_dim]
+            robot_state = state[:, 0: self.robot_num, 0:self.robot_state_dim]
             robot_state = self.encode_r(robot_state)
-            # human_num = state.shape[1] - self.robot_num - self.obstacle_num - self.wall_num
-            # human_num = state.shape[1] - self.robot_num
-            # human_state = state[:, self.robot_num:self.robot_num+human_num, self.robot_state_dim:self.robot_state_dim+self.human_state_dim]
-            # human_state = self.encode_h(human_state)
-            # obstacle_state = state[:,self.robot_num+human_num:self.robot_num+human_num+self.obstacle_num,self.robot_state_dim+self.human_state_dim:self.robot_state_dim+self.human_state_dim+self.obstacle_state_dim]
-            # obstacle_state = self.encode_o(obstacle_state)
-            # wall_state = state[:, self.robot_num+human_num+self.obstacle_num:,self.robot_state_dim+self.human_state_dim+self.obstacle_state_dim:]
-            # wall_state = self.encode_w(wall_state)
-            # H0=torch.cat((robot_state, human_state), dim=1)
             H0 = robot_state
             return H0
-            # # H0=torch.cat((robot_state,human_state,obstacle_state,wall_state), dim=1)
-            # # H0 = self.encoder(state)
-            # # compute feature matrix X
-            # # if state.shape[0]==1:
-            # #     H1 = self.gatinput(H0, adj)
-            # # else:
-            # #     H1 = self.gatinput(H0, adj)
-            # # H2 = self.gatoutput(H1, adj)
-            # # # H3 = self.gat1(H2, adj)
-            # # # H4, _ = self.gat2(H3, adj)
-            # # if self.skip_connection:
-            # #     output = H0 + H1 + H2
-            # # else:
-            # #     output = H2
-            # return output
+
 
 class DGL_RGCN_RL(nn.Module):
     def __init__(self, config, robot_state_dim, human_state_dim):
