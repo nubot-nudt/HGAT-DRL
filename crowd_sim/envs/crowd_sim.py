@@ -62,7 +62,7 @@ class CrowdSim(gym.Env):
         self.test_changing_size = False
 
         self.static_obstacle_num = 3
-        self.wall_num = 4
+        self.wall_num = 2
 
         self.fig = None
         self.ax = None
@@ -85,6 +85,7 @@ class CrowdSim(gym.Env):
         self.dynamic_human_num = []
         self.human_starts = []
         self.human_goals = []
+        self.phase_num = 0
 
         # 动作空间: 速度，朝向
         self.action_space = spaces.Box(
@@ -115,7 +116,7 @@ class CrowdSim(gym.Env):
         self.human_num = config.sim.human_num
         self.human_num = 0
         self.static_obstacle_num = 3
-        self.wall_num = 3
+        self.wall_num = 0
 
         self.nonstop_human = config.sim.nonstop_human
         self.centralized_planning = config.sim.centralized_planning
@@ -135,6 +136,23 @@ class CrowdSim(gym.Env):
         logging.info('Training simulation: {}, test simulation: {}'.format(self.train_val_scenario, self.test_scenario))
         logging.info('Square width: {}, circle width: {}'.format(self.square_width, self.circle_radius))
 
+    def set_phase(self, phase_num):
+        self.phase_num = phase_num
+        if self.phase_num == 0:
+            self.static_obstacle_num = 3
+            self.wall_num = 0
+            self.human_num = 0
+        elif self.phase_num == 1:
+            self.static_obstacle_num = 3
+            self.wall_num = 2
+        elif self.phase_num == 2:
+            self.static_obstacle_num = 3
+            self.wall_num = 2
+            self.human_num = 2
+        elif self.phase_num == 3:
+            self.static_obstacle_num = 3
+            self.wall_num = 2
+            self.human_num = 5
     def set_robot(self, robot):
         self.robot = robot
 
@@ -267,10 +285,10 @@ class CrowdSim(gym.Env):
 
     def generate_static_obstcale(self, obstacle=None):
         obstacle = Obstacle()
-        if self.randomize_attributes:
-            obstacle.sample_random_attributes()
-        else:
-            obstacle.radius = 0.3
+        # if self.randomize_attributes:
+        obstacle.sample_random_attributes()
+        # else:
+        #     obstacle.radius = 0.3
         while True:
             px = (np.random.random() - 0.5) * self.square_width * 0.8
             py = (np.random.random() - 0.5) * self.circle_radius * 2
@@ -285,6 +303,48 @@ class CrowdSim(gym.Env):
                 break
         return obstacle
 
+    def generate_constrained_room(self):
+        self.generate_open_scenario()
+
+    def generate_doorway_scenario(self):
+        room_width = self.square_width - 1
+        room_length = self.square_width - 1
+        self.walls = []
+        wall_vertex = (
+            [-room_width / 2, -room_length / 2], [room_width / 2, -room_length / 2], [room_width / 2, room_length / 2],
+            [-room_width / 2, room_length / 2], [-room_width / 2, -room_length / 2])
+        for i in range(len(wall_vertex) - 1):
+            self.walls.append(self.generate_wall(wall_vertex[i], wall_vertex[i + 1]))
+
+    def generate_corridor_scenario(self):
+        corridor_width = 3
+        corridor_length = self.square_width
+        self.walls = []
+        self.walls.append(self.generate_wall([-corridor_width / 2, -corridor_length / 2], [-corridor_width / 2, corridor_length / 2]))
+        self.walls.append(self.generate_wall([corridor_width / 2, -corridor_length / 2], [corridor_width / 2, corridor_length / 2]))
+
+    def generate_open_scenario(self):
+        room_width = self.square_width - 1
+        room_length = self.square_width - 1
+        self.walls = []
+        wall_vertex = (
+        [-room_width / 2, -room_length / 2], [room_width / 2, -room_length / 2], [room_width / 2, room_length / 2],
+        [-room_width / 2, room_length / 2], [-room_width / 2, -room_length / 2])
+        for i in range(len(wall_vertex)-1):
+            self.walls.append(self.generate_wall(wall_vertex[i], wall_vertex[i+1]))
+        for i in range(self.wall_num):
+            self.walls.append(self.generate_line_obstacle())
+
+    def generate_ward_scenario(self):
+        room_width = self.square_width - 1
+        room_length = self.square_width - 1
+        self.walls = []
+        wall_vertex = (
+            [-room_width / 2, -room_length / 2], [room_width / 2, -room_length / 2], [room_width / 2, room_length / 2],
+            [-room_width / 2, room_length / 2], [-room_width / 2, -room_length / 2])
+        for i in range(len(wall_vertex) - 1):
+            self.walls.append(self.generate_wall(wall_vertex[i], wall_vertex[i + 1]))
+
 
     def generate_wall(self, start_position, end_position, wall=None):
         wall = Wall(self.config)
@@ -296,18 +356,16 @@ class CrowdSim(gym.Env):
         while True:
             start_x = (np.random.random() - 0.5) * self.square_width * 0.8
             start_y = (np.random.random() - 0.5) * self.square_width * 0.8
-            end_x = (np.random.random() - 0.5) * self.square_width * 0.8
-            end_y = (np.random.random() - 0.5) * self.square_width * 0.8
             mean_length = self.circle_radius * 0.75
             wall_length = np.random.normal(mean_length, 0.1)
-            dis = np.sqrt((end_x - start_x)**2 + (end_y -start_y)**2)
-            if dis == 0.0:
+            theta = (np.random.random - 0.5) * np.pi / 9
+            if wall_length == 0.0:
                 print('error')
                 break
             else:
-                k = wall_length / dis
-                end_y = start_y + (end_y - start_y) * k
-                end_x = start_x + (end_x - start_x) * k
+
+                end_y = start_y + np.sin(theta) * wall_length
+                end_x = start_x + np.cos(theta) * wall_length
                 end_y = np.clip(end_y, -0.5*self.square_width, 0.5*self.square_width)
                 end_x = np.clip(end_x, -0.5*self.square_width, 0.5*self.square_width)
             collide = False
@@ -344,14 +402,12 @@ class CrowdSim(gym.Env):
         base_seed = {'train': self.case_capacity['val'] + self.case_capacity['test'] + train_seed_begin[1],
                      'val': 0 + val_seed_begin[1], 'test': self.case_capacity['val']+test_seed_begin[2]+1000}
         robot_theta = np.pi / 2 + np.random.random() * np.pi / 4.0 - np.pi / 8.0
-        self.robot.set(0, -self.circle_radius, 0, self.circle_radius, 0, 0, robot_theta)
+        target_x = (np.random.random() - 0.5) * self.square_width * 0.8
+        target_y = (np.random.random() - 0.5) * self.circle_radius * 2
+        self.robot.set(0, -self.circle_radius, target_x, target_y, 0, 0, robot_theta)
         self.random_seed = base_seed[phase] + self.case_counter[phase]
         np.random.seed(self.random_seed)
         if self.case_counter[phase] >= 0:
-            # np.random.seed(base_seed[phase] + self.case_counter[phase])
-            # random.seed(base_seed[phase] + self.case_counter[phase])
-            # random.seed(2100)
-
             if phase == 'test':
                 logging.debug('current test seed is:{}'.format(base_seed[phase] + self.case_counter[phase]))
                 # print('current test seed is:{}'.format(base_seed[phase] + self.case_counter[phase]))
@@ -364,39 +420,14 @@ class CrowdSim(gym.Env):
             self.humans = []
             for i in range(human_num):
                 if self.current_scenario == 'circle_crossing':
-                    # if human_num > 5 and i > 4:
-                    #     self.humans.append(self.generate_human(square=True))
-                    # else:
                     self.humans.append(self.generate_human())
                 else:
                     self.humans.append(self.generate_human(square=True))
-
             self.obstacles = []
             for i in range(self.static_obstacle_num):
                 self.obstacles.append(self.generate_static_obstcale())
-            # obstacle_1 = Obstacle()
-            # obstacle_1.set(2.0, 3.0)
-            # self.obstacles.append(obstacle_1)
-            #
-            # obstacle_2 = Obstacle()
-            # obstacle_2.set(2.0, -3.0)
-            # self.obstacles.append(obstacle_2)
-            #
-            # obstacle_3 = Obstacle()
-            # obstacle_3.set(-2.0, -2.0)
-            # self.obstacles.append(obstacle_3)
-
-            room_width = self.square_width
-            room_length = self.square_width
-            self.walls = []
-            wall_vertex = ([-room_width/2, -room_length/2], [room_width/2, -room_length/2], [room_width/2, room_length/2],
-                           [-room_width/2, room_length/2], [-room_width/2, -room_length/2])
-            for i in range(len(wall_vertex)-1):
-                self.walls.append(self.generate_wall(wall_vertex[i], wall_vertex[i+1]))
-            for i in range(self.wall_num):
-                self.walls.append(self.generate_line_obstacle())
-
-            # case_counter is always between 0 and case_size[phase]
+            if self.phase_num > 0:
+                self.generate_constrained_room()
             self.case_counter[phase] = (self.case_counter[phase] + 1) % self.case_size[phase]
         else:
             assert phase == 'test'
