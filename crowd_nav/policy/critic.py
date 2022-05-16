@@ -202,7 +202,8 @@ class GraphCritic(nn.Module):
             state1 = copy.deepcopy(state)
             state_embedding1 = self.graph_model1(state1)
             batch_state_embedding1 = torch.index_select(state_embedding1, 0, robot_ids)
-            batch_state_embedding1 = torch.cat((cur_robot_feature[:,4:9], batch_state_embedding1), dim=1)
+            batch_robot_state1 = cur_robot_feature[:, 4:9]
+            batch_state_embedding1 = torch.cat((batch_robot_state1, batch_state_embedding1), dim=1)
             # batch_state_embedding1 = self.encode_r1(cur_robot_feature[:,4:9])
             # batch_state_embedding1 = cur_robot_feature[:,4:9]
             sa1 = torch.cat([batch_state_embedding1, action], 1)
@@ -211,7 +212,8 @@ class GraphCritic(nn.Module):
             state2 = copy.deepcopy(state)
             state_embedding2 = self.graph_model2(state2)
             batch_state_embedding2 = torch.index_select(state_embedding2, 0, robot_ids)
-            batch_state_embedding2 = torch.cat((cur_robot_feature[:,4:9], batch_state_embedding2), dim=1)
+            batch_robot_state2 = cur_robot_feature[:,4:9]
+            batch_state_embedding2 = torch.cat((batch_robot_state2, batch_state_embedding2), dim=1)
             # batch_state_embedding2 = self.encode_r2(cur_robot_feature[:,4:9])
             # batch_state_embedding2 = cur_robot_feature[:,4:9]
             sa2 = torch.cat([batch_state_embedding2, action], 1)
@@ -223,9 +225,10 @@ class GraphCritic(nn.Module):
         if state.batch_size == 1:
             cur_state = copy.deepcopy(state)
             robot_state = cur_state.ndata['h'][0, 4:9]
+            # state_embedding1 = self.encode_r1(robot_state)
             state_embedding1 = self.graph_model1(cur_state)[0, :]
             state_embedding1 = torch.cat((robot_state, state_embedding1), dim=0)
-            # state_embedding1 = self.encode_r1(robot_state)
+
             # state_embedding1 = robot_state
             sa1 = torch.cat([state_embedding1, action], 0)
             q1 = self.score_network1(sa1)
@@ -244,8 +247,10 @@ class GraphCritic(nn.Module):
 
             state_embedding1 = self.graph_model1(cur_state1)
             batch_state_embedding1 = torch.index_select(state_embedding1, 0, robot_ids)
-            batch_state_embedding1 = torch.cat((cur_robot_feature[:,4:9], batch_state_embedding1), dim=1)
+            batch_robot_state = cur_robot_feature[:,4:9]
             # batch_state_embedding1 = self.encode_r1(cur_robot_feature[:,4:9])
+            batch_state_embedding1 = torch.cat((batch_robot_state, batch_state_embedding1), dim=1)
+
 
             # batch_state_embedding1 =cur_robot_feature[:,4:9]
             sa1 = torch.cat([batch_state_embedding1, action], 1)

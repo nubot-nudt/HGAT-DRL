@@ -25,9 +25,9 @@ class RGCN(nn.Module):
         self.final_activation = torch.nn.ReLU()
         self.gnn_layers = gnn_layers
         self.use_rgcn = False
-        self.use_gat = False
-        self.use_gcn = True
-        self.use_rgat = True
+        self.use_gat = True
+        self.use_gcn = False
+        self.use_rgat = False
         # create RGCN layers
         self.build_model()
 
