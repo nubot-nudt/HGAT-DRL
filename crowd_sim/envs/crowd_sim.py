@@ -365,7 +365,6 @@ class CrowdSim(gym.Env):
                 print('error')
                 break
             else:
-
                 end_y = start_y + np.sin(theta) * wall_length
                 end_x = start_x + np.cos(theta) * wall_length
                 end_y = np.clip(end_y, -0.5*self.square_width, 0.5*self.square_width)
@@ -410,6 +409,8 @@ class CrowdSim(gym.Env):
         else:
             target_x = 0
             target_y = self.circle_radius
+        target_x = 0
+        target_y = self.circle_radius
         self.robot.set(0, -self.circle_radius, target_x, target_y, 0, 0, robot_theta)
         self.random_seed = base_seed[phase] + self.case_counter[phase]
         np.random.seed(self.random_seed)
@@ -584,12 +585,12 @@ class CrowdSim(gym.Env):
                     logging.debug("Collision: distance between robot and obstacle{} is {:.2E} at time {:.2E}".format(i,
                                    closest_dist, self.global_time))
                     num_discom = num_discom + 1
-                if self.phase == 'train':
-                    if closest_dist < dmin:
-                        dmin = closest_dist
-                    if closest_dist < self.discomfort_dist:
-                        safety_penalty = safety_penalty + (closest_dist - self.discomfort_dist)
-                        num_discom = num_discom + 1
+
+                if closest_dist < dmin:
+                    dmin = closest_dist
+                if closest_dist < self.discomfort_dist:
+                    safety_penalty = safety_penalty + (closest_dist - self.discomfort_dist)
+                    num_discom = num_discom + 1
             #
             for i, wall in enumerate(self.walls):
                 px = wall.sx - self.robot.px
@@ -601,6 +602,12 @@ class CrowdSim(gym.Env):
                     collision = True
                     logging.debug("Collision: distance between robot and wall {} is {:.2E} at time {:.2E}".format(i,
                                    closest_dist, self.global_time))
+                    num_discom = num_discom + 1
+
+                if closest_dist < dmin:
+                    dmin = closest_dist
+                if closest_dist < self.discomfort_dist:
+                    safety_penalty = safety_penalty + (closest_dist - self.discomfort_dist)
                     num_discom = num_discom + 1
         else:
             end_robot_x, end_robot_y = self.robot.compute_position(action, self.time_step)

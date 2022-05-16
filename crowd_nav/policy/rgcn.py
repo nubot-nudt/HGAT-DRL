@@ -6,9 +6,9 @@ from dgl.nn.pytorch.conv.gatconv import GATConv
 from dgl.nn.pytorch.conv.gcn2conv import GCN2Conv
 from dgl.nn.pytorch.conv.gatv2conv import GATv2Conv
 from dgl.nn.pytorch.conv.graphconv import GraphConv
+from dgl.nn.pytorch.conv.gatconv import GATConv
 from crowd_nav.policy.helpers import mlp
 import dgl
-
 class RGCN(nn.Module):
     def __init__(self, g, gnn_layers, in_dim, out_dim, hidden_dimensions, num_rels, activation,  final_activation,
                  feat_drop, num_bases=-1):
@@ -27,6 +27,7 @@ class RGCN(nn.Module):
         self.use_rgcn = False
         self.use_gat = False
         self.use_gcn = True
+        self.use_rgat = True
         # create RGCN layers
         self.build_model()
 
