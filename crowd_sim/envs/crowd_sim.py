@@ -145,6 +145,7 @@ class CrowdSim(gym.Env):
         elif self.phase_num == 1:
             self.static_obstacle_num = 3
             self.wall_num = 2
+            self.human_num = 0
         elif self.phase_num == 2:
             self.static_obstacle_num = 3
             self.wall_num = 2
@@ -305,7 +306,7 @@ class CrowdSim(gym.Env):
 
     def generate_constrained_room(self):
         self.generate_open_scenario()
-        if self.phase_num > 1:
+        if self.phase_num > 0:
             for i in range(self.wall_num):
                 self.walls.append(self.generate_line_obstacle())
 
@@ -359,7 +360,7 @@ class CrowdSim(gym.Env):
             start_y = (np.random.random() - 0.5) * self.square_width * 0.8
             mean_length = self.circle_radius * 0.75
             wall_length = np.random.normal(mean_length, 0.1)
-            theta = (np.random.random - 0.5) * np.pi / 9
+            theta = (np.random.random() - 0.5) * np.pi / 9
             if wall_length == 0.0:
                 print('error')
                 break
