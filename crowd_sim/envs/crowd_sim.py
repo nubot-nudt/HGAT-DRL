@@ -305,6 +305,9 @@ class CrowdSim(gym.Env):
 
     def generate_constrained_room(self):
         self.generate_open_scenario()
+        if self.phase_num > 1:
+            for i in range(self.wall_num):
+                self.walls.append(self.generate_line_obstacle())
 
     def generate_doorway_scenario(self):
         room_width = self.square_width - 1
@@ -332,8 +335,6 @@ class CrowdSim(gym.Env):
         [-room_width / 2, room_length / 2], [-room_width / 2, -room_length / 2])
         for i in range(len(wall_vertex)-1):
             self.walls.append(self.generate_wall(wall_vertex[i], wall_vertex[i+1]))
-        for i in range(self.wall_num):
-            self.walls.append(self.generate_line_obstacle())
 
     def generate_ward_scenario(self):
         room_width = self.square_width - 1
@@ -402,8 +403,12 @@ class CrowdSim(gym.Env):
         base_seed = {'train': self.case_capacity['val'] + self.case_capacity['test'] + train_seed_begin[1],
                      'val': 0 + val_seed_begin[1], 'test': self.case_capacity['val']+test_seed_begin[2]+1000}
         robot_theta = np.pi / 2 + np.random.random() * np.pi / 4.0 - np.pi / 8.0
-        target_x = (np.random.random() - 0.5) * self.square_width * 0.8
-        target_y = (np.random.random() - 0.5) * self.circle_radius * 2
+        if self.phase_num == 0 or self.phase_num == 1:
+            target_x = (np.random.random() - 0.5) * self.square_width * 0.8
+            target_y = (np.random.random() - 0.5) * self.circle_radius * 2
+        else:
+            target_x = 0
+            target_y = self.circle_radius
         self.robot.set(0, -self.circle_radius, target_x, target_y, 0, 0, robot_theta)
         self.random_seed = base_seed[phase] + self.case_counter[phase]
         np.random.seed(self.random_seed)
@@ -426,8 +431,7 @@ class CrowdSim(gym.Env):
             self.obstacles = []
             for i in range(self.static_obstacle_num):
                 self.obstacles.append(self.generate_static_obstcale())
-            if self.phase_num > 0:
-                self.generate_constrained_room()
+            self.generate_constrained_room()
             self.case_counter[phase] = (self.case_counter[phase] + 1) % self.case_size[phase]
         else:
             assert phase == 'test'
@@ -466,8 +470,14 @@ class CrowdSim(gym.Env):
         # get current observation
         if self.robot.sensor == 'coordinates':
             ob_human = self.compute_observation_for(self.robot)
-            ob_obstacles = [obstacle.get_observable_state() for i, obstacle in enumerate(self.obstacles)]
-            ob_walls = [wall.get_observable_state() for i, wall in enumerate(self.walls)]
+            if self.obstacles is not None:
+                ob_obstacles = [obstacle.get_observable_state() for i, obstacle in enumerate(self.obstacles)]
+            else:
+                ob_obstacles = None
+            if self.walls is not None:
+                ob_walls = [wall.get_observable_state() for i, wall in enumerate(self.walls)]
+            else:
+                ob_walls = None
             ob = (ob_human, ob_obstacles, ob_walls)
         elif self.robot.sensor == 'RGB':
             raise NotImplementedError
