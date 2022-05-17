@@ -599,9 +599,9 @@ class CrowdSim(gym.Env):
                 ey = wall.ey - end_robot_y
                 closest_dist = 0.0
                 # across the wall #
-                if (counterclockwise(wall.sx, wall.sy, wall.ex, wall.ey, self.robot.px, self.robot.py) ==
+                if (counterclockwise(wall.sx, wall.sy, wall.ex, wall.ey, self.robot.px, self.robot.py) !=
                     counterclockwise(wall.sx, wall.sy, wall.ex, wall.ey, end_robot_x, end_robot_y)) and \
-                    (counterclockwise(self.robot.px, self.robot.py, end_robot_x, end_robot_y, wall.sx, wall.sy) ==
+                    (counterclockwise(self.robot.px, self.robot.py, end_robot_x, end_robot_y, wall.sx, wall.sy) !=
                     counterclockwise(self.robot.px, self.robot.py, end_robot_x, end_robot_y, wall.ex, wall.ey)):
                     closest_dist = 0.0
                 else:
