@@ -148,12 +148,12 @@ class CrowdSim(gym.Env):
             self.human_num = 0
         elif self.phase_num == 2:
             self.static_obstacle_num = 3
-            self.wall_num = 2
-            self.human_num = 2
+            self.wall_num = 1
+            self.human_num = 1
         elif self.phase_num == 3:
             self.static_obstacle_num = 3
-            self.wall_num = 2
-            self.human_num = 5
+            self.wall_num = 1
+            self.human_num = 3
     def set_robot(self, robot):
         self.robot = robot
 
@@ -599,12 +599,11 @@ class CrowdSim(gym.Env):
                 ey = wall.ey - end_robot_y
                 closest_dist = 0.0
                 # across the wall #
-                if (counterclockwise(wall.sx, wall.sy, wall.ex, wall.ey, self.robot.px, self.robot.py) *
-                    counterclockwise(wall.sx, wall.sy, wall.ex, wall.ey, end_robot_x, end_robot_y) < 0.0) and \
-                    (counterclockwise(self.robot.px, self.robot.py, end_robot_x, end_robot_y, wall.sx, wall.sy) *
-                    counterclockwise(self.robot.px, self.robot.py, end_robot_x, end_robot_y, wall.ex, wall.ey) < 0.0):
+                if (counterclockwise(wall.sx, wall.sy, wall.ex, wall.ey, self.robot.px, self.robot.py) ==
+                    counterclockwise(wall.sx, wall.sy, wall.ex, wall.ey, end_robot_x, end_robot_y)) and \
+                    (counterclockwise(self.robot.px, self.robot.py, end_robot_x, end_robot_y, wall.sx, wall.sy) ==
+                    counterclockwise(self.robot.px, self.robot.py, end_robot_x, end_robot_y, wall.ex, wall.ey)):
                     closest_dist = 0.0
-
                 else:
                     min_dis_start = point_to_segment_dist(wall.sx, wall.sy, wall.ex, wall.ey, self.robot.px,
                                                           self.robot.py)
