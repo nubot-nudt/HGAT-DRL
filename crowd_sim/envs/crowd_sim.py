@@ -16,7 +16,7 @@ from crowd_sim.envs.utils.human import Human
 from crowd_sim.envs.utils.obstacle import Obstacle
 from crowd_sim.envs.utils.wall import Wall
 from crowd_sim.envs.utils.info import *
-from crowd_sim.envs.utils.utils import point_to_segment_dist, counterclockwise
+from crowd_sim.envs.utils.utils import point_to_segment_dist, counterclockwise, point_in_poly
 
 
 class CrowdSim(gym.Env):
@@ -66,6 +66,7 @@ class CrowdSim(gym.Env):
 
         self.fig = None
         self.ax = None
+        self.poly_obstacles = []
 
         # for visualization
         self.states = None
@@ -144,15 +145,15 @@ class CrowdSim(gym.Env):
             self.human_num = 0
         elif self.phase_num == 1:
             self.static_obstacle_num = 3
-            self.wall_num = 1
-            self.human_num = 0
+            self.wall_num = 0
+            self.human_num = 1
         elif self.phase_num == 2:
             self.static_obstacle_num = 3
-            self.wall_num = 1
-            self.human_num = 1
+            self.wall_num = 0
+            self.human_num = 3
         elif self.phase_num == 3:
             self.static_obstacle_num = 3
-            self.wall_num = 1
+            self.wall_num = 0
             self.human_num = 3
     def set_robot(self, robot):
         self.robot = robot
@@ -224,6 +225,11 @@ class CrowdSim(gym.Env):
                     # if norm((px - agent.px, py - agent.py)) == 0.0:
                     #     continue
                     if norm((gx - agent.gx, gy - agent.gy)) < min_dist:
+                        collide = True
+                        break
+                for wall in self.walls:
+                    if point_to_segment_dist(wall.sx, wall.sy, wall.ex, wall.ey, px, py) < human.radius + 0.3 and \
+                            point_to_segment_dist(wall.sx, wall.sy, wall.ex, wall.ey, gx, gy) < human.radius + 0.3:
                         collide = True
                         break
                 if not collide:
@@ -300,15 +306,31 @@ class CrowdSim(gym.Env):
                         norm((px - agent.gx, py - agent.gy)) < obstacle.radius + agent.radius + 0.2:
                     collide = True
                     break
+            for agent in self.obstacles:
+                if norm((px - agent.px, py - agent.py)) < obstacle.radius + agent.radius + 0.1:
+                    collide = True
+                    break
+            for wall in self.walls:
+                if point_to_segment_dist(wall.sx, wall.sy, wall.ex, wall.ey, px, py) < obstacle.radius:
+                    collide = True
+                    break
+            for poly_obs in self.poly_obstacles:
+                if point_in_poly(px, py, poly_obs):
+                    collide = True
+                    break
             if not collide:
                 break
         return obstacle
 
+    def generate_airport_transfer(self):
+        self.generate_corridor_scenario()
+        self.generate_transfer()
+
     def generate_constrained_room(self):
-        self.generate_open_scenario()
+        self.generate_corridor_scenario()
         if self.phase_num > 0:
             for i in range(self.wall_num):
-                self.walls.append(self.generate_line_obstacle())
+                self.walls.append(self.generate_transfer())
 
     def generate_doorway_scenario(self):
         room_width = self.square_width - 1
@@ -321,8 +343,8 @@ class CrowdSim(gym.Env):
             self.walls.append(self.generate_wall(wall_vertex[i], wall_vertex[i + 1]))
 
     def generate_corridor_scenario(self):
-        corridor_width = 3
-        corridor_length = self.square_width
+        corridor_width = self.square_width - 1
+        corridor_length = self.square_width * 2.0
         self.walls = []
         self.walls.append(self.generate_wall([-corridor_width / 2, -corridor_length / 2], [-corridor_width / 2, corridor_length / 2]))
         self.walls.append(self.generate_wall([corridor_width / 2, -corridor_length / 2], [corridor_width / 2, corridor_length / 2]))
@@ -336,6 +358,15 @@ class CrowdSim(gym.Env):
         [-room_width / 2, room_length / 2], [-room_width / 2, -room_length / 2])
         for i in range(len(wall_vertex)-1):
             self.walls.append(self.generate_wall(wall_vertex[i], wall_vertex[i+1]))
+
+    def generate_transfer(self):
+        corridor_width = self.square_width - 1.0
+        transfer_width = 3.0
+        transfer_vertex = ([0.0, -transfer_width / 2], [corridor_width/2, -transfer_width / 2],
+        [corridor_width/2, transfer_width / 2], [0.0, transfer_width / 2], [0.0, -transfer_width / 2])
+        for i in range(len(transfer_vertex)-1):
+            self.walls.append(self.generate_wall(transfer_vertex[i], transfer_vertex[i+1]))
+        self.poly_obstacles.append(transfer_vertex)
 
     def generate_ward_scenario(self):
         room_width = self.square_width - 1
@@ -415,6 +446,8 @@ class CrowdSim(gym.Env):
         self.random_seed = base_seed[phase] + self.case_counter[phase]
         np.random.seed(self.random_seed)
         if self.case_counter[phase] >= 0:
+            # self.generate_constrained_room()
+            self.generate_airport_transfer()
             if phase == 'test':
                 logging.debug('current test seed is:{}'.format(base_seed[phase] + self.case_counter[phase]))
                 # print('current test seed is:{}'.format(base_seed[phase] + self.case_counter[phase]))
@@ -433,7 +466,6 @@ class CrowdSim(gym.Env):
             self.obstacles = []
             for i in range(self.static_obstacle_num):
                 self.obstacles.append(self.generate_static_obstcale())
-            self.generate_constrained_room()
             self.case_counter[phase] = (self.case_counter[phase] + 1) % self.case_size[phase]
         else:
             assert phase == 'test'
