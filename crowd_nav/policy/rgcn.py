@@ -107,7 +107,7 @@ class RGCN(nn.Module):
             return GATConv(self.encoder_dim[-1], self.out_dim, num_heads=1, activation=self.final_activation)
         elif self.use_rgat is True:
             print('Building an RGAT I2O  layer of {}x{}'.format(self.encoder_dim[-1], self.out_dim))
-            return HoRelGAT(self.encoder_dim[-1], self.out_dim, self.num_rels,
+            return HoRelGAT(self.encoder_dim[-1], self.out_dim, num_heads=1, num_rels=self.num_rels,
                                 dropout=self.feat_drop, num_bases=self.num_bases, activation=self.final_activation)
 
 
@@ -127,6 +127,7 @@ class RGCN(nn.Module):
                 h1 = h1.reshape(-1, self.out_dim)
                 output = output + h1
             elif self.use_rgat:
+                # state_graph = dgl.add_self_loop(state_graph)
                 h1 = layer(state_graph, output, edgetypes)
                 output = output + h1
         ## skip connection???
