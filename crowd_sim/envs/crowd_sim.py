@@ -144,7 +144,7 @@ class CrowdSim(gym.Env):
             self.human_num = 0
         elif self.phase_num == 1:
             self.static_obstacle_num = 3
-            self.wall_num = 2
+            self.wall_num = 1
             self.human_num = 0
         elif self.phase_num == 2:
             self.static_obstacle_num = 3

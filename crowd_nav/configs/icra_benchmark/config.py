@@ -26,7 +26,7 @@ class BaseEnvConfig(object):
     env.time_limit = 30
     env.time_step = 0.25
     env.val_size = 100
-    env.test_size = 100
+    env.test_size = 1000
     env.train_size = np.iinfo(np.uint32).max - 2000
     env.randomize_attributes = False
     env.robot_sensor_range = 4
