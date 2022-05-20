@@ -92,8 +92,11 @@ def main(args):
     logging.info('Using device: %s', device)
     writer = SummaryWriter(log_dir=args.output_dir)
 
+
     # configure policy
     policy_config = config.PolicyConfig()
+    if policy_config.name is 'rgcn_rl':
+        policy_config.gnn_model = args.gnn
     policy = policy_factory[policy_config.name]()
     if not policy.trainable:
         parser.error('Policy has to be trainable')
@@ -351,6 +354,7 @@ if __name__ == '__main__':
     parser.add_argument('--config', type=str, default='configs/icra_benchmark/rgcnrl.py')
     #parser.add_argument('--policy', type=str, default='td3rl')
     #parser.add_argument('--config', type=str, default='configs/icra_benchmark/td3.py')
+    parser.add_argument('--gnn', type=str, default='rgcn')
     parser.add_argument('--output_dir', type=str, default='data/output')
     parser.add_argument('--overwrite', default=False, action='store_true')
     parser.add_argument('--weights', type=str)
