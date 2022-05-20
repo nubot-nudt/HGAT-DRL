@@ -328,7 +328,7 @@ class CrowdSim(gym.Env):
 
     def generate_airport_transfer(self):
         self.generate_corridor_scenario()
-        self.generate_transfer()
+        # self.generate_transfer()
 
     def generate_constrained_room(self):
         self.generate_corridor_scenario()
