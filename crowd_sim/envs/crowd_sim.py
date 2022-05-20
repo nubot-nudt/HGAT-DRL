@@ -232,6 +232,10 @@ class CrowdSim(gym.Env):
                             point_to_segment_dist(wall.sx, wall.sy, wall.ex, wall.ey, gx, gy) < human.radius + 0.3:
                         collide = True
                         break
+                for poly_obs in self.poly_obstacles:
+                    if point_in_poly(px, py, poly_obs) or point_in_poly(gx, gy, poly_obs):
+                        collide = True
+                        break
                 if not collide:
                     break
             human.start_pos.append((px, py))
@@ -362,8 +366,8 @@ class CrowdSim(gym.Env):
     def generate_transfer(self):
         corridor_width = self.square_width - 1.0
         transfer_width = 3.0
-        transfer_vertex = ([0.0, -transfer_width / 2], [corridor_width/2, -transfer_width / 2],
-        [corridor_width/2, transfer_width / 2], [0.0, transfer_width / 2], [0.0, -transfer_width / 2])
+        transfer_vertex = ([corridor_width/6, -transfer_width / 2], [corridor_width/2, -transfer_width / 2],
+        [corridor_width/2, transfer_width / 2], [corridor_width/6, transfer_width / 2], [corridor_width/6, -transfer_width / 2])
         for i in range(len(transfer_vertex)-1):
             self.walls.append(self.generate_wall(transfer_vertex[i], transfer_vertex[i+1]))
         self.poly_obstacles.append(transfer_vertex)
