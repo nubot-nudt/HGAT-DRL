@@ -565,3 +565,6 @@ class GraphAttentionLayer2(nn.Module):
         h_prime = torch.matmul(attention, h)
         h_prime = h_prime + self.bias
         return nn.functional.relu(h_prime)
+
+
+

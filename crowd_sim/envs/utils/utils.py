@@ -49,3 +49,11 @@ def point_in_poly(px, py, vertex):
         if not counterclockwise(p1_x, p1_y, p2_x, p2_y, px, py):
             return False
     return True
+
+def theta_mod(theta):
+    while theta >= 2 * np.pi or theta < 0:
+        if theta >= 2 * np.pi:
+            theta = theta - 2 * np.pi
+        elif theta < 0:
+            theta = theta + 2 * np.pi
+    return theta

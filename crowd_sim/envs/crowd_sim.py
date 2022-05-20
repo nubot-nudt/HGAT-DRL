@@ -16,7 +16,7 @@ from crowd_sim.envs.utils.human import Human
 from crowd_sim.envs.utils.obstacle import Obstacle
 from crowd_sim.envs.utils.wall import Wall
 from crowd_sim.envs.utils.info import *
-from crowd_sim.envs.utils.utils import point_to_segment_dist, counterclockwise, point_in_poly
+from crowd_sim.envs.utils.utils import point_to_segment_dist, counterclockwise, point_in_poly, theta_mod
 
 
 class CrowdSim(gym.Env):
@@ -588,8 +588,8 @@ class CrowdSim(gym.Env):
             s_left = (vel_left + self.robot.v_left) * (0.5 * t_left) + vel_left * (self.time_step - t_left)
             s = (s_right + s_left) * 0.5
             d_theta = (s_right - s_left) / (2 * self.robot.radius)
-            end_theta = (self.robot.theta + d_theta) % (2 * np.pi)
-            s_direction = (self.robot.theta + d_theta * 0.5) % (2 * np.pi)
+            end_theta = theta_mod(self.robot.theta + d_theta)
+            s_direction = theta_mod(self.robot.theta + d_theta * 0.5)
             end_robot_x = self.robot.px + s * np.cos(s_direction)
             end_robot_y = self.robot.py + s * np.sin(s_direction)
             for i, human in enumerate(self.humans):

@@ -5,7 +5,7 @@ from numpy.linalg import norm
 from crowd_sim.envs.policy.policy_factory import policy_factory
 from crowd_sim.envs.utils.action import ActionXY, ActionRot, ActionDiff
 from crowd_sim.envs.utils.state import ObservableState, FullState
-
+from crowd_sim.envs.utils.utils import  theta_mod
 
 class Agent(object):
     def __init__(self, config, section):
@@ -150,8 +150,8 @@ class Agent(object):
             s_left = (vel_left + self.v_left) * (0.5 * t_left) + vel_left * (self.time_step - t_left)
             s = (s_right + s_left) * 0.5
             d_theta = (s_right - s_left) / (2 * self.radius)
-            s_direction = (self.theta + d_theta * 0.5) % (2 * np.pi)
-            end_theta = (self.theta + d_theta) % (2 * np.pi)
+            s_direction = theta_mod(self.theta + d_theta * 0.5)
+            end_theta = theta_mod(self.theta + d_theta)
             end_robot_x = self.px + s * np.cos(s_direction)
             end_robot_y = self.py + s * np.sin(s_direction)
             px = end_robot_x
@@ -164,13 +164,13 @@ class Agent(object):
                 py = self.py
                 theta = self.theta
                 t_vel = action.v
-                t_theta = (self.theta + action.r + np.pi) % (2 * np.pi) - np.pi
+                t_theta = theta_mod(self.theta + action.r + np.pi) - np.pi
                 v = t_vel
                 vel_l = self.v_left
                 vel_r = self.v_right
                 radius = self.radius
                 for i in range(sim_num):
-                    delta_theta = (theta - t_theta + np.pi) % (2 * np.pi) - np.pi
+                    delta_theta = theta_mod(theta - t_theta + np.pi) - np.pi
                     k = -(4 * delta_theta + np.sin(delta_theta))
                     sim_v = t_vel / (1 + 0.2 * np.abs(k))
                     sim_w = sim_v * k
