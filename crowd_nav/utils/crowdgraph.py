@@ -70,7 +70,7 @@ class CrowdNavGraph():
         new_robot_state = torch.cat((robot_velocities, dg, v_pref, cur_heading),
                                     dim=1)
         new_state = new_robot_state
-        if state[1].shape == 0:
+        if state[1].shape[0] > 0:
             human_positions = human_state[:, 0:2] - robot_state[:, 0:2]
             human_positions = torch.mm(human_positions, transform_matrix)
             human_velocities = human_state[:, 2:4]
