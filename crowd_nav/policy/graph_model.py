@@ -477,6 +477,7 @@ class DGL_RGCN_RL(nn.Module):
         self.wall_state_dim = 5
         self.in_features = self.robot_state_dim + self.human_state_dim + self.obstacle_state_dim + self.wall_state_dim + 4
         X_dim = config.gcn.X_dim
+        self.gnn_model = config.gnn_model
         self.out_features = X_dim
         self.gnn_layers = 3
         self.num_hidden = [64, 128]
@@ -489,7 +490,7 @@ class DGL_RGCN_RL(nn.Module):
         self.model = self.rgcn()
 
     def rgcn(self):
-        return RGCN(self.g, self.gnn_layers, self.in_features, self.out_features, self.num_hidden, self.num_rels,
+        return RGCN(self.g, self.gnn_model, self.gnn_layers, self.in_features, self.out_features, self.num_hidden, self.num_rels,
                     self.activation, self.final_activation, self.dropout, self.num_bases)
 
     def forward(self, state_graph):
@@ -565,3 +566,6 @@ class GraphAttentionLayer2(nn.Module):
         h_prime = torch.matmul(attention, h)
         h_prime = h_prime + self.bias
         return nn.functional.relu(h_prime)
+
+
+

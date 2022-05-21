@@ -12,6 +12,7 @@ class PolicyConfig(BasePolicyConfig):
         self.name = 'rgcn_rl'
 
         # gcn
+        self.gnn_model = 'rgcn'
         self.gcn.num_layer = 1
         self.gcn.X_dim = 64
         self.gcn.similarity_function = 'concatenation'

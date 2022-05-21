@@ -276,6 +276,7 @@ class CrowdNavGraph():
             dst_id = torch.cat([dst_id, h2h_dst_id], dim=0)
             edge_types = torch.cat([edge_types, h2h_edge_types], dim=0)
             edge_norm = torch.cat([edge_norm, h2h_edge_norm], dim=0)
+        edge_norm = edge_norm.unsqueeze(dim=1)
         self.graph = dgl.graph((src_id, dst_id), num_nodes=total_node_num, idtype=torch.int32)
         self.graph.ndata['h'] = features
         self.graph.edata.update({'rel_type': edge_types, 'norm': edge_norm})
