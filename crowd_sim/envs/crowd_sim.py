@@ -327,9 +327,9 @@ class CrowdSim(gym.Env):
         return obstacle
 
     def generate_airport_transfer(self):
-        # self.generate_corridor_scenario()
-        # self.generate_transfer()
-        self.generate_open_scenario()
+        self.generate_corridor_scenario()
+        self.generate_transfer()
+        # self.generate_open_scenario()
 
     def generate_constrained_room(self):
         self.generate_corridor_scenario()
