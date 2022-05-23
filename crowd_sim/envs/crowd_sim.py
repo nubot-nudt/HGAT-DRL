@@ -196,6 +196,8 @@ class CrowdSim(gym.Env):
                 py_noise = (np.random.random() - 0.5) * human.v_pref
                 px = self.circle_radius * np.cos(angle) + px_noise
                 py = self.circle_radius * np.sin(angle) + py_noise
+                gx = -px
+                gy = -py
                 collide = False
                 for agent in [self.robot] + self.humans:
                     min_dist = human.radius + agent.radius + self.discomfort_dist
@@ -203,12 +205,22 @@ class CrowdSim(gym.Env):
                             norm((px - agent.gx, py - agent.gy)) < min_dist:
                         collide = True
                         break
+                for wall in self.walls:
+                    if point_to_segment_dist(wall.sx, wall.sy, wall.ex, wall.ey, px, py) < human.radius + 0.3 and \
+                            point_to_segment_dist(wall.sx, wall.sy, wall.ex, wall.ey, gx, gy) < human.radius + 0.3:
+                        collide = True
+                        break
+                for poly_obs in self.poly_obstacles:
+                    print(' in poly_obs {}'.format(px))
+                    if point_in_poly(px, py, poly_obs) or point_in_poly(gx, gy, poly_obs):
+                        collide = True
+                        break
                 if not collide:
                     break
             # px = 0.0
             # py = 0.0
             human.start_pos.append((px, py))
-            human.set(px, py, -px, -py, 0, 0, 0)
+            human.set(px, py, gx, gy, 0, 0, 0)
         elif square is False and non_stop is True:
             while True:
                 angle = np.random.random() * np.pi * 2
@@ -233,6 +245,7 @@ class CrowdSim(gym.Env):
                         collide = True
                         break
                 for poly_obs in self.poly_obstacles:
+                    print(' in poly_obs {}'.format(px))
                     if point_in_poly(px, py, poly_obs) or point_in_poly(gx, gy, poly_obs):
                         collide = True
                         break
