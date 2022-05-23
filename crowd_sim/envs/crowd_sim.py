@@ -211,7 +211,6 @@ class CrowdSim(gym.Env):
                         collide = True
                         break
                 for poly_obs in self.poly_obstacles:
-                    print(' in poly_obs {}'.format(px))
                     if point_in_poly(px, py, poly_obs) or point_in_poly(gx, gy, poly_obs):
                         collide = True
                         break
@@ -245,7 +244,6 @@ class CrowdSim(gym.Env):
                         collide = True
                         break
                 for poly_obs in self.poly_obstacles:
-                    print(' in poly_obs {}'.format(px))
                     if point_in_poly(px, py, poly_obs) or point_in_poly(gx, gy, poly_obs):
                         collide = True
                         break
@@ -384,6 +382,7 @@ class CrowdSim(gym.Env):
         [corridor_width/2, transfer_width / 2], [corridor_width/6, transfer_width / 2], [corridor_width/6, -transfer_width / 2])
         for i in range(len(transfer_vertex)-1):
             self.walls.append(self.generate_wall(transfer_vertex[i], transfer_vertex[i+1]))
+        self.poly_obstacles.clear()
         self.poly_obstacles.append(transfer_vertex)
 
     def generate_ward_scenario(self):
