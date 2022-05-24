@@ -151,7 +151,7 @@ class GraphCritic(nn.Module):
     def __init__(self, config, graph_model1, graph_model2, action_dim):
         super(GraphCritic, self).__init__()
         # Q1 architecture
-        self.graph_model1 = graph_model2
+        self.graph_model1 = graph_model1
         # self.encode_r1 = mlp(5, [64, 32], last_relu=True)
         self.score_network1 = mlp(config.gcn.X_dim + action_dim + 5, [256, 256, 1])
         # self.score_network1 = mlp(5 + action_dim, [256, 256, 1])
