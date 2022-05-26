@@ -143,7 +143,7 @@ class CrowdSim(gym.Env):
         self.phase_num = phase_num
         if self.phase_num == 0:
             self.static_obstacle_num = 3
-            self.wall_num = 4
+            self.wall_num = 3
             self.human_num = 1
         elif self.phase_num == 1:
             self.static_obstacle_num = 3
@@ -156,7 +156,7 @@ class CrowdSim(gym.Env):
         elif self.phase_num == 3:
             self.static_obstacle_num = 3
             self.wall_num = 2
-            self.human_num = 5
+            self.human_num = 10
 
     def set_robot(self, robot):
         self.robot = robot
@@ -236,18 +236,15 @@ class CrowdSim(gym.Env):
                 collide = False
                 for agent in [self.robot] + self.humans:
                     min_dist = human.radius + agent.radius + self.discomfort_dist
-                    # if norm((px - agent.px, py - agent.py)) == 0.0:
-                    #     continue
-                    if norm((gx - agent.gx, gy - agent.gy)) < min_dist:
+                    if  norm((gx - agent.gx, gy - agent.gy)) < min_dist:
                         collide = True
                         break
                 for wall in self.walls:
-                    if point_to_segment_dist(wall.sx, wall.sy, wall.ex, wall.ey, px, py) < human.radius + 0.3 and \
-                            point_to_segment_dist(wall.sx, wall.sy, wall.ex, wall.ey, gx, gy) < human.radius + 0.3:
+                    if point_to_segment_dist(wall.sx, wall.sy, wall.ex, wall.ey, gx, gy) < human.radius + self.robot.radius:
                         collide = True
                         break
                 for poly_obs in self.poly_obstacles:
-                    if point_in_poly(px, py, poly_obs) or point_in_poly(gx, gy, poly_obs):
+                    if point_in_poly(gx, gy, poly_obs):
                         collide = True
                         break
                 if not collide:
@@ -265,7 +262,16 @@ class CrowdSim(gym.Env):
                 py = (np.random.random() - 0.5) * self.square_width
                 collide = False
                 for agent in [self.robot] + self.humans:
-                    if norm((px - agent.px, py - agent.py)) < human.radius + agent.radius + self.discomfort_dist:
+                    min_dist = human.radius + agent.radius + self.discomfort_dist
+                    if norm((px - agent.px, py - agent.py)) < min_dist:
+                        collide = True
+                        break
+                for wall in self.walls:
+                    if point_to_segment_dist(wall.sx, wall.sy, wall.ex, wall.ey, px, py) < human.radius + self.robot.radius:
+                        collide = True
+                        break
+                for poly_obs in self.poly_obstacles:
+                    if point_in_poly(px, py, poly_obs):
                         collide = True
                         break
                 if not collide:
@@ -275,7 +281,16 @@ class CrowdSim(gym.Env):
                 gy = (np.random.random() - 0.5) * self.square_width
                 collide = False
                 for agent in [self.robot] + self.humans:
-                    if norm((gx - agent.gx, gy - agent.gy)) < human.radius + agent.radius + self.discomfort_dist:
+                    min_dist = human.radius + agent.radius + self.discomfort_dist
+                    if  norm((gx - agent.gx, gy - agent.gy)) < min_dist:
+                        collide = True
+                        break
+                for wall in self.walls:
+                    if point_to_segment_dist(wall.sx, wall.sy, wall.ex, wall.ey, gx, gy) < human.radius + self.robot.radius:
+                        collide = True
+                        break
+                for poly_obs in self.poly_obstacles:
+                    if point_in_poly(gx, gy, poly_obs) or point_in_poly(gx, gy, poly_obs):
                         collide = True
                         break
                 if not collide:
@@ -297,9 +312,16 @@ class CrowdSim(gym.Env):
                 collide = False
                 for agent in [self.robot] + self.humans:
                     min_dist = human.radius + agent.radius + self.discomfort_dist
-                    # if norm((px - agent.px, py - agent.py)) == 0.0:
-                    #     break
                     if norm((gx - agent.gx, gy - agent.gy)) < min_dist:
+                        collide = True
+                        break
+                for wall in self.walls:
+                    if point_to_segment_dist(wall.sx, wall.sy, wall.ex, wall.ey, gx,
+                                             gy) < human.radius + self.robot.radius:
+                        collide = True
+                        break
+                for poly_obs in self.poly_obstacles:
+                    if point_in_poly(gx, gy, poly_obs) or point_in_poly(gx, gy, poly_obs):
                         collide = True
                         break
                 if not collide:
@@ -417,7 +439,7 @@ class CrowdSim(gym.Env):
             start_y = (np.random.random() - 0.5) * self.square_width * 0.8
             mean_length = self.circle_radius * 0.75
             wall_length = np.random.normal(mean_length, 0.1)
-            theta = (np.random.random() - 0.5) * np.pi / 9
+            theta = (np.random.random() - 0.5) * np.pi / 9 + len(self.walls) * np.pi / 2
             if wall_length == 0.0:
                 print('error')
                 break
@@ -468,14 +490,14 @@ class CrowdSim(gym.Env):
             if phase == 'test':
                 logging.debug('current test seed is:{}'.format(base_seed[phase] + self.case_counter[phase]))
                 # print('current test seed is:{}'.format(base_seed[phase] + self.case_counter[phase]))
-            if not self.robot.policy.multiagent_training and phase in ['train', 'val']:
-                human_num = 1
-                self.current_scenario = 'circle_crossing'
-            else:
-                self.current_scenario = self.test_scenario
-                human_num = self.human_num
+            # if not self.robot.policy.multiagent_training and phase in ['train', 'val']:
+            #     human_num = 1
+            #     self.current_scenario = 'circle_crossing'
+            # else:
+            #     self.current_scenario = self.test_scenario
+            #     human_num = self.human_num
             self.humans = []
-            for i in range(human_num):
+            for i in range(self.human_num):
                 if self.current_scenario == 'circle_crossing':
                     self.humans.append(self.generate_human())
                 else:

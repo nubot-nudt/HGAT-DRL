@@ -113,6 +113,12 @@ def main(args):
     env_config.sim.human_num = args.human_num
 
     env = gym.make('CrowdSim-v0')
+    if args.square:
+        env.current_scenario = 'square_crossing'
+        print('square scenario')
+    if args.circle:
+        env.current_scenario = 'circle_crossing'
+        print('circle scenario')
     env.configure(env_config)
     robot = Robot(env_config, 'robot')
     robot.time_step = env.time_step
@@ -224,6 +230,7 @@ def main(args):
 
     # reinforcement learning
     policy.set_env(env)
+
     robot.set_policy(policy)
     robot.print_info()
     trainer.set_rl_learning_rate(rl_learning_rate)
@@ -263,6 +270,8 @@ def main(args):
     print("%f %f %f %f %f" % (0,0,0,0,0), file=fw)
     robot.policy.set_epsilon(epsilon_start)
     env.set_phase(0)
+
+
     _, _, nav_time, sum_reward, ave_return, discom_time, total_time = \
         explorer.run_k_episodes(100, 'train', update_memory=True, episode=episode)
     while episode < train_episodes:
@@ -369,6 +378,8 @@ if __name__ == '__main__':
     parser.add_argument('--goal_weight', type=float, default=0.2)
     parser.add_argument('--re_collision', type=float, default=-0.25)
     parser.add_argument('--re_arrival', type=float, default=0.25)
+    parser.add_argument('--square', default=False, action='store_true')
+    parser.add_argument('--circle', default=False, action='store_true')
 
 
     # arguments for GCN
