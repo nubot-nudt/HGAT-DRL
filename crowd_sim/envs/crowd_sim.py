@@ -89,7 +89,7 @@ class CrowdSim(gym.Env):
         self.last_state = None
         self.rvo_inter = rvo_inter(neighbor_region=20, neighbor_num=10, vxmax=1, vymax=1, acceler=1.0,
                                    env_train=True,
-                                   exp_radius=0.0, ctime_threshold=5, ctime_line_threshold=1)
+                                   exp_radius=0.0, ctime_threshold=3, ctime_line_threshold=1)
         # 动作空间: 速度，朝向
         self.action_space = spaces.Box(
             low=np.array([0, -np.pi]),
@@ -772,7 +772,7 @@ class CrowdSim(gym.Env):
             elif self.robot.sensor == 'RGB':
                 raise NotImplementedError
         rvo_reward = self.rvo_reward_cal(ob)
-        reward = reward * 10 + rvo_reward
+        reward = reward + rvo_reward * 0.05
         # if info ==Collision():
         #     reward = rvo_reward - 15
         # elif info ==ReachGoal():
