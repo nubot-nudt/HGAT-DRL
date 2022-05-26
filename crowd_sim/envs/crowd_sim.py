@@ -62,7 +62,7 @@ class CrowdSim(gym.Env):
         self.test_changing_size = False
 
         self.static_obstacle_num = 3
-        self.wall_num = 2
+        self.wall_num = 4
 
         self.fig = None
         self.ax = None
@@ -141,19 +141,19 @@ class CrowdSim(gym.Env):
         self.phase_num = phase_num
         if self.phase_num == 0:
             self.static_obstacle_num = 3
-            self.wall_num = 0
+            self.wall_num = 4
             self.human_num = 1
         elif self.phase_num == 1:
             self.static_obstacle_num = 3
-            self.wall_num = 0
+            self.wall_num = 2
             self.human_num = 3
         elif self.phase_num == 2:
             self.static_obstacle_num = 3
-            self.wall_num = 0
+            self.wall_num = 2
             self.human_num = 5
         elif self.phase_num == 3:
             self.static_obstacle_num = 3
-            self.wall_num = 0
+            self.wall_num = 2
             self.human_num = 5
     def set_robot(self, robot):
         self.robot = robot
@@ -339,7 +339,9 @@ class CrowdSim(gym.Env):
 
     def generate_airport_transfer(self):
         self.generate_corridor_scenario()
-        self.generate_transfer()
+        for i in range(self.wall_num):
+            self.walls.append(self.generate_line_obstacle())
+        # self.generate_transfer()
         # self.generate_open_scenario()
 
     def generate_constrained_room(self):
@@ -359,7 +361,7 @@ class CrowdSim(gym.Env):
             self.walls.append(self.generate_wall(wall_vertex[i], wall_vertex[i + 1]))
 
     def generate_corridor_scenario(self):
-        corridor_width = self.square_width - 1
+        corridor_width = self.square_width
         corridor_length = self.square_width * 2.0
         self.walls = []
         self.walls.append(self.generate_wall([-corridor_width / 2, -corridor_length / 2], [-corridor_width / 2, corridor_length / 2]))
@@ -378,6 +380,11 @@ class CrowdSim(gym.Env):
     def generate_transfer(self):
         corridor_width = self.square_width - 1.0
         transfer_width = 3.0
+        x1 = 0 - 2 + 1
+        x2 = corridor_width / 2 - 2 - 1
+        y1 = -transfer_width/2
+        y2 = transfer_width/2.0
+        transfer_vertex =([x1, y1], [x2, y1], [x2, y2], [x1, y2], [x1,y1])
         transfer_vertex = ([corridor_width/6, -transfer_width / 2], [corridor_width/2, -transfer_width / 2],
         [corridor_width/2, transfer_width / 2], [corridor_width/6, transfer_width / 2], [corridor_width/6, -transfer_width / 2])
         for i in range(len(transfer_vertex)-1):
@@ -418,17 +425,8 @@ class CrowdSim(gym.Env):
                 end_y = np.clip(end_y, -0.5*self.square_width, 0.5*self.square_width)
                 end_x = np.clip(end_x, -0.5*self.square_width, 0.5*self.square_width)
             collide = False
-            for agent in [self.robot] + self.humans:
-                if point_to_segment_dist(start_x, start_y, end_x, end_y, agent.px, agent.py) < agent.radius + 0.2 or \
-                        point_to_segment_dist(start_x, start_y, end_x, end_y, agent.gx, agent.gy,) < agent.radius + 0.2:
-                    collide = True
-                    break
-            for agent in self.obstacles:
-                if point_to_segment_dist(start_x, start_y, end_x, end_y, agent.px, agent.py) < agent.radius + 0.1 :
-                    collide = True
-                    break
             if not collide:
-                wall.set_position([start_x, start_y], [end_x,end_y])
+                wall.set_position([start_x, start_y], [end_x, end_y])
                 break
         return wall
 
@@ -856,7 +854,7 @@ class CrowdSim(gym.Env):
         if mode == 'traj':
             fig, ax = plt.subplots(figsize=(7, 7))
             ax.tick_params(labelsize=16)
-            ax.set_xlim(-self.panel_width/2, self.panel_width/2)
+            ax.set_xlim(-self.panel_width/2 -1 , self.panel_width/2 + 1)
             ax.set_ylim(-self.panel_height/2-0.5, self.panel_height/2+0.5)
             ax.set_xlabel('x(m)', fontsize=16)
             ax.set_ylabel('y(m)', fontsize=16)
@@ -937,7 +935,7 @@ class CrowdSim(gym.Env):
         elif mode == 'video':
             fig, ax = plt.subplots(figsize=(7, 7))
             ax.tick_params(labelsize=12)
-            ax.set_xlim(-self.panel_width/2, self.panel_width/2)
+            ax.set_xlim(-self.panel_width/2 - 1, self.panel_width/2 + 1)
             ax.set_ylim(-self.panel_height/2-0.5, self.panel_height/2+0.5)
             ax.set_xlabel('x(m)', fontsize=14)
             ax.set_ylabel('y(m)', fontsize=14)
@@ -1261,7 +1259,7 @@ class CrowdSim(gym.Env):
             def update():
                 self.ax.clear()
                 self.ax.tick_params(labelsize=12)
-                self.ax.set_xlim(-self.panel_width / 2, self.panel_width / 2)
+                self.ax.set_xlim(-self.panel_width / 2 - 1 , self.panel_width / 2 + 1)
                 self.ax.set_ylim(-self.panel_height / 2 - 0.5, self.panel_height / 2 + 0.5)
                 self.ax.set_xlabel('x(m)', fontsize=14)
                 self.ax.set_ylabel('y(m)', fontsize=14)
