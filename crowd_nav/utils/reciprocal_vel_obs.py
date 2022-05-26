@@ -7,9 +7,7 @@ from time import time
 # rvo_vel: [vx, vy]
 
 class reciprocal_vel_obs:
-
     def __init__(self, neighbor_region=5, vxmax = 1.5, vymax = 1.5, acceler = 0.5):
-
         self.vxmax = vxmax
         self.vymax = vymax
         self.acceler = acceler

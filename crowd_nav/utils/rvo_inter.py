@@ -57,13 +57,13 @@ class rvo_inter(reciprocal_vel_obs):
                     min_exp_time = vo_inf[2]
             if vo_inf[3] is True: collision_flag = True
         return dynamic_vo_list, obstacle_vo_list, line_vo_list, vo_flag, min_exp_time, collision_flag
-        
+
     def config_vo_reward(self, robot_state, nei_state_list, obs_cir_list, obs_line_list, action=np.zeros((2,)), **kwargs):
 
         robot_state, ns_list, oc_list, ol_list = self.preprocess(robot_state, nei_state_list, obs_cir_list, obs_line_list)
 
         vo_list1 = list(map(lambda x: self.config_vo_circle2(robot_state, x, action, 'rvo', **kwargs), ns_list))
-        vo_list2 = list(map(lambda y: self.config_static_vo_circle2(robot_state, y,action, 'vo', **kwargs), oc_list))
+        vo_list2 = list(map(lambda y: self.config_static_vo_circle2(robot_state, y, action, **kwargs), oc_list))
         vo_list3 = list(map(lambda z: self.config_vo_line2(robot_state, z, action, **kwargs), ol_list))
 
         vo_flag = False

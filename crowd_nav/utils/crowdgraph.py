@@ -2,9 +2,7 @@ import torch
 import numpy as np
 import dgl
 from dgl import DGLGraph
-from crowd_nav.utils.rvo_inter import  rvo_inter
-
-
+from crowd_nav.utils.rvo_inter import rvo_inter
 class CrowdNavGraph():
     def __init__(self, data):
         #        ntypes = ['robot', 'human', 'obstacle', 'wall'], etypes = ['h_r', 'o_r', 'w_r', 'h_h', 'o_h', 'w_h', 'r_h']
