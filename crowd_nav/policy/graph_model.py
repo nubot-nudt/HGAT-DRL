@@ -472,9 +472,9 @@ class DGL_RGCN_RL(nn.Module):
         super().__init__()
         self.multiagent_training = config.gcn.multiagent_training
         self.robot_state_dim = 5
-        self.human_state_dim = 5
-        self.obstacle_state_dim = 3
-        self.wall_state_dim = 5
+        self.human_state_dim = 8
+        self.obstacle_state_dim = 8
+        self.wall_state_dim = 8
         self.in_features = self.robot_state_dim + self.human_state_dim + self.obstacle_state_dim + self.wall_state_dim + 4
         X_dim = config.gcn.X_dim
         self.gnn_model = config.gnn_model
@@ -502,7 +502,7 @@ class DGL_RGCN_RL(nn.Module):
         """
         subgraph = state_graph
         node_features = state_graph.ndata['h']
-        etypes = state_graph.edata['rel_type'].squeeze()
+        etypes = state_graph.edata['rel_type']
         subgraph.set_n_initializer(dgl.init.zero_initializer)
         subgraph.set_e_initializer(dgl.init.zero_initializer)
         output = self.model(subgraph, node_features, etypes)
