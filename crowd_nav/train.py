@@ -95,7 +95,7 @@ def main(args):
 
     # configure policy
     policy_config = config.PolicyConfig()
-    if policy_config.name is 'rgcn_rl':
+    if policy_config.name == 'rgcn_rl':
         policy_config.gnn_model = args.gnn
     policy = policy_factory[policy_config.name]()
     if not policy.trainable:
