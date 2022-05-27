@@ -458,8 +458,8 @@ class CrowdSim(gym.Env):
     def generate_line_obstacle(self, wall=None):
         wall = Wall(self.config)
         while True:
-            start_x = (np.random.random() - 0.5) * self.square_width * 0.8
-            start_y = (np.random.random() - 0.5) * self.square_width * 0.8
+            start_x = (np.random.random() - 0.5) * self.square_width * 0.6
+            start_y = (np.random.random() - 0.5) * self.square_width * 0.6
             mean_length = self.circle_radius * 0.75
             wall_length = np.random.normal(mean_length, 0.1)
             theta = (np.random.random() - 0.5) * np.pi / 9 + len(self.walls) * np.pi / 2
@@ -530,7 +530,7 @@ class CrowdSim(gym.Env):
             self.obstacles = []
             for i in range(self.static_obstacle_num):
                 self.obstacles.append(self.generate_static_obstcale())
-            self.generate_center_obstcale()
+            # self.generate_center_obstcale()
             self.case_counter[phase] = (self.case_counter[phase] + 1) % self.case_size[phase]
         else:
             assert phase == 'test'
