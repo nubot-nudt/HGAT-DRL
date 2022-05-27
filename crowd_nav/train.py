@@ -84,6 +84,7 @@ def main(args):
     logging.info('Current git head hash code: {}'.format(repo.head.object.hexsha))
     logging.info('Current random seed: {}'.format(sys_args.randomseed))
     logging.info('Current safe_weight: {}'.format(sys_args.safe_weight))
+    logging.info('Current re_rvo_weight: {}'.format(sys_args.re_rvo))
     logging.info('Current goal_weight: {}'.format(sys_args.goal_weight))
     logging.info('Current re_collision: {}'.format(sys_args.re_collision))
     logging.info('Current re_arrival: {}'.format(sys_args.re_arrival))
@@ -110,6 +111,7 @@ def main(args):
     env_config.reward.success_reward = args.re_arrival
     env_config.reward.goal_factor = args.goal_weight
     env_config.reward.discomfort_penalty_factor = args.safe_weight
+    env_config.reward.re_rvo = args.re_rvo
     env_config.sim.human_num = args.human_num
 
     env = gym.make('CrowdSim-v0')
@@ -378,6 +380,7 @@ if __name__ == '__main__':
     parser.add_argument('--goal_weight', type=float, default=0.2)
     parser.add_argument('--re_collision', type=float, default=-0.25)
     parser.add_argument('--re_arrival', type=float, default=0.25)
+    parser.add_argument('--re_rvo', type=float, default=1.0)
     parser.add_argument('--square', default=False, action='store_true')
     parser.add_argument('--circle', default=False, action='store_true')
 

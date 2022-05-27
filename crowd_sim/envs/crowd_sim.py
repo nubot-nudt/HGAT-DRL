@@ -107,6 +107,7 @@ class CrowdSim(gym.Env):
         self.success_reward = config.reward.success_reward
         self.collision_penalty = config.reward.collision_penalty
         self.goal_factor = config.reward.goal_factor
+        self.re_rvo = config.reward.re_rvo
         self.discomfort_penalty_factor = config.reward.discomfort_penalty_factor
         self.discomfort_dist = config.reward.discomfort_dist
         self.case_capacity = {'train': np.iinfo(np.uint32).max - 2000, 'val': 1000, 'test': 1000}
@@ -367,12 +368,21 @@ class CrowdSim(gym.Env):
         return obstacle
 
     def generate_center_obstcale(self, obstacle=None):
-        obstacle = Obstacle()
-        obstacle.sample_random_attributes()
-        px = 0
-        py = 0
-        obstacle.set(px, py, obstacle.radius)
-        return obstacle
+        corridor_width = self.square_width - 1.0
+        transfer_width = 3.0
+        x1 = 0 - 2 + 1
+        x2 = corridor_width / 2 - 2 - 1
+        y1 = 0
+        y2 = 0
+        transfer_vertex =([x1, y1], [x2, y2])
+        for i in range(len(transfer_vertex)-1):
+            self.walls.append(self.generate_wall(transfer_vertex[i], transfer_vertex[i+1]))
+        # obstacle = Obstacle()
+        # obstacle.sample_random_attributes()
+        # px = 0
+        # py = 0
+        # obstacle.set(px, py, obstacle.radius)
+        # return obstacle
 
 
     def generate_airport_transfer(self):
@@ -467,6 +477,8 @@ class CrowdSim(gym.Env):
                 break
         return wall
 
+
+
     def reset(self, phase='test', test_case=None):
         """
         Set px, py, gx, gy, vx, vy, theta for robot and humans
@@ -518,7 +530,7 @@ class CrowdSim(gym.Env):
             self.obstacles = []
             for i in range(self.static_obstacle_num):
                 self.obstacles.append(self.generate_static_obstcale())
-            self.obstacles.append(self.generate_center_obstcale())
+            self.generate_center_obstcale()
             self.case_counter[phase] = (self.case_counter[phase] + 1) % self.case_size[phase]
         else:
             assert phase == 'test'
@@ -704,17 +716,17 @@ class CrowdSim(gym.Env):
         vo_flag, min_exp_time, min_dis = self.rvo_inter.config_vo_reward(robot_state_array, human_state_array,
                                                                    obstacle_state_array, wall_state_array)
         p1, p2, p3, p4, p5, p6, p7, p8 = reward_parameter
-        p5 = 0.0
-        p2 = -0.1
         exp_time_reward = - 0.2 / (min_exp_time + 0.2)
         # rvo reward
+        p1 = 0.125
+        p4 = 0.25
         if vo_flag:
-            rvo_reward = p2 + p4 * exp_time_reward
+            rvo_reward = p4 * exp_time_reward
             if min_exp_time < 0.1:
-                rvo_reward = p2 + p1 * p4 * exp_time_reward
+                rvo_reward = p4 * exp_time_reward
         else:
             rvo_reward = p5
-        rvo_reward = np.round(rvo_reward, 2)
+        rvo_reward = np.round(rvo_reward, 2) * 0.1
         return rvo_reward
 
     def step(self, action, update=True):
@@ -787,8 +799,8 @@ class CrowdSim(gym.Env):
                 ob = (ob_human, ob_obstacles, ob_walls)
             elif self.robot.sensor == 'RGB':
                 raise NotImplementedError
-        # rvo_reward = self.rvo_reward_cal(ob)
-        reward = reward + 0.0
+        rvo_reward = self.rvo_reward_cal(ob)
+        reward = reward + self.re_rvo * rvo_reward
         # if info ==Collision():
         #     reward = rvo_reward - 15
         # elif info ==ReachGoal():
