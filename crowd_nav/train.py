@@ -244,7 +244,7 @@ def main(args):
     best_val_return = -1
     best_val_model = None
     # evaluate the model after imitation learning
-
+    env.set_phase(0)
     if episode % evaluation_interval == 0:
         logging.info('Evaluate the model instantly after imitation learning on the validation cases')
         explorer.run_k_episodes(env.case_size['val'], 'val', episode=episode)
@@ -269,7 +269,7 @@ def main(args):
     fw = open(sys_args.output_dir + '/data.txt', 'w')
     print("%f %f %f %f %f" % (0,0,0,0,0), file=fw)
     robot.policy.set_epsilon(epsilon_start)
-    env.set_phase(0)
+
 
 
     _, _, nav_time, sum_reward, ave_return, discom_time, total_time = \

@@ -143,7 +143,7 @@ class CrowdSim(gym.Env):
         self.phase_num = phase_num
         if self.phase_num == 0:
             self.static_obstacle_num = 3
-            self.wall_num = 3
+            self.wall_num = 2
             self.human_num = 1
         elif self.phase_num == 1:
             self.static_obstacle_num = 3
@@ -157,6 +157,10 @@ class CrowdSim(gym.Env):
             self.static_obstacle_num = 3
             self.wall_num = 2
             self.human_num = 10
+        elif self.phase_num == 10: #for test
+            self.static_obstacle_num = 3
+            self.wall_num = 0
+            self.human_num = 0
 
     def set_robot(self, robot):
         self.robot = robot
@@ -362,6 +366,15 @@ class CrowdSim(gym.Env):
                 break
         return obstacle
 
+    def generate_center_obstcale(self, obstacle=None):
+        obstacle = Obstacle()
+        obstacle.sample_random_attributes()
+        px = 0
+        py = 0
+        obstacle.set(px, py, obstacle.radius)
+        return obstacle
+
+
     def generate_airport_transfer(self):
         self.generate_corridor_scenario()
         for i in range(self.wall_num):
@@ -505,6 +518,7 @@ class CrowdSim(gym.Env):
             self.obstacles = []
             for i in range(self.static_obstacle_num):
                 self.obstacles.append(self.generate_static_obstcale())
+            self.obstacles.append(self.generate_center_obstcale())
             self.case_counter[phase] = (self.case_counter[phase] + 1) % self.case_size[phase]
         else:
             assert phase == 'test'
@@ -690,6 +704,8 @@ class CrowdSim(gym.Env):
         vo_flag, min_exp_time, min_dis = self.rvo_inter.config_vo_reward(robot_state_array, human_state_array,
                                                                    obstacle_state_array, wall_state_array)
         p1, p2, p3, p4, p5, p6, p7, p8 = reward_parameter
+        p5 = 0.0
+        p2 = -0.1
         exp_time_reward = - 0.2 / (min_exp_time + 0.2)
         # rvo reward
         if vo_flag:
@@ -771,8 +787,8 @@ class CrowdSim(gym.Env):
                 ob = (ob_human, ob_obstacles, ob_walls)
             elif self.robot.sensor == 'RGB':
                 raise NotImplementedError
-        rvo_reward = self.rvo_reward_cal(ob)
-        reward = reward + rvo_reward * 0.05
+        # rvo_reward = self.rvo_reward_cal(ob)
+        reward = reward + 0.0
         # if info ==Collision():
         #     reward = rvo_reward - 15
         # elif info ==ReachGoal():

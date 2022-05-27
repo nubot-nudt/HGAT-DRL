@@ -80,9 +80,6 @@ def main(args):
             parser.error('Trainable policy must be specified with a model weights directory')
         policy.load_model(model_weights)
 
-
-
-
     env = gym.make('CrowdSim-v0')
     env.configure(env_config)
 
@@ -120,7 +117,7 @@ def main(args):
         else:
             robot.policy.safety_space = args.safety_space
         logging.info('ORCA agent buffer: %f', robot.policy.safety_space)
-    env.set_phase(3)
+    env.set_phase(10)
     policy.set_env(env)
     robot.print_info()
     vel_rec = []
