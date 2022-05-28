@@ -27,8 +27,8 @@ class reciprocal_vel_obs:
     def preprocess(self, robot_state, nei_state_list, obs_cir_list, obs_line_list):
         # components in the region 
         robot_state = np.squeeze(robot_state)
-        ns_list = list(filter(lambda x: 0 < reciprocal_vel_obs.distance(robot_state, x), nei_state_list))
-        oc_list = list(filter(lambda y: 0 < reciprocal_vel_obs.distance(robot_state, y), obs_cir_list))
+        ns_list = list(filter(lambda x: 0 < reciprocal_vel_obs.distance(robot_state, x) <= self.nr, nei_state_list))
+        oc_list = list(filter(lambda y: 0 < reciprocal_vel_obs.distance(robot_state, y) <= self.nr, obs_cir_list))
         ol_list = list(map(lambda z: reciprocal_vel_obs.segment_in_circle(robot_state[0], robot_state[1], self.nr, z), obs_line_list))
         ol_list = [x for x in ol_list if x is not None]                 
 

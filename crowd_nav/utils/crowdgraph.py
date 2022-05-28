@@ -13,7 +13,7 @@ class CrowdNavGraph():
         self.rels = ['h2r', 'o2r', 'w2r', 'o2h', 'w2h', 'h2h']
         self.use_rvo = True
         if self.use_rvo is True:
-            self.rvo_inter = rvo_inter(neighbor_region=20, neighbor_num=10, vxmax=1, vymax=1, acceler=1.0,
+            self.rvo_inter = rvo_inter(neighbor_region=6, neighbor_num=20, vxmax=1, vymax=1, acceler=1.0,
                                        env_train=True,
                                        exp_radius=0.0, ctime_threshold=5, ctime_line_threshold=1)
             rotated_data = self.config_rvo_state(data)
@@ -392,12 +392,6 @@ class CrowdNavGraph():
             wall_num = 0
         total_node_num = robot_num + human_num + obstacle_num + wall_num
         # if total_node_num == 1:
-        if total_node_num == 2:
-            print("only {} in the graph".format(total_node_num))
-            print(robot_num)
-            print(human_num)
-            print(obstacle_num)
-            print(wall_num)
         # fill data into the heterographgraph
         # data of the robot
         robot_tensor = torch.zeros((robot_num, feature_dimensions))
@@ -519,6 +513,8 @@ class CrowdNavGraph():
             edge_types = torch.cat([edge_types, h2h_edge_types], dim=0)
             edge_norm = torch.cat([edge_norm, h2h_edge_norm], dim=0)
         edge_norm = edge_norm.unsqueeze(dim=1)
-        self.graph = dgl.graph((src_id, dst_id), num_nodes=total_node_num, idtype=torch.int32)
+        edge_norm = edge_norm.float()
+        edge_types = edge_types.float()
+        self.graph = dgl.graph((src_id, dst_id), num_nodes=total_node_num, idtype=torch.int64)
         self.graph.ndata['h'] = features
         self.graph.edata.update({'rel_type': edge_types, 'norm': edge_norm})
