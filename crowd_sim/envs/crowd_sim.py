@@ -145,7 +145,7 @@ class CrowdSim(gym.Env):
         if self.phase_num == 0:
             self.static_obstacle_num = 3
             self.wall_num = 2
-            self.human_num = 1
+            self.human_num = 0
         elif self.phase_num == 1:
             self.static_obstacle_num = 3
             self.wall_num = 2
@@ -370,13 +370,18 @@ class CrowdSim(gym.Env):
     def generate_center_obstcale(self, obstacle=None):
         corridor_width = self.square_width - 1.0
         transfer_width = 3.0
-        x1 = 0 - 2 + 1
-        x2 = corridor_width / 2 - 2 - 1
-        y1 = 0
-        y2 = 0
+        center_x = (np.random.random() -0.5) * 2
+        center_y = (np.random.random() -0.5) * 2
+        x1 = center_x - 1
+        x2 = center_x + 1
+        y1 = center_y - 0
+        y2 = center_y + 0
+
         transfer_vertex =([x1, y1], [x2, y2])
         for i in range(len(transfer_vertex)-1):
             self.walls.append(self.generate_wall(transfer_vertex[i], transfer_vertex[i+1]))
+
+
         # obstacle = Obstacle()
         # obstacle.sample_random_attributes()
         # px = 0
@@ -387,8 +392,9 @@ class CrowdSim(gym.Env):
 
     def generate_airport_transfer(self):
         self.generate_corridor_scenario()
-        for i in range(self.wall_num):
-            self.walls.append(self.generate_line_obstacle())
+        self.generate_center_obstcale()
+        # for i in range(self.wall_num):
+        #     self.walls.append(self.generate_line_obstacle())
         # self.generate_transfer()
         # self.generate_open_scenario()
 
@@ -500,12 +506,12 @@ class CrowdSim(gym.Env):
         robot_theta = np.pi / 2 + np.random.random() * np.pi / 4.0 - np.pi / 8.0
         if self.phase_num == 0 or self.phase_num == 1:
             target_x = (np.random.random() - 0.5) * self.square_width * 0.8
-            target_y = (np.random.random() - 0.5) * self.circle_radius * 2
+            target_y = self.circle_radius
         else:
             target_x = 0
             target_y = self.circle_radius
-        target_x = 0
-        target_y = self.circle_radius
+        # target_x = 0
+        # target_y = self.circle_radius
         self.robot.set(0, -self.circle_radius, target_x, target_y, 0, 0, robot_theta)
         self.random_seed = base_seed[phase] + self.case_counter[phase]
         np.random.seed(self.random_seed)
