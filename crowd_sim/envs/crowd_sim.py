@@ -89,7 +89,7 @@ class CrowdSim(gym.Env):
         self.last_state = None
         self.rvo_inter = rvo_inter(neighbor_region=6, neighbor_num=20, vxmax=1, vymax=1, acceler=1.0,
                                    env_train=True,
-                                   exp_radius=0.0, ctime_threshold=3, ctime_line_threshold=1)
+                                   exp_radius=0.0, ctime_threshold=5, ctime_line_threshold=1)
         # 动作空间: 速度，朝向
         self.action_space = spaces.Box(
             low=np.array([0, -np.pi]),
@@ -722,17 +722,19 @@ class CrowdSim(gym.Env):
         vo_flag, min_exp_time, min_dis = self.rvo_inter.config_vo_reward(robot_state_array, human_state_array,
                                                                    obstacle_state_array, wall_state_array)
         p1, p2, p3, p4, p5, p6, p7, p8 = reward_parameter
-        exp_time_reward = - 0.2 / (min_exp_time + 0.2)
+        if min_exp_time < 0:
+            min_exp_time = 0
+        exp_time_reward = - 0.5 / (min_exp_time + 0.5)
         # rvo reward
         p1 = 0.125
         p4 = 0.25
         if vo_flag:
-            rvo_reward = p4 * exp_time_reward
+            rvo_reward = p1 * exp_time_reward
             if min_exp_time < 0.1:
                 rvo_reward = p4 * exp_time_reward
         else:
             rvo_reward = p5
-        rvo_reward = np.round(rvo_reward, 2) * 0.1
+        rvo_reward = np.round(rvo_reward, 2) 
         return rvo_reward
 
     def step(self, action, update=True):
