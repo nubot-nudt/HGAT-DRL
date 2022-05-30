@@ -5,23 +5,21 @@ a=0.2
 b=-0.25
 c=0.25
 d=0.01
-e=5
+e=0.01
 # Script to reproduce results
 for ((i=0;i<5;i+=1))
 do
-	let "k=10**$i"
 	python train.py \
 	--policy rgcn_rl \
-	--output_dir data/0528/resume/$i \
+	--output_dir data/$day/rgcn_rl2/$i \
 	--randomseed $i  \
 	--config configs/icra_benchmark/rgcnrl.py \
 	--safe_weight $d \
 	--goal_weight $a \
 	--re_collision $b \
 	--re_arrival $c \
-	--re_rvo  $k    \
-	--human_num 5  \
-	--resume 
+	--re_rvo  $e    \
+	--human_num 5   
 
 #	python train.py \
 #	--policy model-predictive-rl \
