@@ -167,11 +167,6 @@ class rvo_inter(reciprocal_vel_obs):
 
         x, y, vl, vr, r, _, _, _, theta = robot_state[0:9]
         vx = (vl + vr) / 2.0 * np.cos(theta)
-        sx = line[0][0] - x
-        ex = line[1][0] - x
-        sy = line[0][1] - y
-        ey = line[1][1] - y
-    
         apex = [0, 0]
 
         theta1 = atan2(line[0][1] - y, line[0][0] - x)
@@ -186,9 +181,17 @@ class rvo_inter(reciprocal_vel_obs):
         if reciprocal_vel_obs.wraptopi(theta2-theta1) > 0:
             line_left_ori = reciprocal_vel_obs.wraptopi(theta2 + half_angle2)
             line_right_ori = reciprocal_vel_obs.wraptopi(theta1 - half_angle1)
+            sx = line[0][0] - x
+            ex = line[1][0] - x
+            sy = line[0][1] - y
+            ey = line[1][1] - y
         else:
             line_left_ori = reciprocal_vel_obs.wraptopi(theta1 + half_angle1)
             line_right_ori = reciprocal_vel_obs.wraptopi(theta2 - half_angle2)
+            sx = line[1][0] - x
+            ex = line[0][0] - x
+            sy = line[1][1] - y
+            ey = line[0][1] - y
 
         vo = apex + [line_left_ori, line_right_ori]
         exp_time = inf

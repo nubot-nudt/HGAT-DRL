@@ -500,14 +500,14 @@ class CrowdSim(gym.Env):
         base_seed = {'train': self.case_capacity['val'] + self.case_capacity['test'] + train_seed_begin[1],
                      'val': 0 + val_seed_begin[1], 'test': self.case_capacity['val']+test_seed_begin[2]+1000}
         robot_theta = np.pi / 2 + np.random.random() * np.pi / 4.0 - np.pi / 8.0
-        if self.phase_num == 0 or self.phase_num == 1:
-            target_x = (np.random.random() - 0.5) * self.square_width * 0.8
-            target_y = self.circle_radius
-        else:
-            target_x = 0
-            target_y = self.circle_radius
-        # target_x = 0
-        # target_y = self.circle_radius
+        # if self.phase_num == 0 or self.phase_num == 1:
+        #     target_x = (np.random.random() - 0.5) * self.square_width * 0.8
+        #     target_y = self.circle_radius
+        # else:
+        #     target_x = 0
+        #     target_y = self.circle_radius
+        target_x = 0
+        target_y = self.circle_radius
         self.robot.set(0, -self.circle_radius, target_x, target_y, 0, 0, robot_theta)
         self.random_seed = base_seed[phase] + self.case_counter[phase]
         np.random.seed(self.random_seed)
