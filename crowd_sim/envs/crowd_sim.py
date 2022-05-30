@@ -145,7 +145,7 @@ class CrowdSim(gym.Env):
         if self.phase_num == 0:
             self.static_obstacle_num = 3
             self.wall_num = 2
-            self.human_num = 1
+            self.human_num = 0
         elif self.phase_num == 1:
             self.static_obstacle_num = 3
             self.wall_num = 2
@@ -723,14 +723,14 @@ class CrowdSim(gym.Env):
             min_exp_time = 0
         exp_time_reward = - 0.5 / (min_exp_time + 0.5)
         # rvo reward
-        p1 = 0.1
-        p4 = 0.2
+        p1 = 0.2
+        p4 = 0.4
         p5 = 0
         rvo_reward = 0.0
         if vo_flag:
-            rvo_reward = -0.25 + p1 * exp_time_reward
-            if min_exp_time < 0.1:
-                rvo_reward = -0.25 + p4 * exp_time_reward
+            rvo_reward = -0.1 + p1 * exp_time_reward  # -0.1 to -0.2
+            if min_exp_time < 0.5:
+                rvo_reward = -0.1 + p4 * exp_time_reward  # -0.3 to -0.5
         else:
             rvo_reward = p5
         # rvo_reward = np.round(rvo_reward, 4)

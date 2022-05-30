@@ -380,7 +380,7 @@ if __name__ == '__main__':
     parser.add_argument('--goal_weight', type=float, default=0.2)
     parser.add_argument('--re_collision', type=float, default=-0.25)
     parser.add_argument('--re_arrival', type=float, default=0.25)
-    parser.add_argument('--re_rvo', type=float, default=1.0)
+    parser.add_argument('--re_rvo', type=float, default=0.2)
     parser.add_argument('--square', default=False, action='store_true')
     parser.add_argument('--circle', default=False, action='store_true')
 
