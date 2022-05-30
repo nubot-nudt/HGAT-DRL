@@ -22,7 +22,7 @@ class rvo_inter(reciprocal_vel_obs):
 
         action = np.squeeze(action)
 
-        vo_list1 = list(map(lambda x: self.config_vo_circle2(robot_state, x, action, 'rvo', **kwargs), ns_list))
+        vo_list1 = list(map(lambda x: self.config_vo_circle2(robot_state, x, action, 'vo', **kwargs), ns_list))
         vo_list2 = list(map(lambda y: self.config_static_vo_circle2(robot_state, y, action, **kwargs), oc_list))
         vo_list3 = list(map(lambda z: self.config_vo_line2(robot_state, z, action, **kwargs), ol_list))
 
@@ -92,7 +92,7 @@ class rvo_inter(reciprocal_vel_obs):
         return vo_list
     def config_static_vo_circle2(self, state, circular, action, **kwargs):
         circular = np.array([circular[0], circular[1], 0, 0, circular[2]])
-        return self.config_vo_circle2(state, circular, action, mode='rvo', **kwargs)
+        return self.config_vo_circle2(state, circular, action, mode='vo', **kwargs)
 
     def config_vo_circle2(self, state, circular, action, mode='rvo', **kwargs):
         
@@ -159,7 +159,7 @@ class rvo_inter(reciprocal_vel_obs):
         input_exp_time = 1 / (exp_time+0.2)
         min_dis = real_dis_mr-mr
 
-        observation_vo = [vo[0], vo[1], cos(vo[2]), sin(vo[2]), cos(vo[3]), sin(vo[3]), min_dis, input_exp_time]
+        observation_vo = [vo[0], vo[1], cos(vo[2]), sin(vo[2]), cos(vo[3]), sin(vo[3]), min_dis, input_exp_time, rel_x, rel_y, mr]
         
         return [observation_vo, vo_flag, exp_time, collision_flag, min_dis]
 
@@ -214,7 +214,7 @@ class rvo_inter(reciprocal_vel_obs):
         input_exp_time = 1 / (exp_time+0.2)
         min_dis = p2s
 
-        observation_vo = [vo[0], vo[1], cos(vo[2]), sin(vo[2]), cos(vo[3]), sin(vo[3]), min_dis, input_exp_time]
+        observation_vo = [vo[0], vo[1], cos(vo[2]), sin(vo[2]), cos(vo[3]), sin(vo[3]), min_dis, input_exp_time, line[0][0], line[0][1], line[1][0], line[1][1]]
         
         return [observation_vo, vo_flag, exp_time, collision_flag, min_dis]
 
