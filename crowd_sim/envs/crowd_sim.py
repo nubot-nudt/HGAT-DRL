@@ -376,7 +376,6 @@ class CrowdSim(gym.Env):
         x2 = center_x + 1.0
         y1 = center_y - 0
         y2 = center_y + 0
-
         transfer_vertex =([x1, y1], [x2, y2])
         for i in range(len(transfer_vertex)-1):
             self.walls.append(self.generate_wall(transfer_vertex[i], transfer_vertex[i+1]))
@@ -407,7 +406,6 @@ class CrowdSim(gym.Env):
     def generate_doorway_scenario(self):
         room_width = self.square_width - 1
         room_length = self.square_width - 1
-        self.walls = []
         wall_vertex = (
             [-room_width / 2, -room_length / 2], [room_width / 2, -room_length / 2], [room_width / 2, room_length / 2],
             [-room_width / 2, room_length / 2], [-room_width / 2, -room_length / 2])
@@ -417,14 +415,12 @@ class CrowdSim(gym.Env):
     def generate_corridor_scenario(self):
         corridor_width = self.square_width
         corridor_length = self.square_width * 2.0
-        self.walls = []
         self.walls.append(self.generate_wall([-corridor_width / 2, -corridor_length / 2], [-corridor_width / 2, corridor_length / 2]))
         self.walls.append(self.generate_wall([corridor_width / 2, -corridor_length / 2], [corridor_width / 2, corridor_length / 2]))
 
     def generate_open_scenario(self):
         room_width = self.square_width - 1
         room_length = self.square_width - 1
-        self.walls = []
         wall_vertex = (
         [-room_width / 2, -room_length / 2], [room_width / 2, -room_length / 2], [room_width / 2, room_length / 2],
         [-room_width / 2, room_length / 2], [-room_width / 2, -room_length / 2])
@@ -517,6 +513,7 @@ class CrowdSim(gym.Env):
         np.random.seed(self.random_seed)
         if self.case_counter[phase] >= 0:
             # self.generate_constrained_room()
+            self.walls = []
             self.generate_airport_transfer()
             if phase == 'test':
                 logging.debug('current test seed is:{}'.format(base_seed[phase] + self.case_counter[phase]))
