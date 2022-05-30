@@ -159,7 +159,7 @@ class rvo_inter(reciprocal_vel_obs):
         input_exp_time = 1 / (exp_time+0.2)
         min_dis = real_dis_mr-mr
 
-        observation_vo = [vo[0], vo[1], cos(vo[2]), sin(vo[2]), cos(vo[3]), sin(vo[3]), min_dis, input_exp_time, rel_x, rel_y, mr]
+        observation_vo = [vo[0], vo[1], cos(vo[2]), sin(vo[2]), cos(vo[3]), sin(vo[3]), min_dis, input_exp_time, -rel_x, -rel_y, mr]
         
         return [observation_vo, vo_flag, exp_time, collision_flag, min_dis]
 
@@ -167,6 +167,10 @@ class rvo_inter(reciprocal_vel_obs):
 
         x, y, vl, vr, r, _, _, _, theta = robot_state[0:9]
         vx = (vl + vr) / 2.0 * np.cos(theta)
+        sx = line[0][0] - x
+        ex = line[1][0] - x
+        sy = line[0][1] - y
+        ey = line[1][1] - y
     
         apex = [0, 0]
 
@@ -214,7 +218,7 @@ class rvo_inter(reciprocal_vel_obs):
         input_exp_time = 1 / (exp_time+0.2)
         min_dis = p2s
 
-        observation_vo = [vo[0], vo[1], cos(vo[2]), sin(vo[2]), cos(vo[3]), sin(vo[3]), min_dis, input_exp_time, line[0][0], line[0][1], line[1][0], line[1][1]]
+        observation_vo = [vo[0], vo[1], cos(vo[2]), sin(vo[2]), cos(vo[3]), sin(vo[3]), min_dis, input_exp_time, sx, sy, ex, ey]
         
         return [observation_vo, vo_flag, exp_time, collision_flag, min_dis]
 
