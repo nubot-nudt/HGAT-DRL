@@ -393,5 +393,4 @@ if __name__ == '__main__':
     # parser.add_argument('--skip_connection', default=True, action='store_true')
 
     sys_args = parser.parse_args()
-    sys_args.re_rvo = sys_args.re_rvo / 100.0
     main(sys_args)

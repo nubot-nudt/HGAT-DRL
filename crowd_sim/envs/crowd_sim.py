@@ -723,14 +723,14 @@ class CrowdSim(gym.Env):
             min_exp_time = 0
         exp_time_reward = - 0.5 / (min_exp_time + 0.5)
         # rvo reward
-        p1 = 0.125
-        p4 = 0.25
+        p1 = 0.1
+        p4 = 0.2
         p5 = 0
         rvo_reward = 0.0
         if vo_flag:
-            rvo_reward = p1 * exp_time_reward
+            rvo_reward = -0.25 + p1 * exp_time_reward
             if min_exp_time < 0.1:
-                rvo_reward = p4 * exp_time_reward
+                rvo_reward = -0.25 + p4 * exp_time_reward
         else:
             rvo_reward = p5
         # rvo_reward = np.round(rvo_reward, 4)
