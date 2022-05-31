@@ -353,7 +353,7 @@ class CrowdNavGraph():
             temp = torch.matmul(temp, transform_matrix)
             obstacle_state[:, :8] = temp.reshape(obstacle_state.shape[0], -1)
         if wall_state.shape[0] != 0:
-            wall_state = torch.index_select(obstacle_state, 1, torch.tensor([8, 9, 10, 11, 0, 1, 2, 3, 4, 5, 6, 7]))
+            wall_state = torch.index_select(wall_state, 1, torch.tensor([8, 9, 10, 11, 0, 1, 2, 3, 4, 5, 6, 7]))
             temp = wall_state[:,:10]
             temp = temp.reshape(wall_state.shape[0],-1,2)
             temp = torch.matmul(temp, transform_matrix)
