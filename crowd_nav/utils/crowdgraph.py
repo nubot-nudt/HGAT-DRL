@@ -341,20 +341,23 @@ class CrowdNavGraph():
         sin_rot = torch.sin(rot)
         transform_matrix = torch.cat((cos_rot, -sin_rot, sin_rot, cos_rot), dim=0).reshape(2, 2)
         if human_state.shape[0] != 0:
-            temp = human_state[:,:10]
+            human_state = torch.index_select(human_state, 1, torch.tensor([8,9,0,1,2,3,4,5,6,7,10]))
+            temp = human_state[:,:8]
             temp = temp.reshape(human_state.shape[0],-1,2)
             temp = torch.matmul(temp, transform_matrix)
-            human_state[:, :10] = temp.reshape(human_state.shape[0], -1)
+            human_state[:, :8] = temp.reshape(human_state.shape[0], -1)
         if obstacle_state.shape[0] !=0:
-            temp = obstacle_state[:,:10]
+            obstacle_state = torch.index_select(obstacle_state, 1, torch.tensor([8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 10]))
+            temp = obstacle_state[:,:8]
             temp = temp.reshape(obstacle_state.shape[0],-1,2)
             temp = torch.matmul(temp, transform_matrix)
-            obstacle_state[:, :10] = temp.reshape(obstacle_state.shape[0], -1)
+            obstacle_state[:, :8] = temp.reshape(obstacle_state.shape[0], -1)
         if wall_state.shape[0] != 0:
-            temp = wall_state[:,:12]
+            wall_state = torch.index_select(obstacle_state, 1, torch.tensor([8, 9, 10, 11, 0, 1, 2, 3, 4, 5, 6, 7]))
+            temp = wall_state[:,:10]
             temp = temp.reshape(wall_state.shape[0],-1,2)
             temp = torch.matmul(temp, transform_matrix)
-            wall_state[:, :12] = temp.reshape(wall_state.shape[0], -1)
+            wall_state[:, :10] = temp.reshape(wall_state.shape[0], -1)
         return new_robot_state, human_state, obstacle_state, wall_state
 
     def build_up_graph_on_rvostate(self, data):
