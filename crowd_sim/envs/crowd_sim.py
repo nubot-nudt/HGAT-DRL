@@ -87,9 +87,9 @@ class CrowdSim(gym.Env):
         self.human_goals = []
         self.phase_num = 0
         self.last_state = None
-        self.rvo_inter = rvo_inter(neighbor_region=6, neighbor_num=20, vxmax=1, vymax=1, acceler=1.0,
+        self.rvo_inter = rvo_inter(neighbor_region=4, neighbor_num=20, vxmax=1, vymax=1, acceler=1.0,
                                    env_train=True,
-                                   exp_radius=0.0, ctime_threshold=5, ctime_line_threshold=1)
+                                   exp_radius=0.0, ctime_threshold=3.0, ctime_line_threshold=3.0)
         # 动作空间: 速度，朝向
         self.action_space = spaces.Box(
             low=np.array([0, -np.pi]),

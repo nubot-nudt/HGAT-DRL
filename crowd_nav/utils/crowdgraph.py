@@ -13,9 +13,9 @@ class CrowdNavGraph():
         self.rels = ['h2r', 'o2r', 'w2r', 'o2h', 'w2h', 'h2h']
         self.use_rvo = True
         if self.use_rvo is True:
-            self.rvo_inter = rvo_inter(neighbor_region=6, neighbor_num=20, vxmax=1, vymax=1, acceler=1.0,
+            self.rvo_inter = rvo_inter(neighbor_region=4, neighbor_num=20, vxmax=1, vymax=1, acceler=1.0,
                                        env_train=True,
-                                       exp_radius=0.0, ctime_threshold=5, ctime_line_threshold=1)
+                                       exp_radius=0.0, ctime_threshold=3.0, ctime_line_threshold=3.0)
             rotated_data = self.config_rvo_state(data)
             self.build_up_graph_on_rvostate(rotated_data)
         else:
@@ -335,7 +335,7 @@ class CrowdNavGraph():
         v_pref = robot_state[:, 7].unsqueeze(1)
         robot_radius = robot_state[:, 4].unsqueeze(1)
         cur_heading = (robot_state[:, 8].unsqueeze(1) - rot + np.pi) % (2 * np.pi) - np.pi
-        new_robot_state = torch.cat((robot_velocities, dg, v_pref, cur_heading, robot_radius), dim=1)
+        new_robot_state = torch.cat((robot_velocities, dg, v_pref, cur_heading), dim=1)
 
         cos_rot = torch.cos(rot)
         sin_rot = torch.sin(rot)
@@ -346,18 +346,21 @@ class CrowdNavGraph():
             temp = temp.reshape(human_state.shape[0],-1,2)
             temp = torch.matmul(temp, transform_matrix)
             human_state[:, :8] = temp.reshape(human_state.shape[0], -1)
+            human_state[:, -1] = human_state[:, -1] + 0.3
         if obstacle_state.shape[0] !=0:
             obstacle_state = torch.index_select(obstacle_state, 1, torch.tensor([8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 10]))
             temp = obstacle_state[:,:8]
             temp = temp.reshape(obstacle_state.shape[0],-1,2)
             temp = torch.matmul(temp, transform_matrix)
             obstacle_state[:, :8] = temp.reshape(obstacle_state.shape[0], -1)
+            obstacle_state[:, -1] = obstacle_state[:, -1] + 0.3
         if wall_state.shape[0] != 0:
             wall_state = torch.index_select(wall_state, 1, torch.tensor([8, 9, 10, 11, 0, 1, 2, 3, 4, 5, 6, 7]))
             temp = wall_state[:,:10]
             temp = temp.reshape(wall_state.shape[0],-1,2)
             temp = torch.matmul(temp, transform_matrix)
             wall_state[:, :10] = temp.reshape(wall_state.shape[0], -1)
+            wall_state = torch.cat((wall_state, 0.3 * torch.ones((wall_state.shape[0],1))), dim =1)
         return new_robot_state, human_state, obstacle_state, wall_state
 
     def build_up_graph_on_rvostate(self, data):
@@ -383,13 +386,13 @@ class CrowdNavGraph():
         node_types_one_hot = ['robot', 'human', 'obstacle', 'wall']
         # robot_metric_features = ['rob_pos_x', 'robot_pos_y', 'rob_vel_x', 'rob_vel_y', 'rob_radius', 'rob_goal_x',
         #                          'rob_goal_y', 'rob_vel_pre', 'rob_ori']
-        robot_metric_features = ['rob_vel_l', 'rob_vel_r', 'dis2goal', 'rob_vel_pre', 'rob_ori', 'rob_radius']
+        robot_metric_features = ['rob_vel_l', 'rob_vel_r', 'dis2goal', 'rob_vel_pre', 'rob_ori']
         human_metric_features = ['human_vo_px', 'human_vo_py', 'human_vo_vl_x', 'human_v0_vl_y', 'human_vo_vr_x',
                                  'human_vo_vr_y', 'human_min_dis', 'human_exp_time', 'human_pos_x', 'human_pos_y', 'human_radius']
         obstacle_metric_features = ['obs_vo_px', 'obs_vo_py', 'obs_vo_vl_x', 'obs_v0_vl_y', 'obs_vo_vr_x',
                                     'obs_vo_vr_y', 'obs_min_dis', 'obs_exp_time', 'obs_pos_x', 'obs_pos_y', 'obs_radius']
         wall_metric_features = ['wall_vo_px', 'wall_vo_py', 'wall_vo_vl_x', 'wall_v0_vl_y', 'wall_vo_vr_x',
-                                'wall_vo_vr_y', 'wall_min_dis', 'wall_exp_time', 'wall_sx', 'wall_sy', 'wall_ex', 'wall_ey']
+                                'wall_vo_vr_y', 'wall_min_dis', 'wall_exp_time', 'wall_sx', 'wall_sy', 'wall_ex', 'wall_ey', 'wall_radius']
         all_features = node_types_one_hot + robot_metric_features + human_metric_features + obstacle_metric_features + wall_metric_features
         # Copy input data
         self.data = data
@@ -414,7 +417,7 @@ class CrowdNavGraph():
         # data of the robot
         robot_tensor = torch.zeros((robot_num, feature_dimensions))
         robot_tensor[0, all_features.index('robot')] = 1
-        robot_tensor[0, all_features.index('rob_vel_l'):all_features.index("rob_radius") + 1] = robot_state[0]
+        robot_tensor[0, all_features.index('rob_vel_l'):all_features.index("rob_ori") + 1] = robot_state[0]
         # self.graph.nodes['robot'].data['h'] = robot_tensor
         features = robot_tensor
         if human_num > 0:
@@ -437,7 +440,7 @@ class CrowdNavGraph():
             for i in range(wall_num):
                 wall_tensor = torch.zeros((wall_num, feature_dimensions))
                 wall_tensor[i, all_features.index('wall')] = 1
-                wall_tensor[i, all_features.index('wall_vo_px'):all_features.index("wall_ey") + 1] = wall_state[i]
+                wall_tensor[i, all_features.index('wall_vo_px'):all_features.index("wall_radius") + 1] = wall_state[i]
             features = torch.cat([features, wall_tensor], dim=0)
         # self.graph.nodes['wall'].data['h'] = wall_tensor
         # features = torch.cat([robot_tensor, human_tensor, obstacle_tensor, wall_tensor], dim=0)
