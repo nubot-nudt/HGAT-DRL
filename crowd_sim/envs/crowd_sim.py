@@ -161,7 +161,7 @@ class CrowdSim(gym.Env):
         elif self.phase_num == 10: #for test
             self.static_obstacle_num = 3
             self.wall_num = 0
-            self.human_num = 0
+            self.human_num = 3
 
     def set_robot(self, robot):
         self.robot = robot
@@ -208,7 +208,7 @@ class CrowdSim(gym.Env):
                 gy = -py
                 collide = False
                 for agent in [self.robot] + self.humans:
-                    min_dist = human.radius + agent.radius + self.discomfort_dist
+                    min_dist = human.radius + agent.radius + self.discomfort_dist + 0.5
                     if norm((px - agent.px, py - agent.py)) < min_dist or \
                             norm((px - agent.gx, py - agent.gy)) < min_dist:
                         collide = True
@@ -240,8 +240,8 @@ class CrowdSim(gym.Env):
                 gy = self.circle_radius * np.sin(angle) + gy_noise
                 collide = False
                 for agent in [self.robot] + self.humans:
-                    min_dist = human.radius + agent.radius + self.discomfort_dist
-                    if  norm((gx - agent.gx, gy - agent.gy)) < min_dist:
+                    min_dist = human.radius + agent.radius + self.discomfort_dist + 0.5
+                    if norm((gx - agent.gx, gy - agent.gy)) < min_dist:
                         collide = True
                         break
                 for wall in self.walls:
@@ -267,7 +267,7 @@ class CrowdSim(gym.Env):
                 py = (np.random.random() - 0.5) * self.square_width
                 collide = False
                 for agent in [self.robot] + self.humans:
-                    min_dist = human.radius + agent.radius + self.discomfort_dist
+                    min_dist = human.radius + agent.radius + self.discomfort_dist + 0.5
                     if norm((px - agent.px, py - agent.py)) < min_dist:
                         collide = True
                         break
@@ -286,7 +286,7 @@ class CrowdSim(gym.Env):
                 gy = (np.random.random() - 0.5) * self.square_width
                 collide = False
                 for agent in [self.robot] + self.humans:
-                    min_dist = human.radius + agent.radius + self.discomfort_dist
+                    min_dist = human.radius + agent.radius + self.discomfort_dist + 0.5
                     if  norm((gx - agent.gx, gy - agent.gy)) < min_dist:
                         collide = True
                         break
@@ -347,16 +347,16 @@ class CrowdSim(gym.Env):
             obstacle.set(px, py, obstacle.radius)
             collide = False
             for agent in [self.robot] + self.humans:
-                if norm((px - agent.px, py - agent.py)) < obstacle.radius + agent.radius + 0.2 or \
-                        norm((px - agent.gx, py - agent.gy)) < obstacle.radius + agent.radius + 0.2:
+                if norm((px - agent.px, py - agent.py)) < obstacle.radius + agent.radius + 0.5 or \
+                        norm((px - agent.gx, py - agent.gy)) < obstacle.radius + agent.radius + 0.5:
                     collide = True
                     break
             for agent in self.obstacles:
-                if norm((px - agent.px, py - agent.py)) < obstacle.radius + agent.radius + 0.1:
+                if norm((px - agent.px, py - agent.py)) < obstacle.radius + agent.radius + 0.5:
                     collide = True
                     break
             for wall in self.walls:
-                if point_to_segment_dist(wall.sx, wall.sy, wall.ex, wall.ey, px, py) < obstacle.radius:
+                if point_to_segment_dist(wall.sx, wall.sy, wall.ex, wall.ey, px, py) < obstacle.radius + 0.5:
                     collide = True
                     break
             for poly_obs in self.poly_obstacles:
@@ -429,16 +429,17 @@ class CrowdSim(gym.Env):
 
     def generate_transfer(self):
         corridor_width = self.square_width - 1.0
-        transfer_width = 3.0
+        transfer_width = 2.0
         x1 = 0 - 2 + 1
-        x2 = corridor_width / 2 - 2 - 1
+        x2 = 2 - 1
         y1 = -transfer_width/2
         y2 = transfer_width/2.0
         transfer_vertex =([x1, y1], [x2, y1], [x2, y2], [x1, y2], [x1,y1])
-        transfer_vertex = ([corridor_width/6, -transfer_width / 2], [corridor_width/2, -transfer_width / 2],
-        [corridor_width/2, transfer_width / 2], [corridor_width/6, transfer_width / 2], [corridor_width/6, -transfer_width / 2])
+        # transfer_vertex = ([corridor_width/6, -transfer_width / 2], [corridor_width/2, -transfer_width / 2],
+        # [corridor_width/2, transfer_width / 2], [corridor_width/6, transfer_width / 2], [corridor_width/6, -transfer_width / 2])
         for i in range(len(transfer_vertex)-1):
-            self.walls.append(self.generate_wall(transfer_vertex[i], transfer_vertex[i+1]))
+            if i ==0:
+                self.walls.append(self.generate_wall(transfer_vertex[i], transfer_vertex[i+1]))
         self.poly_obstacles.clear()
         self.poly_obstacles.append(transfer_vertex)
 
@@ -500,14 +501,14 @@ class CrowdSim(gym.Env):
         base_seed = {'train': self.case_capacity['val'] + self.case_capacity['test'] + train_seed_begin[1],
                      'val': 0 + val_seed_begin[1], 'test': self.case_capacity['val']+test_seed_begin[2]+1000}
         robot_theta = np.pi / 2 + np.random.random() * np.pi / 4.0 - np.pi / 8.0
-        # if self.phase_num == 0 or self.phase_num == 1:
-        #     target_x = (np.random.random() - 0.5) * self.square_width * 0.8
-        #     target_y = self.circle_radius
-        # else:
-        #     target_x = 0
-        #     target_y = self.circle_radius
-        target_x = 0
-        target_y = self.circle_radius
+        if self.phase_num == 10:
+            target_x = 0
+            target_y = self.circle_radius
+        else:
+            target_x = (np.random.random() - 0.5) * self.square_width * 0.8
+            target_y = self.circle_radius
+        # target_x = 0
+        # target_y = self.circle_radius
         self.robot.set(0, -self.circle_radius, target_x, target_y, 0, 0, robot_theta)
         self.random_seed = base_seed[phase] + self.case_counter[phase]
         np.random.seed(self.random_seed)
@@ -747,7 +748,14 @@ class CrowdSim(gym.Env):
             self.centralized_planner.set_walls(self.walls)
             self.centralized_planner.set_static_obstacles(self.obstacles)
             if self.robot.visible:
-                agent_states.append(self.robot.get_full_state())
+                if self.robot.kinematics == 'differential':
+                    robot_state = self.robot.get_full_state()
+                    linear_vel = 0.5 * (robot_state.vx + robot_state.vy)
+                    robot_state.vx = linear_vel * np.cos(robot_state.theta)
+                    robot_state.vy = linear_vel * np.sin(robot_state.theta)
+                    agent_states.append(robot_state)
+                else:
+                    agent_states.append(self.robot.get_full_state())
                 human_actions = self.centralized_planner.predict(agent_states)[:-1]
             else:
                 human_actions = self.centralized_planner.predict(agent_states)
