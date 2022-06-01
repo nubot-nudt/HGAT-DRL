@@ -161,7 +161,7 @@ class CrowdSim(gym.Env):
         elif self.phase_num == 10: #for test
             self.static_obstacle_num = 3
             self.wall_num = 0
-            self.human_num = 3
+            self.human_num = 5
 
     def set_robot(self, robot):
         self.robot = robot
@@ -372,13 +372,23 @@ class CrowdSim(gym.Env):
         transfer_width = 3.0
         center_x = (np.random.random() -0.5) * 2
         center_y = (np.random.random() -0.5) * 2
-        x1 = center_x - 1.0
-        x2 = center_x + 1.0
-        y1 = center_y - 0
-        y2 = center_y + 0
-        transfer_vertex =([x1, y1], [x2, y2])
+        width = np.random.random() * 2.0
+        length = np.random.random() * 2.0
+        x1 = center_x - width / 2.0
+        x2 = center_x + width / 2.0
+        y1 = center_y - length / 2.0
+        y2 = center_y + length / 2.0
+
+        transfer_vertex =([x1, y1], [x2, y1], [x2, y2], [x1, y2], [x1,y1])
+        # transfer_vertex = ([corridor_width/6, -transfer_width / 2], [corridor_width/2, -transfer_width / 2],
+        # [corridor_width/2, transfer_width / 2], [corridor_width/6, transfer_width / 2], [corridor_width/6, -transfer_width / 2])
         for i in range(len(transfer_vertex)-1):
-            self.walls.append(self.generate_wall(transfer_vertex[i], transfer_vertex[i+1]))
+                self.walls.append(self.generate_wall(transfer_vertex[i], transfer_vertex[i+1]))
+        self.poly_obstacles.clear()
+        self.poly_obstacles.append(transfer_vertex)
+        # transfer_vertex =([x1, y1], [x2, y2])
+        # for i in range(len(transfer_vertex)-1):
+        #     self.walls.append(self.generate_wall(transfer_vertex[i], transfer_vertex[i+1]))
 
 
         # obstacle = Obstacle()
@@ -391,10 +401,10 @@ class CrowdSim(gym.Env):
 
     def generate_airport_transfer(self):
         self.generate_corridor_scenario()
-        self.generate_center_obstcale()
+        # self.generate_center_obstcale()
         # for i in range(self.wall_num):
         #     self.walls.append(self.generate_line_obstacle())
-        # self.generate_transfer()
+        self.generate_transfer()
         # self.generate_open_scenario()
 
     def generate_constrained_room(self):
@@ -786,7 +796,7 @@ class CrowdSim(gym.Env):
                 human.step(action)
                 if self.nonstop_human and human.reached_destination():
                     human.reach_count = human.reach_count + 1
-                    if human.reach_count > 2 and norm((human.px - self.robot.px, human.py - self.robot.py)) < human.radius + self.robot.radius + 0.5:
+                    if human.reach_count > 2 and norm((human.px - self.robot.px, human.py - self.robot.py)) > human.radius + self.robot.radius + 0.5:
                         if self.current_scenario == 'circle_crossing':
                             self.generate_human(human, non_stop=True)
                             human.reach_count = 0
