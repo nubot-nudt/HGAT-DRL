@@ -383,12 +383,13 @@ class CrowdSim(gym.Env):
         # transfer_vertex = ([corridor_width/6, -transfer_width / 2], [corridor_width/2, -transfer_width / 2],
         # [corridor_width/2, transfer_width / 2], [corridor_width/6, transfer_width / 2], [corridor_width/6, -transfer_width / 2])
         for i in range(len(transfer_vertex)-1):
-                self.walls.append(self.generate_wall(transfer_vertex[i], transfer_vertex[i+1]))
+            self.walls.append(self.generate_wall(transfer_vertex[i], transfer_vertex[i+1]))
         self.poly_obstacles.clear()
         self.poly_obstacles.append(transfer_vertex)
         # transfer_vertex =([x1, y1], [x2, y2])
         # for i in range(len(transfer_vertex)-1):
         #     self.walls.append(self.generate_wall(transfer_vertex[i], transfer_vertex[i+1]))
+
 
 
         # obstacle = Obstacle()
