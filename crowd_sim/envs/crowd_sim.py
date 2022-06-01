@@ -372,8 +372,8 @@ class CrowdSim(gym.Env):
         transfer_width = 3.0
         center_x = (np.random.random() -0.5) * 2
         center_y = (np.random.random() -0.5) * 2
-        width = np.random.random() * 2.0
-        length = np.random.random() * 2.0
+        width = np.random.uniform(1,2)
+        length = np.random.uniform(1,2)
         x1 = center_x - width / 2.0
         x2 = center_x + width / 2.0
         y1 = center_y - length / 2.0
@@ -402,10 +402,10 @@ class CrowdSim(gym.Env):
 
     def generate_airport_transfer(self):
         self.generate_corridor_scenario()
-        # self.generate_center_obstcale()
+        self.generate_center_obstcale()
         # for i in range(self.wall_num):
         #     self.walls.append(self.generate_line_obstacle())
-        self.generate_transfer()
+        # self.generate_transfer()
         # self.generate_open_scenario()
 
     def generate_constrained_room(self):
