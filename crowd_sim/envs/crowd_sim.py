@@ -367,13 +367,13 @@ class CrowdSim(gym.Env):
                 break
         return obstacle
 
-    def generate_center_obstcale(self, obstacle=None):
+    def generate_center_obstcle(self, obstacle=None):
         corridor_width = self.square_width - 1.0
         transfer_width = 3.0
         center_x = (np.random.random() -0.5) * 2
         center_y = (np.random.random() -0.5) * 2
-        width = np.random.uniform(1,2)
-        length = np.random.uniform(1,2)
+        width = np.random.uniform(1,3)
+        length = np.random.uniform(1,3)
         x1 = center_x - width / 2.0
         x2 = center_x + width / 2.0
         y1 = center_y - length / 2.0
@@ -402,7 +402,7 @@ class CrowdSim(gym.Env):
 
     def generate_airport_transfer(self):
         self.generate_corridor_scenario()
-        self.generate_center_obstcale()
+        self.generate_center_obstcle()
         # for i in range(self.wall_num):
         #     self.walls.append(self.generate_line_obstacle())
         # self.generate_transfer()
