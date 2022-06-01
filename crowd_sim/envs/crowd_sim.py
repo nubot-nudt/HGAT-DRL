@@ -379,6 +379,15 @@ class CrowdSim(gym.Env):
         transfer_vertex =([x1, y1], [x2, y2])
         for i in range(len(transfer_vertex)-1):
             self.walls.append(self.generate_wall(transfer_vertex[i], transfer_vertex[i+1]))
+        center_x = (np.random.random() -0.5) * 2
+        center_y = (np.random.random() -0.5) * 2
+        x1 = center_x - 0.0
+        x2 = center_x + 0.0
+        y1 = center_y - 1.0
+        y2 = center_y + 1.0
+        transfer_vertex =([x1, y1], [x2, y2])
+        for i in range(len(transfer_vertex)-1):
+            self.walls.append(self.generate_wall(transfer_vertex[i], transfer_vertex[i+1]))
 
 
         # obstacle = Obstacle()
