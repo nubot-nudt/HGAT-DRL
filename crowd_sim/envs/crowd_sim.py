@@ -519,12 +519,12 @@ class CrowdSim(gym.Env):
             if phase == 'test':
                 logging.debug('current test seed is:{}'.format(base_seed[phase] + self.case_counter[phase]))
                 # print('current test seed is:{}'.format(base_seed[phase] + self.case_counter[phase]))
-            # if not self.robot.policy.multiagent_training and phase in ['train', 'val']:
-            #     human_num = 1
-            #     self.current_scenario = 'circle_crossing'
-            # else:
-            #     self.current_scenario = self.test_scenario
-            #     human_num = self.human_num
+            if not self.robot.policy.multiagent_training and phase in ['train', 'val']:
+                # human_num = 1
+                self.current_scenario = 'circle_crossing'
+            else:
+                self.current_scenario = self.test_scenario
+                # human_num = self.human_num
             self.humans = []
             for i in range(self.human_num):
                 if self.current_scenario == 'circle_crossing':
@@ -786,7 +786,7 @@ class CrowdSim(gym.Env):
                 human.step(action)
                 if self.nonstop_human and human.reached_destination():
                     human.reach_count = human.reach_count + 1
-                    if human.reach_count == 2:
+                    if human.reach_count > 2 and norm((human.px - self.robot.px, human.py - self.robot.py)) < human.radius + self.robot.radius + 0.5:
                         if self.current_scenario == 'circle_crossing':
                             self.generate_human(human, non_stop=True)
                             human.reach_count = 0
