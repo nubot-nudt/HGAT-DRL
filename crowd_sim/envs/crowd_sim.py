@@ -145,7 +145,7 @@ class CrowdSim(gym.Env):
         if self.phase_num == 0:
             self.static_obstacle_num = 3
             self.wall_num = 2
-            self.human_num = 1
+            self.human_num = 7
         elif self.phase_num == 1:
             self.static_obstacle_num = 3
             self.wall_num = 2
@@ -372,7 +372,7 @@ class CrowdSim(gym.Env):
                         collide = True
                         break
                 for wall in self.walls:
-                    if point_to_segment_dist(wall.sx, wall.sy, wall.ex, wall.ey, px, py) < obstacle.radius + 0.5:
+                    if point_to_segment_dist(wall.sx, wall.sy, wall.ex, wall.ey, px, py) < obstacle.radius + 0.8:
                         collide = True
                         break
                 for poly_obs in self.poly_obstacles:
@@ -543,7 +543,7 @@ class CrowdSim(gym.Env):
                 # human_num = self.human_num
             self.humans = []
             for i in range(self.human_num):
-                if self.current_scenario == 'circle_crossing':
+                if self.current_scenario == 'circle_crossing' and i < 5:
                     self.humans.append(self.generate_human())
                 else:
                     self.humans.append(self.generate_human(square=True))
