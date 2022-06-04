@@ -173,13 +173,13 @@ class Transformer(nn.Module):
                     feat_dst = feat_src[:graph.number_of_dst_nodes()]
                     h_dst = h_dst[:graph.number_of_dst_nodes()]
                     dst_prefix_shape = (graph.number_of_dst_nodes(),) + dst_prefix_shape[1:]
-            ek = (feat_src * self.k_linear).sum(dim=-1).unsqueeze(-1)
-            ev = (feat_dst * self.v_linear).sum(dim=-1).unsqueeze(-1)
-            eq = (feat_src * self.q_linear).sum(dim=-1).unsqueeze(-1)
+            ek = (feat_src * self.k_linear)
+            eq = (feat_dst * self.q_linear)
+            ev = (feat_src * self.v_linear)
             graph.srcdata.update({'ft': ev, 'ek': ek})
             graph.dstdata.update({'eq': eq})
             # compute edge attention, el and er are a_l Wh_i and a_r Wh_j respectively.
-            graph.apply_edges(fn.u_dot_v('ek', 'eq', 'e'))
+            graph.apply_edges(fn.u_dot_v('eq', 'ek', 'e'))
             e = self.leaky_relu(graph.edata.pop('e')) / self.sqrt_dk
             # compute softmax
             graph.edata['a'] = self.attn_drop(edge_softmax(graph, e))
