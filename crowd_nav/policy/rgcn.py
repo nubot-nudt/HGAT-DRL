@@ -8,6 +8,7 @@ from dgl.nn.pytorch.conv.gatv2conv import GATv2Conv
 from dgl.nn.pytorch.conv.graphconv import GraphConv
 from dgl.nn.pytorch.conv.gatconv import GATConv
 from crowd_nav.policy.helpers import mlp
+from crowd_nav.policy.he_models.transformer import Transformer
 import dgl
 from crowd_nav.policy.gnn_models import HoRelGAT
 class RGATLayer(nn.Module):
@@ -60,6 +61,8 @@ class RGCN(nn.Module):
             self.use_gcn = True
         elif self.gnn_model == 'rgat':
             self.use_rgat = True
+        elif self.gnn_model == 'transfomer':
+            self.use_transformer = True
         # create RGCN layers
         self.build_model()
 
@@ -110,10 +113,15 @@ class RGCN(nn.Module):
         elif  self.gnn_model == 'gat':
             print('Building an  GAT I2O  layer of {}x{}'.format(self.encoder_dim[-1], self.out_dim))
             return GATConv(self.encoder_dim[-1], self.out_dim, num_heads=1, activation=self.final_activation)
+        elif  self.gnn_model == 'transformer':
+            print('Building an  Transformer I2O  layer of {}x{}'.format(self.encoder_dim[-1], self.out_dim))
+            return Transformer(self.encoder_dim[-1], self.out_dim, num_heads=1, activation=self.final_activation)
+
         elif  self.gnn_model == 'rgat':
             print('Building an RGAT I2O  layer of {}x{}'.format(self.encoder_dim[-1], self.out_dim))
             return HoRelGAT(self.encoder_dim[-1], self.out_dim, num_heads=1, num_rels=self.num_rels,
                                 dropout=self.feat_drop, num_bases=self.num_bases, activation=self.final_activation)
+
 
 
 
@@ -126,7 +134,7 @@ class RGCN(nn.Module):
             if self.gnn_model == 'rgcn':
                 h1 = layer(state_graph, output, edgetypes)
                 output = output + h1
-            elif self.gnn_model == 'gat' or self.gnn_model == 'gcn':
+            elif self.gnn_model == 'gat' or self.gnn_model == 'gcn' or self.gnn_model == 'transformer':
                 state_graph = dgl.add_self_loop(state_graph)
                 h1 = layer(state_graph, output)
                 h1 = h1.reshape(-1, self.out_dim)
