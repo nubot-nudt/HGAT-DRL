@@ -2,7 +2,7 @@ import numpy as np
 import rvo2
 from crowd_sim.envs.policy.policy import Policy
 from crowd_sim.envs.utils.action import ActionXY, ActionRot
-from crowd_sim.envs.utils.state import ObservableState, JointState_2tyeps
+from crowd_sim.envs.utils.state import ObservableState, JointState_2tyeps, JointState
 
 def rotate_2d_point(theta, point):
     cos = np.cos(theta)
@@ -109,7 +109,7 @@ class ORCA(Policy):
         :param state:
         :return:
         """
-        state = self.state_transform(state)
+        # state = self.state_transform(state)
         robot_state = state.robot_state
         cur_theta = robot_state.theta
         params = self.neighbor_dist, self.max_neighbors, self.time_horizon, self.time_horizon_obst
@@ -127,12 +127,27 @@ class ORCA(Policy):
             for human_state in state.human_states:
                 self.sim.addAgent(human_state.position, *params, human_state.radius + self.safety_space,
                                   self.max_speed, human_state.velocity)
+            for wall in state.wall_states:
+                self.sim.addObstacle([(wall.sx, wall.sy), (wall.ex, wall.ey)])
+                self.sim.processObstacles()
+            obstacle_params = 0.0, 0.0, 0.0, 0.0
+            for obstacle in state.obstacle_states:
+                self.sim.addAgent((obstacle.px, obstacle.py), *obstacle_params, obstacle.radius, 0.0, (0.0, 0.0))
         else:
             self.sim.setAgentPosition(0, robot_state.position)
             self.sim.setAgentVelocity(0, robot_state.velocity)
             AHVVertices = [(-0.2, -0.12), (0.4, -0.4), (0.97, -0.26), (0.97, 0.26), (0.4, 0.4), (-0.2, 0.12)]
             rotated_AHVVertices = rotate_2d_points(robot_state.theta, AHVVertices)
             vertices_no = self.sim.setAHVConstraint(0, rotated_AHVVertices)
+            for human_state in state.human_states:
+                self.sim.addAgent(human_state.position, *params, human_state.radius + self.safety_space,
+                                  self.max_speed, human_state.velocity)
+            for wall in state.wall_states:
+                self.sim.addObstacle([(wall.sx, wall.sy), (wall.ex, wall.ey)])
+                self.sim.processObstacles()
+            obstacle_params = 0.0, 0.0, 0.0, 0.0
+            for obstacle in state.obstacle_states:
+                self.sim.addAgent((obstacle.px, obstacle.py), *obstacle_params, obstacle.radius, 0.0, (0.0, 0.0))
             # print(vertices_no)
 
             for i, human_state in enumerate(state.human_states):
@@ -189,11 +204,12 @@ class ORCA(Policy):
         human_state = state.human_states
         obstacle_state = state.obstacle_states
         robot_state = state.robot_state
-        for i in range((len(obstacle_state))):
-            obstacle_human = ObservableState(obstacle_state[i].px, obstacle_state[i].py, 0.0, 0.0, obstacle_state[i].radius)
-
-            human_state.append(obstacle_human)
-        state = JointState_2tyeps(robot_state, human_state)
+        wall_state = state.wall_state
+        obs_state = [human_state, obstacle_state, wall_state]
+        # for i in range((len(obstacle_state))):
+        #     obstacle_human = ObservableState(obstacle_state[i].px, obstacle_state[i].py, 0.0, 0.0, obstacle_state[i].radius)
+        #     human_state.append(obstacle_human)
+        state = JointState(robot_state, obs_state)
         return state
 
 

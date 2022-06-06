@@ -222,9 +222,9 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Parse configuration file')
     parser.add_argument('--config', type=str, default=None)
-    parser.add_argument('--policy', type=str, default='rgcnrl')
+    parser.add_argument('--policy', type=str, default='orca')
     parser.add_argument('--gnn', type=str, default='rgcn')
-    parser.add_argument('-m', '--model_dir', type=str, default='data/success/td3_rl/1')#None
+    parser.add_argument('-m', '--model_dir', type=str, default='data/from_zirui/0605/gat/10/')#None
     parser.add_argument('--il', default=False, action='store_true')
     parser.add_argument('--rl', default=False, action='store_true')
     parser.add_argument('--gpu', default=False, action='store_true')
