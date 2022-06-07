@@ -534,6 +534,9 @@ class CrowdSim(gym.Env):
         else:
             target_x = (np.random.random() - 0.5) * self.square_width * 0.8
             target_y = self.circle_radius
+        target_x = 0
+        target_y = self.circle_radius
+        # robot_theta = 0
         # target_x = 0
         # target_y = self.circle_radius
         self.robot.set(0, -self.circle_radius, target_x, target_y, 0, 0, robot_theta)

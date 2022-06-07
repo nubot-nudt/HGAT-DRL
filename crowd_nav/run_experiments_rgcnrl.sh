@@ -11,7 +11,7 @@ for ((i=0;i<5;i+=1))
 do
 	python train.py \
 	--policy rgcn_rl \
-	--output_dir data/$day/rgcn_rl2/$i \
+	--output_dir data/$day/gat/$i \
 	--randomseed $i  \
 	--config configs/icra_benchmark/rgcnrl.py \
 	--safe_weight $d \
@@ -19,7 +19,8 @@ do
 	--re_collision $b \
 	--re_arrival $c \
 	--re_rvo  $e    \
-	--human_num 5   
+	--human_num 5  \
+        --gnn gat	
 
 #	python train.py \
 #	--policy model-predictive-rl \
