@@ -158,7 +158,7 @@ class CrowdSim(gym.Env):
             self.static_obstacle_num = 3
             self.wall_num = 2
             self.human_num = 5
-        elif self.phase_num == 10: #for test
+        elif self.phase_num == 10 or self.phase_num == 11: #for test
             self.static_obstacle_num = 3
             self.wall_num = 0
             self.human_num = 5
@@ -396,16 +396,15 @@ class CrowdSim(gym.Env):
         y1 = center_y - length / 2.0
         y2 = center_y + length / 2.0
         if self.phase_num == 10:
-            # y1 = -0.5
-            # y2 = 1.5
-            # x1 = -0.5
-            # x2 = 0.5
-
             y1 = -0.5
             y2 = 0.5
             x1 = -1.25
             x2 = 1.25
-
+        if self.phase_num == 11:
+            y1 = -0.5
+            y2 = 1.5
+            x1 = -0.5
+            x2 = 0.5
         transfer_vertex =([x1, y1], [x2, y1], [x2, y2], [x1, y2], [x1,y1])
         # transfer_vertex = ([corridor_width/6, -transfer_width / 2], [corridor_width/2, -transfer_width / 2],
         # [corridor_width/2, transfer_width / 2], [corridor_width/6, transfer_width / 2], [corridor_width/6, -transfer_width / 2])
@@ -527,7 +526,7 @@ class CrowdSim(gym.Env):
         base_seed = {'train': self.case_capacity['val'] + self.case_capacity['test'] + train_seed_begin[1],
                      'val': 0 + val_seed_begin[1], 'test': self.case_capacity['val']+test_seed_begin[2]+1000}
         robot_theta = np.pi / 2 + np.random.random() * np.pi / 4.0 - np.pi / 8.0
-        if self.phase_num == 10:
+        if self.phase_num == 10 or self.phase_num == 11:
             target_x = 0
             target_y = self.circle_radius
             robot_theta = 0

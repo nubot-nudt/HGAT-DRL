@@ -357,6 +357,9 @@ def main(args):
         policy.load_state_dict(best_val_model)
         torch.save(best_val_model, os.path.join(args.output_dir, 'best_val.pth'))
         logging.info('Save the best val model with the return: {}'.format(best_val_return))
+    env.set_phase(10)
+    explorer.run_k_episodes(env.case_size['test'], 'test', episode=episode, print_failure=True)
+    env.set_phase(11)
     explorer.run_k_episodes(env.case_size['test'], 'test', episode=episode, print_failure=True)
 
 
