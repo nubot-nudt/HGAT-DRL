@@ -154,29 +154,46 @@ def main(args):
         velocity_right_rec = []
         velocity_rec = []
         rotation_rec = []
-        for i in range(len(vel_rec)):
-            positions.append(i*robot.time_step)
-            vel = vel_rec[i]
-            if robot.kinematics is 'unicycle':
-                velocity_left_rec.append(vel[0])
-                velocity_right_rec.append((vel[1]))
-                velocity_rec.append((vel[0]+vel[1])*0.5)
-                rotation_rec.append((vel[1]-vel[0])/(2*robot.radius))
-            elif robot.kinematics is 'holonomic':
-                velocity_rec.append(vel[0])
-                rotation_rec.append(vel[1])
-            elif robot.kinematics is 'differential':
-                velocity_left_rec.append(vel[0])
-                velocity_right_rec.append((vel[1]))
-                velocity_rec.append((vel[0]+vel[1])*0.5)
-                rotation_rec.append((vel[1]-vel[0])/(2*robot.radius))
+        action_left_rec = []
+        action_right_rec = []
+        for i in range(len(vel_rec) - 1):
+            if i % 1 == 0:
+                positions.append(i * robot.time_step)
+                vel = vel_rec[i]
+                action = actions[i]
+                if robot.kinematics is 'unicycle':
+                    velocity_left_rec.append(vel[0])
+                    velocity_right_rec.append((vel[1]))
+                    velocity_rec.append((vel[0] + vel[1]) * 0.5)
+                    rotation_rec.append((vel[1] - vel[0]) / (2 * robot.radius))
+                elif robot.kinematics is 'holonomic':
+                    velocity_rec.append(vel[0])
+                    rotation_rec.append(vel[1])
+                elif robot.kinematics is 'differential':
+                    velocity_left_rec.append(vel[0])
+                    velocity_right_rec.append((vel[1]))
+                    velocity_rec.append((vel[0] + vel[1]) * 0.5)
+                    rotation_rec.append((vel[1] - vel[0]) / (2 * robot.radius))
+                    action_left_rec.append(action.al)
+                    action_right_rec.append(action.ar)
         # plt.plot(positions, velocity_left_rec, color='green', marker='*', linestyle='solid')
         # plt.plot(positions, velocity_right_rec, color='magenta', marker='^', linestyle='solid')
 
         plt.xlabel("t(s)")
-        plt.ylim((-2.5, 2.5))
-        plt.plot(positions, velocity_rec, color='blue', marker='o', linestyle='solid', label="linear_velocity(m/s)")
-        plt.plot(positions, rotation_rec, color='red', marker='*', linestyle='solid', label="angular_velocity(rad/s)")
+        # plt.ylim((-250, 250))
+        plt.grid = True
+        plt.plot(positions, velocity_left_rec, color='green', marker='d', markersize=2, linestyle='solid',
+                 label="vel_l(m/s)")
+        plt.plot(positions, velocity_right_rec, color='magenta', marker='^', markersize=2, linestyle='solid',
+                 label="vel_r(m/s)")
+        plt.plot(positions, velocity_rec, color='blue', marker='o', markersize=2, linestyle='solid',
+                 label="linear_velocity(m/s)")
+        plt.plot(positions, rotation_rec, color='red', marker='*', markersize=2, linestyle='solid',
+                 label="angular_velocity(rad/s)")
+        plt.plot(positions, action_left_rec, color='yellow', marker='^', markersize=2, linestyle='solid',
+                 label="acc_l(m/s^2)")
+        plt.plot(positions, action_right_rec, color='purple', marker='d', markersize=2, linestyle='solid',
+                 label="acc_r(m/s^2)")
         plt.legend(loc='upper left')
 
         # for i in range(len(actions)):

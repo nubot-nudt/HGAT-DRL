@@ -396,10 +396,15 @@ class CrowdSim(gym.Env):
         y1 = center_y - length / 2.0
         y2 = center_y + length / 2.0
         if self.phase_num == 10:
+            # y1 = -0.5
+            # y2 = 1.5
+            # x1 = -0.5
+            # x2 = 0.5
+
             y1 = -0.5
-            y2 = 1.5
-            x1 = -0.6
-            x2 = 0.5
+            y2 = 0.5
+            x1 = -1.25
+            x2 = 1.25
 
         transfer_vertex =([x1, y1], [x2, y1], [x2, y2], [x1, y2], [x1,y1])
         # transfer_vertex = ([corridor_width/6, -transfer_width / 2], [corridor_width/2, -transfer_width / 2],
