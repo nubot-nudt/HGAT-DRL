@@ -117,12 +117,12 @@ class Explorer(object):
         collision_rate = collision / k
         assert success + collision + timeout == k
         avg_nav_time = sum(success_times) / len(success_times) if success_times else self.env.time_limit
-
+        avg_col_time = sum(collision_times) / len(collision_times) if collision_times else self.env.time_limit
         extra_info = '' if episode is None else 'in episode {} '.format(episode)
         extra_info = extra_info + '' if epoch is None else extra_info + ' in epoch {} '.format(epoch)
-        logging.info('{:<5} {}has success rate: {:.3f}, collision rate: {:.3f}, nav time: {:.3f}, total reward: {:.4f},'
+        logging.info('{:<5} {}has success rate: {:.3f}, collision rate: {:.3f}, nav time: {:.3f}, col time: {:.3f}, total reward: {:.4f},'
                      ' average return: {:.4f}'. format(phase.upper(), extra_info, success_rate, collision_rate,
-                                                       avg_nav_time, sum(cumulative_rewards),
+                                                       avg_nav_time, avg_col_time, sum(cumulative_rewards),
                                                        average(average_returns)))
         # if phase in ['val', 'test'] or imitation_learning:
         total_time = sum(success_times + collision_times + timeout_times) / self.robot.time_step

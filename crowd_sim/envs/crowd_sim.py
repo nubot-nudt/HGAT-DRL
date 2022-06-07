@@ -395,6 +395,11 @@ class CrowdSim(gym.Env):
         x2 = center_x + width / 2.0
         y1 = center_y - length / 2.0
         y2 = center_y + length / 2.0
+        if self.phase_num == 10:
+            y1 = -0.5
+            y2 = 1.5
+            x1 = -0.6
+            x2 = 0.5
 
         transfer_vertex =([x1, y1], [x2, y1], [x2, y2], [x1, y2], [x1,y1])
         # transfer_vertex = ([corridor_width/6, -transfer_width / 2], [corridor_width/2, -transfer_width / 2],
@@ -520,6 +525,7 @@ class CrowdSim(gym.Env):
         if self.phase_num == 10:
             target_x = 0
             target_y = self.circle_radius
+            robot_theta = 0
         else:
             target_x = (np.random.random() - 0.5) * self.square_width * 0.8
             target_y = self.circle_radius
