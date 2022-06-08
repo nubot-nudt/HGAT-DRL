@@ -143,7 +143,7 @@ class CrowdSim(gym.Env):
     def set_phase(self, phase_num):
         self.phase_num = phase_num
         if self.phase_num == 0:
-            self.static_obstacle_num = 5
+            self.static_obstacle_num = 1
             self.wall_num = 0
             self.human_num = 0
         elif self.phase_num == 1:
