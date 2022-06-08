@@ -24,7 +24,7 @@ do
 
 	python3 train.py \
 	--policy rgcn_rl \
-	--output_dir data/$day/gat/$i \
+	--output_dir data/$day/rgcn/$i \
 	--randomseed $i  \
 	--config configs/icra_benchmark/rgcnrl.py \
 	--safe_weight $d \
