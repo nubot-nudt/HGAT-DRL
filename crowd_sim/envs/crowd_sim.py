@@ -143,20 +143,20 @@ class CrowdSim(gym.Env):
     def set_phase(self, phase_num):
         self.phase_num = phase_num
         if self.phase_num == 0:
-            self.static_obstacle_num = 3
-            self.wall_num = 2
-            self.human_num = 1
+            self.static_obstacle_num = 5
+            self.wall_num = 0
+            self.human_num = 0
         elif self.phase_num == 1:
             self.static_obstacle_num = 3
-            self.wall_num = 2
-            self.human_num = 3
+            self.wall_num = 0
+            self.human_num = 1
         elif self.phase_num == 2:
             self.static_obstacle_num = 3
-            self.wall_num = 2
-            self.human_num = 5
+            self.wall_num = 0
+            self.human_num = 3
         elif self.phase_num == 3:
             self.static_obstacle_num = 3
-            self.wall_num = 2
+            self.wall_num = 0
             self.human_num = 5
         elif self.phase_num == 10 or self.phase_num == 11: #for test
             self.static_obstacle_num = 3
@@ -416,7 +416,8 @@ class CrowdSim(gym.Env):
 
     def generate_airport_transfer(self):
         self.generate_corridor_scenario()
-        self.generate_center_obstacle()
+        if self.phase_num > 5000:
+            self.generate_center_obstacle()
         # for i in range(self.wall_num):
         #     self.walls.append(self.generate_line_obstacle())
         # self.generate_transfer()
@@ -530,12 +531,14 @@ class CrowdSim(gym.Env):
             target_x = 0
             target_y = self.circle_radius
             robot_theta = 0
-        else:
+        elif self.phase_num <= 0:
             target_x = (np.random.random() - 0.5) * self.square_width * 0.8
             target_y = self.circle_radius
-        target_x = 0
-        target_y = self.circle_radius
-        # robot_theta = 0
+            robot_theta = np.pi / 2 + np.random.random() * np.pi / 4.0 - np.pi / 8.0
+        else:
+            target_x = 0
+            target_y = self.circle_radius
+            robot_theta = np.pi / 2 + np.random.random() * np.pi / 4.0 - np.pi / 8.0
         # target_x = 0
         # target_y = self.circle_radius
         self.robot.set(0, -self.circle_radius, target_x, target_y, 0, 0, robot_theta)
@@ -983,17 +986,17 @@ class CrowdSim(gym.Env):
             robot_color = 'black'
             # add human start positions and goals
             human_colors = [cmap(20) for i in range(len(self.humans))]
-            if False:
-                for i in range(len(self.humans)):
-                    human = self.humans[i]
-                    human_goal = mlines.Line2D([human.get_goal_position()[0]], [human.get_goal_position()[1]],
-                                               color=human_colors[i],
-                                               marker='*', linestyle='None', markersize=8)
-                    ax.add_artist(human_goal)
-                    human_start = mlines.Line2D([human.get_start_position()[0]], [human.get_start_position()[1]],
-                                                color=human_colors[i],
-                                                marker='o', linestyle='None', markersize=8)
-                    ax.add_artist(human_start)
+            # if False:
+            #     for i in range(len(self.humans)):
+            #         human = self.humans[i]
+            #         human_goal = mlines.Line2D([human.get_goal_position()[0]], [human.get_goal_position()[1]],
+            #                                    color=human_colors[i],
+            #                                    marker='*', linestyle='None', markersize=8)
+            #         ax.add_artist(human_goal)
+            #         human_start = mlines.Line2D([human.get_start_position()[0]], [human.get_start_position()[1]],
+            #                                     color=human_colors[i],
+            #                                     marker='o', linestyle='None', markersize=8)
+            #         ax.add_artist(human_start)
             # add robot start position
             robot_start = mlines.Line2D([self.robot.get_start_position()[0]], [self.robot.get_start_position()[1]],
                                         color=robot_color,
