@@ -153,14 +153,14 @@ class GraphCritic(nn.Module):
         # Q1 architecture
         self.graph_model1 = graph_model1
         # self.encode_r1 = mlp(5, [64, 32], last_relu=True)
-        self.score_network1 = mlp(config.gcn.X_dim + action_dim + 5, [256, 256, 1])
+        self.score_network1 = mlp(config.gcn.X_dim + action_dim + 5, [128, 32, 1])
         # self.score_network1 = mlp(5 + action_dim, [256, 256, 1])
         # Q2 architecture
         self.graph_model2 = graph_model2
         # self.score_network2 = mlp(9 + config.gcn.X_dim + action_dim, [64, 128, 256, 1])
         # self.encode_r2 = mlp(5, [64, 32], last_relu=True)
         # self.score_network2 = mlp(5 + action_dim, [256, 256, 1])
-        self.score_network2 = mlp(config.gcn.X_dim + action_dim + 5, [256, 256, 1])
+        self.score_network2 = mlp(config.gcn.X_dim + action_dim + 5, [128, 32, 1])
         self.action_dim = action_dim
 
     def set_action(self, action_dim):

@@ -110,7 +110,7 @@ class GraphActor(nn.Module):
     def __init__(self, config, graph_model, action_dim, max_action, min_action):
         super(GraphActor, self).__init__()
         self.graph_model = graph_model
-        self.action_network = mlp(config.gcn.X_dim + 5, [256, action_dim])
+        self.action_network = mlp(config.gcn.X_dim + 5, [32, action_dim])
         # self.action_network = mlp(5, [256, action_dim])
         self.encode_r = mlp(5, [64, 32], last_relu=True)
         self.max_action = None
