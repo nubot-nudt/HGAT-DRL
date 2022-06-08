@@ -61,9 +61,8 @@ class Explorer(object):
                 states.append(self.robot.policy.last_state)
                 # for TD3rl, append the velocity and theta
                 actions.append(action_index)
-                # if phase in ['test', 'train', 'val']:
+                # if phase in ['train']:
                 #     self.env.render(mode='debug')
-                # rewards.append(reward)
                 # actually, final states of timeout cases is not terminal states
                 if isinstance(info, Timeout):
                     dones.append(False)
@@ -91,7 +90,7 @@ class Explorer(object):
                 timeout_cases.append(i)
                 if phase in ['test']:
                     print('timeout happen %f', self.env.global_time)
-                    rewards[-1] = rewards[-1]-0.25
+                    rewards[-1] = rewards[-1]
                 timeout_times.append(self.env.time_limit)
             else:
                 raise ValueError('Invalid end signal from environment')

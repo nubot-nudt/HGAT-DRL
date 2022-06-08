@@ -143,14 +143,18 @@ class CrowdSim(gym.Env):
     def set_phase(self, phase_num):
         self.phase_num = phase_num
         if self.phase_num == 0:
-            self.static_obstacle_num = 1
+            self.static_obstacle_num = 0
             self.wall_num = 0
             self.human_num = 0
         elif self.phase_num == 1:
-            self.static_obstacle_num = 3
+            self.static_obstacle_num = 1
             self.wall_num = 0
             self.human_num = 1
         elif self.phase_num == 2:
+            self.static_obstacle_num = 3
+            self.wall_num = 0
+            self.human_num = 1
+        elif self.phase_num == 3:
             self.static_obstacle_num = 3
             self.wall_num = 0
             self.human_num = 3
@@ -161,7 +165,7 @@ class CrowdSim(gym.Env):
         elif self.phase_num == 10 or self.phase_num == 11: #for test
             self.static_obstacle_num = 3
             self.wall_num = 0
-            self.human_num = 5
+            self.human_num = 0
 
     def set_robot(self, robot):
         self.robot = robot
@@ -436,10 +440,11 @@ class CrowdSim(gym.Env):
             self.walls.append(self.generate_wall(wall_vertex[i], wall_vertex[i + 1]))
 
     def generate_corridor_scenario(self):
-        corridor_width = self.square_width
-        corridor_length = self.square_width * 2.0
-        self.walls.append(self.generate_wall([-corridor_width / 2, -corridor_length / 2], [-corridor_width / 2, corridor_length / 2]))
-        self.walls.append(self.generate_wall([corridor_width / 2, -corridor_length / 2], [corridor_width / 2, corridor_length / 2]))
+        if self.phase_num > 0:
+            corridor_width = self.square_width
+            corridor_length = self.square_width * 2.0
+            self.walls.append(self.generate_wall([-corridor_width / 2, -corridor_length / 2], [-corridor_width / 2, corridor_length / 2]))
+            self.walls.append(self.generate_wall([corridor_width / 2, -corridor_length / 2], [corridor_width / 2, corridor_length / 2]))
 
     def generate_open_scenario(self):
         room_width = self.square_width - 1
@@ -527,11 +532,14 @@ class CrowdSim(gym.Env):
         if self.phase_num == 10 or self.phase_num == 11:
             target_x = 0
             target_y = self.circle_radius
-            robot_theta = 0
+            robot_theta = (np.random.random() - 0.5) * 2 * np.pi
         elif self.phase_num <= 0:
             target_x = (np.random.random() - 0.5) * self.square_width * 0.8
             target_y = self.circle_radius
             robot_theta = np.pi / 2 + np.random.random() * np.pi / 4.0 - np.pi / 8.0
+            # target_x = 0
+            # target_y = self.circle_radius
+            # robot_theta = np.pi / 2
         else:
             target_x = 0
             target_y = self.circle_radius
@@ -713,7 +721,9 @@ class CrowdSim(gym.Env):
         goal_position = np.array(self.robot.get_goal_position())
         reward_goal = (norm(cur_position - goal_position) - norm(end_position - goal_position))
         reaching_goal = norm(end_position - goal_position) < self.robot.radius
-
+        robot2goal = goal_position - cur_position
+        theta_r2g = np.math.atan2(robot2goal[1], robot2goal[0])
+        reward_theta = np.cos(self.robot.theta) * np.cos(theta_r2g) + np.sin(self.robot.theta) * np.sin(theta_r2g)
         reward_col = 0.0
         reward_arrival = 0.0
         if self.global_time >= self.time_limit - 1:

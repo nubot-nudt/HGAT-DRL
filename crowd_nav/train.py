@@ -275,7 +275,7 @@ def main(args):
 
 
     _, _, nav_time, sum_reward, ave_return, discom_time, total_time = \
-        explorer.run_k_episodes(100, 'train', update_memory=True, episode=episode)
+        explorer.run_k_episodes(1, 'train', update_memory=True, episode=episode)
     while episode < train_episodes:
         if args.resume:
             epsilon = epsilon_end
@@ -286,15 +286,20 @@ def main(args):
                 epsilon = epsilon_end
         robot.policy.set_epsilon(epsilon)
         if episode == 0:
+        # no any obstacles
             env.set_phase(0)
         elif episode == 1000:
+        # add walls, human, and static obstacles
             env.set_phase(1)
-        elif episode == 2000:
-            env.set_phase(2)
         elif episode == 3000:
+        # add poly obstacles
+            env.set_phase(2)
+        elif episode == 8000:
             env.set_phase(3)
-        # elif episode == 12000:
-            # env.set_phase(4)
+        elif episode == 12000:
+            env.set_phase(4)
+        elif episode == 20000:
+            env.set_phase(5)
         # sample k episodes into memory and optimize over the generated memory
         _, _, nav_time, sum_reward, ave_return, discom_time, total_time = \
             explorer.run_k_episodes(sample_episodes, 'train', update_memory=True, episode=episode)
@@ -330,7 +335,7 @@ def main(args):
 
         trainer.optimize_batch(train_batches, episode)
         episode += 1
-
+        # useless code
         if episode % target_update_interval == 0:
             trainer.update_target_model(model)
         # evaluate the model
