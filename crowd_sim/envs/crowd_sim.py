@@ -416,7 +416,7 @@ class CrowdSim(gym.Env):
 
     def generate_airport_transfer(self):
         self.generate_corridor_scenario()
-        if self.phase_num > 5000:
+        if self.phase_num > 1:
             self.generate_center_obstacle()
         # for i in range(self.wall_num):
         #     self.walls.append(self.generate_line_obstacle())
@@ -425,9 +425,6 @@ class CrowdSim(gym.Env):
 
     def generate_constrained_room(self):
         self.generate_corridor_scenario()
-        if self.phase_num > 0:
-            for i in range(self.wall_num):
-                self.walls.append(self.generate_transfer())
 
     def generate_doorway_scenario(self):
         room_width = self.square_width - 1

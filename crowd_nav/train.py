@@ -287,11 +287,11 @@ def main(args):
         robot.policy.set_epsilon(epsilon)
         if episode == 0:
             env.set_phase(0)
-        elif episode == 4000:
+        elif episode == 1000:
             env.set_phase(1)
-        elif episode == 8000:
+        elif episode == 2000:
             env.set_phase(2)
-        elif episode == 12000:
+        elif episode == 3000:
             env.set_phase(3)
         # elif episode == 12000:
             # env.set_phase(4)
