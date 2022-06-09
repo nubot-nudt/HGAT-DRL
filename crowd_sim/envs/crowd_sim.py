@@ -729,6 +729,7 @@ class CrowdSim(gym.Env):
         robot2goal = goal_position - cur_position
         theta_r2g = np.math.atan2(robot2goal[1], robot2goal[0])
         reward_theta = np.cos(self.robot.theta) * np.cos(theta_r2g) + np.sin(self.robot.theta) * np.sin(theta_r2g)
+        reward_theta = reward_theta / (norm(cur_position - goal_position) + 5)
         reward_col = 0.0
         reward_arrival = 0.0
         if self.global_time >= self.time_limit - 1:
@@ -750,7 +751,7 @@ class CrowdSim(gym.Env):
             done = False
             info = Nothing()
         reward_terminal = reward_arrival + reward_col
-        reward = weight_terminal * reward_terminal + weight_goal * reward_goal + weight_safe * safety_penalty
+        reward = weight_terminal * reward_terminal + weight_goal * reward_goal + weight_safe * safety_penalty + reward_theta * 0.01
         return reward, done, info
 
     def rvo_reward_cal(self, ob, reward_parameter=(0.2, 0.1, 0.1, 0.2, 0.2, 1, -10, 20)):
@@ -860,6 +861,7 @@ class CrowdSim(gym.Env):
                 raise NotImplementedError
         rvo_reward = self.rvo_reward_cal(ob)
         reward = reward + self.re_rvo * rvo_reward
+        reward = reward * 100
         # if info ==Collision():
         #     reward = rvo_reward - 15
         # elif info ==ReachGoal():
