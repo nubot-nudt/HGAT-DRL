@@ -288,17 +288,17 @@ def main(args):
         if episode == 0:
         # no any obstacles
             env.set_phase(0)
-        elif episode == 1000:
+        elif episode == 1500:
         # add walls, human, and static obstacles
             env.set_phase(1)
         elif episode == 3000:
         # add poly obstacles
             env.set_phase(2)
-        elif episode == 8000:
+        elif episode == 6000:
             env.set_phase(3)
-        elif episode == 12000:
+        elif episode == 10000:
             env.set_phase(4)
-        elif episode == 20000:
+        elif episode == 15000:
             env.set_phase(5)
         # sample k episodes into memory and optimize over the generated memory
         _, _, nav_time, sum_reward, ave_return, discom_time, total_time = \

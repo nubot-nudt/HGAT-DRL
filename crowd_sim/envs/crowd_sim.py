@@ -158,10 +158,14 @@ class CrowdSim(gym.Env):
             self.static_obstacle_num = 3
             self.wall_num = 0
             self.human_num = 3
-        elif self.phase_num == 3:
+        elif self.phase_num == 4:
             self.static_obstacle_num = 3
             self.wall_num = 0
             self.human_num = 5
+        elif self.phase_num == 4:
+            self.static_obstacle_num = 3
+            self.wall_num = 0
+            self.human_num = 10
         elif self.phase_num == 10 or self.phase_num == 11: #for test
             self.static_obstacle_num = 3
             self.wall_num = 0
