@@ -298,8 +298,8 @@ def main(args):
             env.set_phase(3)
         elif episode == 10000:
             env.set_phase(4)
-        elif episode == 15000:
-            env.set_phase(5)
+        # elif episode == 15000:
+        #     env.set_phase(5)
         # sample k episodes into memory and optimize over the generated memory
         _, _, nav_time, sum_reward, ave_return, discom_time, total_time = \
             explorer.run_k_episodes(sample_episodes, 'train', update_memory=True, episode=episode)
