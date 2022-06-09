@@ -288,13 +288,13 @@ def main(args):
         if episode == 0:
         # no any obstacles
             env.set_phase(0)
-        elif episode == 1500:
+        elif episode == 2000:
         # add walls, human, and static obstacles
             env.set_phase(1)
-        elif episode == 3000:
+        elif episode == 4000:
         # add poly obstacles
             env.set_phase(2)
-        elif episode == 6000:
+        elif episode == 7000:
             env.set_phase(3)
         elif episode == 10000:
             env.set_phase(4)
