@@ -26,7 +26,7 @@ class BaseEnvConfig(object):
     env.time_limit = 30
     env.time_step = 0.25
     env.val_size = 100
-    env.test_size = 1000
+    env.test_size = 100
     env.train_size = np.iinfo(np.uint32).max - 2000
     env.randomize_attributes = False
     env.robot_sensor_range = 4
@@ -171,7 +171,7 @@ class BaseTrainConfig(object):
     # number of batches to train at the end of training episode il_episodes
     train.train_batches = 50
     # training episodes in outer loop
-    train.train_episodes = 20000
+    train.train_episodes = 500
     # number of episodes sampled in one training episode
     train.sample_episodes = 1
     train.target_update_interval = interval
