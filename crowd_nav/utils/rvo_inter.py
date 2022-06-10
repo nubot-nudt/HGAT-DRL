@@ -167,6 +167,7 @@ class rvo_inter(reciprocal_vel_obs):
 
         x, y, vl, vr, r, _, _, _, theta = robot_state[0:9]
         vx = (vl + vr) / 2.0 * np.cos(theta)
+        vy = (vl + vr) / 2.0 * np.sin(theta)
         apex = [0, 0]
 
         theta1 = atan2(line[0][1] - y, line[0][0] - x)
@@ -208,10 +209,10 @@ class rvo_inter(reciprocal_vel_obs):
         else:
             collision_flag = True if p2s <= r - self.exp_radius else False
 
-        if self.vo_out_jud_vector(action[0], action[1], vo):
+        if self.vo_out_jud_vector(vx, vy, vo):
             vo_flag = False
         else:
-            exp_time = reciprocal_vel_obs.exp_collision_segment(line, x, y, action[0], action[1], r)
+            exp_time = reciprocal_vel_obs.exp_collision_segment(line, x, y, vx, vy, r)
             if exp_time < self.ctime_line_threshold:
                 vo_flag = True
             else:

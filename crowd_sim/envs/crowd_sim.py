@@ -143,9 +143,9 @@ class CrowdSim(gym.Env):
     def set_phase(self, phase_num):
         self.phase_num = phase_num
         if self.phase_num == 0:
-            self.static_obstacle_num = 0
+            self.static_obstacle_num = 1
             self.wall_num = 0
-            self.human_num = 0
+            self.human_num = 1
         elif self.phase_num == 1:
             self.static_obstacle_num = 1
             self.wall_num = 0
@@ -532,6 +532,8 @@ class CrowdSim(gym.Env):
         test_seed_begin = [0, 10, 100, 1000, 10000]
         base_seed = {'train': self.case_capacity['val'] + self.case_capacity['test'] + train_seed_begin[1],
                      'val': 0 + val_seed_begin[1], 'test': self.case_capacity['val']+test_seed_begin[2]+1000}
+        self.random_seed = base_seed[phase] + self.case_counter[phase]
+        np.random.seed(self.random_seed)
         robot_theta = np.pi / 2 + np.random.random() * np.pi / 4.0 - np.pi / 8.0
         if self.phase_num == 10 or self.phase_num == 11:
             target_x = 0
@@ -556,8 +558,7 @@ class CrowdSim(gym.Env):
         # target_x = 0
         # target_y = self.circle_radius
         self.robot.set(0, -self.circle_radius, target_x, target_y, 0, 0, robot_theta)
-        self.random_seed = base_seed[phase] + self.case_counter[phase]
-        np.random.seed(self.random_seed)
+
         if self.case_counter[phase] >= 0:
             # self.generate_constrained_room()
             self.walls = []
@@ -845,7 +846,7 @@ class CrowdSim(gym.Env):
             self.states.append([self.robot.get_full_state(), [human.get_full_state() for human in self.humans],
                                 [human.id for human in self.humans]])
             self.robot_actions.append(action)
-            self.rewards.append(reward)
+
 
             # compute the observation
             if self.robot.sensor == 'coordinates':
@@ -866,6 +867,7 @@ class CrowdSim(gym.Env):
         rvo_reward = self.rvo_reward_cal(ob)
         reward = reward + self.re_rvo * rvo_reward
         reward = reward * 100
+        self.rewards.append(reward)
         # if info ==Collision():
         #     reward = rvo_reward - 15
         # elif info ==ReachGoal():
@@ -1351,7 +1353,7 @@ class CrowdSim(gym.Env):
                 # if len(self.humans) == 0:
 
                     # print('no human')
-                if len(self.humans) > 0:
+                if len(self.humans) >= 0:
                     # add humans and their numbers
                     human_positions = [human.get_position() for human in self.humans]
                     humans = [plt.Circle(human_positions[i], self.humans[i].radius, fill=False, color=human_colors[i])
