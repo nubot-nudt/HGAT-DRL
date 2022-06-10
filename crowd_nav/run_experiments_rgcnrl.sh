@@ -7,7 +7,7 @@ c=0.25
 d=1.0
 e=0.1
 # Script to reproduce results
-for ((i=0;i<5;i+=1))
+for ((i=$2;i<$3;i+=1))
 do
 	python3 train.py \
 	--policy rgcn_rl \
