@@ -5,7 +5,7 @@ a=0.1
 b=-0.25
 c=0.25
 d=1.0
-e=0.02
+e=0.1
 # Script to reproduce results
 for ((i=0;i<5;i+=1))
 do
