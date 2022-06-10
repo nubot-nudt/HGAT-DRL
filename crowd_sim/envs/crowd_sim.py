@@ -1179,7 +1179,7 @@ class CrowdSim(gym.Env):
                 # nonlocal scores
                 global_step = frame_num
                 robot.center = robot_positions[frame_num]
-                if self.human_num >0:
+                if self.human_num >= 0:
                     for i, human in enumerate(humans):
                         human.center = human_positions[frame_num][i]
                         if display_numbers:
