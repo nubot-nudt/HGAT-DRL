@@ -62,7 +62,7 @@ class rvo_inter(reciprocal_vel_obs):
 
         robot_state, ns_list, oc_list, ol_list = self.preprocess(robot_state, nei_state_list, obs_cir_list, obs_line_list)
 
-        vo_list1 = list(map(lambda x: self.config_vo_circle2(robot_state, x, action, 'rvo', **kwargs), ns_list))
+        vo_list1 = list(map(lambda x: self.config_vo_circle2(robot_state, x, action, 'vo', **kwargs), ns_list))
         vo_list2 = list(map(lambda y: self.config_static_vo_circle2(robot_state, y, action, **kwargs), oc_list))
         vo_list3 = list(map(lambda z: self.config_vo_line2(robot_state, z, action, **kwargs), ol_list))
 
@@ -135,13 +135,13 @@ class rvo_inter(reciprocal_vel_obs):
 
         if mode == 'vo':
             vo = [mvx, mvy, line_left_ori, line_right_ori]
-            rel_vx = action[0] - mvx 
-            rel_vy = action[1] - mvy
+            rel_vx = vx - mvx
+            rel_vy = vy - mvy
 
         elif mode == 'rvo':
-            vo = [(vx + mvx)/2, (vy + mvy)/2, line_left_ori, line_right_ori] 
-            rel_vx = 2*action[0] - mvx - vx
-            rel_vy = 2*action[1] - mvy - vy
+            vo = [(vx + mvx)/2, (vy + mvy)/2, line_left_ori, line_right_ori]
+            rel_vx = vx - mvx
+            rel_vy = vy - mvy
 
         exp_time = inf
 
