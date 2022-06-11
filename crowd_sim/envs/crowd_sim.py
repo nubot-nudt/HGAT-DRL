@@ -169,7 +169,7 @@ class CrowdSim(gym.Env):
         elif self.phase_num == 10 or self.phase_num == 11: #for test
             self.static_obstacle_num = 3
             self.wall_num = 0
-            self.human_num = 0
+            self.human_num = 5
 
     def set_robot(self, robot):
         self.robot = robot
@@ -735,6 +735,9 @@ class CrowdSim(gym.Env):
         theta_r2g = np.math.atan2(robot2goal[1], robot2goal[0])
         reward_theta = np.cos(self.robot.theta) * np.cos(theta_r2g) + np.sin(self.robot.theta) * np.sin(theta_r2g)
         reward_theta = reward_theta / (norm(cur_position - goal_position) + 5)
+        robot_vel = (self.robot.v_left + self.robot.v_right) / 2.0
+        if robot_vel < -0.3:
+            reward_vel = (0.1 + robot_vel) * 0.1
         reward_col = 0.0
         reward_arrival = 0.0
         if self.global_time >= self.time_limit - 1:
@@ -756,7 +759,7 @@ class CrowdSim(gym.Env):
             done = False
             info = Nothing()
         reward_terminal = reward_arrival + reward_col
-        reward = weight_terminal * reward_terminal + weight_goal * reward_goal + weight_safe * safety_penalty + reward_theta * 0.01
+        reward = weight_terminal * reward_terminal + weight_goal * reward_goal + weight_safe * safety_penalty + reward_theta * 0.05 + reward_vel
         return reward, done, info
 
     def rvo_reward_cal(self, ob, reward_parameter=(0.2, 0.1, 0.1, 0.2, 0.2, 1, -10, 20)):
