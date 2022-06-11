@@ -738,6 +738,8 @@ class CrowdSim(gym.Env):
         robot_vel = (self.robot.v_left + self.robot.v_right) / 2.0
         if robot_vel < -0.3:
             reward_vel = (0.1 + robot_vel) * 0.1
+        else:
+            reward_vel = 0.0
         reward_col = 0.0
         reward_arrival = 0.0
         if self.global_time >= self.time_limit - 1:
