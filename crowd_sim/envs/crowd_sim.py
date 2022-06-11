@@ -147,17 +147,17 @@ class CrowdSim(gym.Env):
             self.wall_num = 0
             self.human_num = 1
         elif self.phase_num == 1:
-            self.static_obstacle_num = 1
+            self.static_obstacle_num = 3
             self.wall_num = 0
             self.human_num = 1
         elif self.phase_num == 2:
             self.static_obstacle_num = 3
             self.wall_num = 0
-            self.human_num = 1
+            self.human_num = 3
         elif self.phase_num == 3:
             self.static_obstacle_num = 3
             self.wall_num = 0
-            self.human_num = 3
+            self.human_num = 5
         elif self.phase_num == 4:
             self.static_obstacle_num = 3
             self.wall_num = 0
@@ -424,7 +424,7 @@ class CrowdSim(gym.Env):
 
     def generate_airport_transfer(self):
         self.generate_corridor_scenario()
-        if self.phase_num > 1:
+        if self.phase_num >= 1:
             self.generate_center_obstacle()
         # for i in range(self.wall_num):
         #     self.walls.append(self.generate_line_obstacle())
