@@ -37,7 +37,7 @@ class BaseEnvConfig(object):
     reward.goal_factor = 0.1
     reward.discomfort_penalty_factor = 1.0
     reward.discomfort_dist = 0.2
-    reward.re_rvo = 0.1
+    reward.re_rvo = 0.02
 
 
     sim = Config()
