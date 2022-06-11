@@ -761,7 +761,7 @@ class CrowdSim(gym.Env):
             done = False
             info = Nothing()
         reward_terminal = reward_arrival + reward_col
-        reward = weight_terminal * reward_terminal + weight_goal * reward_goal + weight_safe * safety_penalty + reward_theta * 0.05 + reward_vel
+        reward = weight_terminal * reward_terminal + weight_goal * reward_goal + weight_safe * safety_penalty + reward_theta * 0.05
         return reward, done, info
 
     def rvo_reward_cal(self, ob, reward_parameter=(0.2, 0.1, 0.1, 0.2, 0.2, 1, -10, 20)):
