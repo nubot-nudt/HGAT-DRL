@@ -665,7 +665,8 @@ class CrowdSim(gym.Env):
             if closest_dist < 0:
                 collision = True
                 logging.debug("Collision: distance between robot and pedestrian{} is {:.2E} at time {:.2E}".format(
-                    human.id, closest_dist, self.global_time))
+                    i, closest_dist, self.global_time))
+                print("Collision: distance between robot and human %d is %f at time %f"%(i, closest_dist, self.global_time))
             if closest_dist < dmin:
                 dmin = closest_dist
             if closest_dist < self.discomfort_dist:
@@ -683,6 +684,7 @@ class CrowdSim(gym.Env):
                 collision = True
                 logging.debug("Collision: distance between robot and obstacle{} is {:.2E} at time {:.2E}".format(
                     i, closest_dist, self.global_time))
+                print("Collision: distance between robot and obstacle %d is %f at time %f"%(i, closest_dist, self.global_time))
                 num_discom = num_discom + 1
             # if closest_dist < dmin:
             # dmin = closest_dist
@@ -710,6 +712,7 @@ class CrowdSim(gym.Env):
                 collision = True
                 logging.debug("Collision: distance between robot and wall {} is {:.2E} at time {:.2E}".format(
                     i, closest_dist, self.global_time))
+                print("Collision: distance between robot and wall %d is %f at time %f"%(i, closest_dist, self.global_time))
                 num_discom = num_discom + 1
             # if closest_dist < dmin:
             #     dmin = closest_dist
@@ -1188,7 +1191,7 @@ class CrowdSim(gym.Env):
                 # nonlocal scores
                 global_step = frame_num
                 robot.center = robot_positions[frame_num]
-                if self.human_num >= 0:
+                if self.human_num > 0:
                     for i, human in enumerate(humans):
                         human.center = human_positions[frame_num][i]
                         if display_numbers:
@@ -1312,7 +1315,7 @@ class CrowdSim(gym.Env):
                 anim.running ^= True
 
             fig.canvas.mpl_connect('key_press_event', on_click)
-            anim = animation.FuncAnimation(fig, update, frames=len(self.states), interval=self.time_step * 1000)
+            anim = animation.FuncAnimation(fig, update, frames=len(self.states), interval=self.time_step * 100)
             anim.running = True
 
             if output_file is not None:

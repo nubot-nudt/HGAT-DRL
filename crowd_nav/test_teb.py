@@ -14,16 +14,88 @@ from crowd_sim.envs.policy.socialforce import SocialForce
 from crowd_sim.envs.policy.orca import ORCA
 from crowd_nav.policy.reward_estimate import Reward_Estimator
 from crowd_sim.envs.utils.info import *
-from crowd_sim.envs.utils.action import ActionRot, ActionXY
+from crowd_sim.envs.utils.action import ActionRot, ActionXY, ActionDiff
 
 import rospy
 import numpy as np
 #from test_py_ros.msg import test
 from std_msgs.msg import String
 from sgdqn_common.msg import ObserveInfo, RobotState, PedState
+from sgdqn_common.srv import TebCrowdSim, TebCrowdSimRequest, TebCrowdSimResponse
 import math
 from costmap_converter.msg import ObstacleArrayMsg, ObstacleMsg
 from geometry_msgs.msg import PolygonStamped, Point32 , Twist,PoseArray
+from geometry_msgs.msg import Pose2D, Pose, Twist
+def ob2req(ob, robot_state):
+    tebCrowdSimInfo = TebCrowdSim()
+    human_state, obstacle_state, line_obstacle = ob
+    robot_pose, robot_velocity, robot_goal = generateRobotPose(robot_state)
+    obstaclearray = generateObstacles(obstacle_state, human_state, line_obstacle)
+    return robot_pose, robot_velocity, robot_goal, obstaclearray
+
+def generateRobotPose(robot_state):
+    robot_pose2d = Pose2D()
+    robot_pose2d.x = robot_state.px
+    robot_pose2d.y = robot_state.py
+    robot_pose2d.theta = robot_state.theta
+    robot_pose = robot_pose2d
+    robot_velocity = Twist()
+    robot_velocity.linear.x = (robot_state.vx + robot_state.vy) / 2.0
+    robot_velocity.linear.y = 0
+    robot_velocity.linear.z = 0
+    robot_velocity.angular.z = (robot_state.vx - robot_state.vy) / (2.0 * robot_state.radius)
+    robot_velocity.angular.y = 0
+    robot_velocity.angular.x = 0
+    robot_goal = Pose2D()
+    robot_goal.x = robot_state.gx
+    robot_goal.y = robot_state.gy
+    robot_goal.theta = np.pi * 0.5
+    return robot_pose, robot_velocity,robot_goal
+
+def generateObstacles(obstacle_state, human_state, line_obstacle):
+    obstacle_msg = ObstacleArrayMsg()
+    obstacle_msg.header.stamp = rospy.Time.now()
+    obstacle_msg.header.frame_id = "odom"  # CHANGE HERE: odom/map
+    id = 0
+    # Add point obstacle
+    for obstacle in obstacle_state:
+        obstacle_msg.obstacles.append(ObstacleMsg())
+        obstacle_msg.obstacles[-1].id = id
+        obstacle_msg.obstacles[-1].polygon.points = [Point32()]
+        obstacle_msg.obstacles[-1].polygon.points[0].x = obstacle.px
+        obstacle_msg.obstacles[-1].polygon.points[0].y = obstacle.py
+        obstacle_msg.obstacles[-1].polygon.points[0].z = 0
+        obstacle_msg.obstacles[-1].radius = obstacle.radius
+        id = id + 1
+
+    for human in human_state:
+        obstacle_msg.obstacles.append(ObstacleMsg())
+        obstacle_msg.obstacles[-1].id = id
+        obstacle_msg.obstacles[-1].polygon.points = [Point32()]
+        obstacle_msg.obstacles[-1].polygon.points[0].x = human.px
+        obstacle_msg.obstacles[-1].polygon.points[0].y = human.py
+        obstacle_msg.obstacles[-1].polygon.points[0].z = 0
+        obstacle_msg.obstacles[-1].radius = human.radius
+        obstacle_msg.obstacles[-1].velocities.twist.linear.x = human.vx
+        obstacle_msg.obstacles[-1].velocities.twist.linear.y = human.vy
+        obstacle_msg.obstacles[-1].velocities.twist.linear.z = 0
+        obstacle_msg.obstacles[-1].velocities.twist.angular.x = 0
+        obstacle_msg.obstacles[-1].velocities.twist.angular.y = 0
+        obstacle_msg.obstacles[-1].velocities.twist.angular.z = 0
+        id = id + 1
+
+    for line in line_obstacle:
+        obstacle_msg.obstacles.append(ObstacleMsg())
+        obstacle_msg.obstacles[-1].id = id
+        line_start = Point32()
+        line_start.x = line.sx
+        line_start.y = line.sy
+        line_end = Point32()
+        line_end.x = line.ex
+        line_end.y = line.ey
+        obstacle_msg.obstacles[-1].polygon.points = [line_start, line_end]
+        id = id + 1
+    return obstacle_msg
 
 def main(args):
     global vx,vy,w,v
@@ -138,7 +210,7 @@ def main(args):
         else:
             robot.policy.safety_space = args.safety_space
         logging.info('ORCA agent buffer: %f', robot.policy.safety_space)
-    env.set_phase(10)
+    env.set_phase(11)
     policy.set_env(env)
     robot.print_info()
     vel_rec = []
@@ -146,67 +218,146 @@ def main(args):
     r = rospy.Rate(5)  # 10hz
     t = 0.0
 
-    while not rospy.is_shutdown():
-        for i in range(1000):
+    if args.visualize:
+        for i in range(100):
             rewards = []
             actions = []
             done = False
-            ob = env.reset(args.phase, args.test_case)
+            ob = env.reset(args.phase, args.test_case + i)
+            last_pos = np.array(robot.get_position())
             while not done:
+                robot_pose, robot_velocity, robot_goal, obstacles = ob2req(ob, env.robot.get_full_state())
+                rospy.wait_for_service('/teb_crowd_sim_node/crowd_sim_info')
+                try:
+                    # 创建服务的处理句柄,可以像调用函数一样，调用句柄
+                    teb_server = rospy.ServiceProxy('/teb_crowd_sim_node/crowd_sim_info', TebCrowdSim)
+                    resp1 = teb_server(robot_pose, robot_velocity, robot_goal, obstacles)
+                    vx = resp1.velocity.linear.x
+                    vy = resp1.velocity.linear.y
+                    w = resp1.velocity.angular.z
+                    if robot.kinematics is 'differential':
+                        vel_left = (vx - w * env.robot.radius)
+                        vel_right = (vx + w * env.robot.radius)
+                        al = (vel_left - env.robot.v_left) / 0.25
+                        ar = (vel_right - env.robot.v_right) / 0.25
+                        action = ActionDiff(al, ar)
+                    elif robot.kinematics is 'unicycle':
+                        theta = w * robot.time_step
+                        action = ActionRot(vx, theta)
+                    else:
+                        action = ActionXY(vx*np.cos(robot.theta), vy*np.sin(robot.theta))
+                    ob, _, done, info = env.step(action)
+                    rewards.append(_)
+                    current_pos = np.array(robot.get_position())
+                    logging.debug('Speed: %.2f', np.linalg.norm(current_pos - last_pos) / robot.time_step)
+                    last_pos = current_pos
+                    actions.append(action)
+                    last_velocity = np.array(robot.get_velocity())
+                    vel_rec.append(last_velocity)
+                    # 如果调用失败，可能会抛出rospy.ServiceException
+                except rospy.ServiceException:
+                    print("Service call failed:")
+            last_velocity = np.array(robot.get_velocity())
+            vel_rec.append(last_velocity)
+            gamma = 0.95
+            cumulative_reward = sum([pow(gamma, t * robot.time_step * robot.v_pref)
+                                     * reward for t, reward in enumerate(rewards)])
+            if isinstance(info, Collision):
+                print("collision happed %d"%(i))
+            # positions = []
+            # velocity_left_rec = []
+            # velocity_right_rec = []
+            # velocity_rec = []
+            # rotation_rec = []
+            # action_left_rec = []
+            # action_right_rec = []
+            # for i in range(len(vel_rec) - 1):
+            #     if i % 1 == 0:
+            #         positions.append(i * robot.time_step)
+            #         vel = vel_rec[i]
+            #         action = actions[i]
+            #         if robot.kinematics is 'unicycle':
+            #             velocity_left_rec.append(vel[0])
+            #             velocity_right_rec.append((vel[1]))
+            #             velocity_rec.append((vel[0] + vel[1]) * 0.5)
+            #             rotation_rec.append((vel[1] - vel[0]) / (2 * robot.radius))
+            #         elif robot.kinematics is 'holonomic':
+            #             velocity_rec.append(vel[0])
+            #             rotation_rec.append(vel[1])
+            #         elif robot.kinematics is 'differential':
+            #             velocity_left_rec.append(vel[0])
+            #             velocity_right_rec.append((vel[1]))
+            #             velocity_rec.append((vel[0] + vel[1]) * 0.5)
+            #             rotation_rec.append((vel[1] - vel[0]) / (2 * robot.radius))
+            #             action_left_rec.append(action.al)
+            #             action_right_rec.append(action.ar)
+            #
+            # # plt.plot(positions, velocity_left_rec, color='green', marker='*', linestyle='solid')
+            # # plt.plot(positions, velocity_right_rec, color='magenta', marker='^', linestyle='solid')
+            #
+            # plt.xlabel("t(s)")
+            # # plt.ylim((-250, 250))
+            # plt.grid = True
+            # plt.plot(positions, velocity_left_rec, color='green', marker='d', markersize=2, linestyle='solid',
+            #          label="vel_l(m/s)")
+            # plt.plot(positions, velocity_right_rec, color='magenta', marker='^', markersize=2, linestyle='solid',
+            #          label="vel_r(m/s)")
+            # plt.plot(positions, velocity_rec, color='blue', marker='o', markersize=2, linestyle='solid',
+            #          label="linear_velocity(m/s)")
+            # plt.plot(positions, rotation_rec, color='red', marker='*', markersize=2, linestyle='solid',
+            #          label="angular_velocity(rad/s)")
+            # plt.plot(positions, action_left_rec, color='yellow', marker='^', markersize=2, linestyle='solid',
+            #          label="acc_l(m/s^2)")
+            # plt.plot(positions, action_right_rec, color='purple', marker='d', markersize=2, linestyle='solid',
+            #          label="acc_r(m/s^2)")
+            # plt.legend(loc='upper left')
 
-                velocity = rospy.wait_for_message('/velocity', Twist, timeout=None)
-                # velocity = rospy.wait_for_message('/test_optim_node/teb_velocity',Twist,timeout = None)
-                vx = velocity.linear.x
-                vy = velocity.linear.y
-
-                w = velocity.angular.z
-                v = velocity.linear.z
-                print(vx)
-                print(vy)
-
-                action = ActionXY(vx, vy) \
-                    if robot.kinematics == 'holonomic' else ActionRot(v, w)
-                # action, action_index = robot.act(ob)
-                ob, _, done, info = env.step(action)
-                # for i in range(len(ob)):
-                #     obstacle_msg.obstacles[i].polygon.points[0].x = ob[i].px
-                #     obstacle_msg.obstacles[i].polygon.points[0].y = ob[i].py
-
-                robot_state.pos_x = robot.px
-                robot_state.pos_y = robot.py
-                robot_state.vel_x = robot.vx
-                robot_state.vel_y = robot.vy
-                robot_state.radius = robot.radius
-                robot_state.vmax = 5.0
-                robot_state.theta = robot.theta
-                robot_state.goal_x = robot.gx
-                robot_state.goal_y = robot.gy
-
-                human_pub.publish(obstacle_msg)
-                robot_pub.publish(robot_state)
-                ob, _, done, info = env.step(action)
-                if isinstance(info, Timeout):
-                    _ = _ - 0.25
-                rewards.append(_)
-                current_pos = np.array(robot.get_position())
-                logging.debug('Speed: %.2f', np.linalg.norm(current_pos - last_pos) / robot.time_step)
-                last_pos = current_pos
-                actions.append(action)
-                last_velocity = np.array(robot.get_velocity())
+            # for i in range(len(actions)):
+            #     positions.append(i)
+            #     action = actions[i]
+            #     if robot.kinematics is 'unicycle':
+            #         velocity_rec.append(action.v)
+            #         rotation_rec.append(action.r)
+            #     elif robot.kinematics is 'holonomic':
+            #         velocity_rec.append(action.vx)
+            #         rotation_rec.append(action.vy)
+            #     elif robot.kinematics is 'differential':
+            #         velocity_rec.append(action.al)
+            #         rotation_rec.append(action.ar)
+            # plt.plot(positions, velocity_rec, color='r', marker='.', linestyle='dashed')
+            # plt.plot(positions, rotation_rec, color='b', marker='.', linestyle='dashed')
+            # plt.show()
+            # print('finish')
+            # if args.traj:
+            #     env.render('traj', args.video_file)
+            # else:
+            #     if args.video_dir is not None:
+            #         if policy_config.name == 'gcn':
+            #             args.video_file = os.path.join(args.video_dir,
+            #                                            policy_config.name + '_' + policy_config.gcn.similarity_function)
+            #         else:
+            #             args.video_file = os.path.join(args.video_dir, policy_config.name)
+            #         args.video_file = args.video_file + '_' + args.phase + '_' + str(args.test_case) + '.mp4'
+            #     env.render('video', args.video_file)
+            # logging.info('It takes %.2f seconds to finish. Final status is %s, cumulative_reward is %f',
+            #              env.global_time, info, cumulative_reward)
+            # if robot.visible and info == 'reach goal':
+            #     human_times = env.get_human_times()
+            #     logging.info('Average time for humans to reach goal: %.2f', sum(human_times) / len(human_times))
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Parse configuration file')
     parser.add_argument('--config', type=str, default=None)
-    parser.add_argument('--policy', type=str, default='rgcnrl')
-    parser.add_argument('--gnn', type=str, default='transformer')
-    parser.add_argument('-m', '--model_dir', type=str, default='data/0604/transformer/7')#None
+    parser.add_argument('--policy', type=str, default='orca')
+    parser.add_argument('--gnn', type=str, default='rgcn')
+    parser.add_argument('-m', '--model_dir', type=str, default='data/from_zirui/0605/gat/10/')#None
     parser.add_argument('--il', default=False, action='store_true')
     parser.add_argument('--rl', default=False, action='store_true')
     parser.add_argument('--gpu', default=False, action='store_true')
-    parser.add_argument('-v', '--visualize', default=False, action='store_true')
+    parser.add_argument('-v', '--visualize', default=True, action='store_true')
     parser.add_argument('--phase', type=str, default='test')
-    parser.add_argument('-c', '--test_case', type=int, default=10)
+    parser.add_argument('-c', '--test_case', type=int, default=26)
     parser.add_argument('--square', default=False, action='store_true')
     parser.add_argument('--circle', default=False, action='store_true')
     parser.add_argument('--video_file', type=str, default=None)
@@ -222,6 +373,7 @@ if __name__ == '__main__':
     parser.add_argument('--sparse_search', default=False, action='store_true')
     sys_args = parser.parse_args()
     main(sys_args)
+
 
 
 # import rospy

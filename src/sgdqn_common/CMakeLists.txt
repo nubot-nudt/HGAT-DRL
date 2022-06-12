@@ -15,14 +15,15 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
+  geometry_msgs
+  costmap_converter
 )
 
 add_message_files(DIRECTORY msgs FILES ObserveInfo.msg
 RobotState.msg
 PedState.msg
 ActionCmd.msg
-LineState.msg
-DiscState.msg
 )
+add_service_files(DIRECTORY srv FILES TebCrowdSim.srv)
 
-generate_messages(DEPENDENCIES std_msgs)
+generate_messages(DEPENDENCIES std_msgs   geometry_msgs   costmap_converter)
