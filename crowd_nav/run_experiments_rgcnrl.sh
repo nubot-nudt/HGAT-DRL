@@ -6,6 +6,7 @@ b=-0.25
 c=0.25
 d=1.0
 e=0.01
+f=0.01
 # Script to reproduce results
 for ((i=$2;i<$3;i+=1))
 do
@@ -20,7 +21,8 @@ do
 	--re_arrival $c \
 	--re_rvo  $e    \
 	--human_num 5  \
-        --gnn $1	
+	--re_theta $f \
+  --gnn $1
 #	python train.py \
 #	--policy model-predictive-rl \
 #	--output_dir data/$day/mprl/$i \

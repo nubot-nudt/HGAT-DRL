@@ -6,6 +6,7 @@ b=-0.25
 c=0.25
 d=1.0
 e=0.01
+f=0.01
 # Script to reproduce results
 for ((i=$1;i<$2;i+=1))
 do
@@ -19,8 +20,9 @@ do
 	--re_collision $b \
 	--re_arrival $c \
 	--re_rvo  $e    \
+	--re_theta $f \
 	--human_num 5  \
-        --gnn gat	
+  --gnn gat
 
 	python3 train.py \
 	--policy rgcn_rl \
@@ -32,8 +34,9 @@ do
 	--re_collision $b \
 	--re_arrival $c \
 	--re_rvo  $e    \
+	--re_theta $f \
 	--human_num 5  \
-        --gnn rgcn	
+  --gnn rgcn
 
 	python3 train.py \
 	--policy rgcn_rl \
@@ -45,8 +48,9 @@ do
 	--re_collision $b \
 	--re_arrival $c \
 	--re_rvo  $e    \
+	--re_theta $f \
 	--human_num 5  \
-        --gnn gcn	
+  --gnn gcn
 
 	python3 train.py \
 	--policy rgcn_rl \
@@ -58,6 +62,7 @@ do
 	--re_collision $b \
 	--re_arrival $c \
 	--re_rvo  $e    \
+	--re_theta $f \
 	--human_num 5  \
         --gnn transformer
 

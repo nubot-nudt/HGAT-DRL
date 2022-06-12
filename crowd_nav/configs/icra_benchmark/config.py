@@ -38,6 +38,7 @@ class BaseEnvConfig(object):
     reward.discomfort_penalty_factor = 1.0
     reward.discomfort_dist = 0.2
     reward.re_rvo = 0.01
+    reward.re_theta = 0.01
 
 
     sim = Config()

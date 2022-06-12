@@ -108,6 +108,7 @@ class CrowdSim(gym.Env):
         self.collision_penalty = config.reward.collision_penalty
         self.goal_factor = config.reward.goal_factor
         self.re_rvo = config.reward.re_rvo
+        self.re_theta = config.reward.re_theta
         self.discomfort_penalty_factor = config.reward.discomfort_penalty_factor
         self.discomfort_dist = config.reward.discomfort_dist
         self.case_capacity = {'train': np.iinfo(np.uint32).max - 2000, 'val': 1000, 'test': 1000}
@@ -646,6 +647,7 @@ class CrowdSim(gym.Env):
         weight_terminal = 1.0
         re_collision = self.collision_penalty
         re_arrival = self.success_reward
+        re_theta = self.re_theta
         # collision detection
         dmin = float('inf')
         collision = False
@@ -761,7 +763,7 @@ class CrowdSim(gym.Env):
             done = False
             info = Nothing()
         reward_terminal = reward_arrival + reward_col
-        reward = weight_terminal * reward_terminal + weight_goal * reward_goal + weight_safe * safety_penalty + reward_theta * 0.01
+        reward = weight_terminal * reward_terminal + weight_goal * reward_goal + weight_safe * safety_penalty + reward_theta * re_theta
         return reward, done, info
 
     def rvo_reward_cal(self, ob, reward_parameter=(0.2, 0.1, 0.1, 0.2, 0.2, 1, -10, 20)):
