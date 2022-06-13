@@ -20,9 +20,9 @@ from crowd_nav.policy.reward_estimate import Reward_Estimator
 import matplotlib.pyplot as plt
 from matplotlib.pyplot import plot, savefig
 import numpy as np
-episode_phase1 = 5000
-episode_phase2 = 5000
-
+episode_phase1 = 4000
+episode_phase2 = 4000
+episode_phase3 = 12000
 def set_random_seeds(seed):
     """
     Sets the random seeds for pytorch cpu and gpu
@@ -290,13 +290,13 @@ def main(args):
         if episode == 0:
         # no any obstacles
             env.set_phase(0)
-        elif episode == 5000:
+        elif episode == episode_phase1:
         # add walls, human, and static obstacles
             env.set_phase(1)
-        elif episode == 10000:
+        elif episode == episode_phase2:
         # add poly obstacles
             env.set_phase(2)
-        elif episode == 15000:
+        elif episode == episode_phase3:
             env.set_phase(3)
         # elif episode == 15000:
         #     env.set_phase(5)
@@ -343,7 +343,7 @@ def main(args):
             _, _, _, reward, average_return, _, _ = explorer.run_k_episodes(env.case_size['val'], 'val', episode=episode)
             explorer.log('val', episode // evaluation_interval)
 
-            if episode % checkpoint_interval == 0 and average_return > best_val_return and episode > episode_phase1 + episode_phase2:
+            if episode % checkpoint_interval == 0 and average_return > best_val_return and episode > episode_phase3:
                 best_val_return = average_return
                 best_val_model = copy.deepcopy(policy.get_state_dict())
         # test after every evaluation to check how the generalization performance evolves
