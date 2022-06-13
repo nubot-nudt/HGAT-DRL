@@ -149,6 +149,7 @@ def main(args):
     policy = policy_factory[policy_config.name]()
     reward_estimator = Reward_Estimator()
     env_config = config.EnvConfig(args.debug)
+    env_config.env.time_step = 0.1
     reward_estimator.configure(env_config)
     policy.reward_estimator = reward_estimator
     if args.planning_depth is not None:
@@ -164,8 +165,6 @@ def main(args):
         env_config.sim.human_num = args.human_num
         policy_config.gat.human_num = args.human_num
 
-    # configure environment
-    env_config = config.EnvConfig(args.debug)
 
     policy.configure(policy_config, device)
     if policy.trainable:
@@ -192,6 +191,7 @@ def main(args):
     if policy.name == 'TD3RL' or policy.name == 'RGCNRL':
         policy.set_action(action_dim, max_action, min_action)
     robot.time_step = env.time_step
+    print(robot.time_step)
     robot.set_policy(policy)
     explorer = Explorer(env, robot, device, None, gamma=0.95)
 
@@ -219,13 +219,142 @@ def main(args):
     t = 0.0
 
     if args.visualize:
-        for i in range(100):
-            rewards = []
+        rewards = []
+        actions = []
+        done = False
+        ob = env.reset(args.phase, args.test_case)
+        last_pos = np.array(robot.get_position())
+        while not done:
+            robot_pose, robot_velocity, robot_goal, obstacles = ob2req(ob, env.robot.get_full_state())
+            rospy.wait_for_service('/teb_crowd_sim_node/crowd_sim_info')
+            try:
+                # 创建服务的处理句柄,可以像调用函数一样，调用句柄
+                teb_server = rospy.ServiceProxy('/teb_crowd_sim_node/crowd_sim_info', TebCrowdSim)
+                resp1 = teb_server(robot_pose, robot_velocity, robot_goal, obstacles)
+                vx = resp1.velocity.linear.x
+                dt = resp1.velocity.linear.y
+                w = resp1.velocity.angular.z
+                if robot.kinematics is 'differential':
+                    vel_left = (vx - w * env.robot.radius)
+                    vel_right = (vx + w * env.robot.radius)
+                    if dt == 0.0:
+                        print("dt is 0")
+                        dt = 0.5
+                    al = (vel_left - env.robot.v_left) / (0.5 * dt)
+                    ar = (vel_right - env.robot.v_right) / (0.5 * dt)
+                    action = ActionDiff(al, ar)
+                elif robot.kinematics is 'unicycle':
+                    theta = w * robot.time_step
+                    action = ActionRot(vx, theta)
+                else:
+                    action = ActionXY(vx * np.cos(robot.theta), vy * np.sin(robot.theta))
+                ob, _, done, info = env.step(action)
+                rewards.append(_)
+                current_pos = np.array(robot.get_position())
+                logging.debug('Speed: %.2f', np.linalg.norm(current_pos - last_pos) / robot.time_step)
+                last_pos = current_pos
+                actions.append(action)
+                last_velocity = np.array(robot.get_velocity())
+                vel_rec.append(last_velocity)
+                # 如果调用失败，可能会抛出rospy.ServiceException
+            except rospy.ServiceException:
+                print("Service call failed:")
+        last_velocity = np.array(robot.get_velocity())
+        vel_rec.append(last_velocity)
+        gamma = 0.95
+        cumulative_reward = sum([pow(gamma, t * robot.time_step * robot.v_pref)
+                                 * reward for t, reward in enumerate(rewards)])
+        positions = []
+        velocity_left_rec = []
+        velocity_right_rec = []
+        velocity_rec = []
+        rotation_rec = []
+        action_left_rec = []
+        action_right_rec = []
+        for i in range(len(vel_rec) - 1):
+            if i % 1 == 0:
+                positions.append(i * robot.time_step)
+                vel = vel_rec[i]
+                action = actions[i]
+                if robot.kinematics is 'unicycle':
+                    velocity_left_rec.append(vel[0])
+                    velocity_right_rec.append((vel[1]))
+                    velocity_rec.append((vel[0] + vel[1]) * 0.5)
+                    rotation_rec.append((vel[1] - vel[0]) / (2 * robot.radius))
+                elif robot.kinematics is 'holonomic':
+                    velocity_rec.append(vel[0])
+                    rotation_rec.append(vel[1])
+                elif robot.kinematics is 'differential':
+                    velocity_left_rec.append(vel[0])
+                    velocity_right_rec.append((vel[1]))
+                    velocity_rec.append((vel[0] + vel[1]) * 0.5)
+                    rotation_rec.append((vel[1] - vel[0]) / (2 * robot.radius))
+                    action_left_rec.append(action.al)
+                    action_right_rec.append(action.ar)
+        #
+        # plt.plot(positions, velocity_left_rec, color='green', marker='*', linestyle='solid')
+        # plt.plot(positions, velocity_right_rec, color='magenta', marker='^', linestyle='solid')
+        #
+        plt.xlabel("t(s)")
+        # plt.ylim((-250, 250))
+        plt.grid = True
+        plt.plot(positions, velocity_left_rec, color='green', marker='d', markersize=2, linestyle='solid',
+                 label="vel_l(m/s)")
+        plt.plot(positions, velocity_right_rec, color='magenta', marker='^', markersize=2, linestyle='solid',
+                 label="vel_r(m/s)")
+        plt.plot(positions, velocity_rec, color='blue', marker='o', markersize=2, linestyle='solid',
+                 label="linear_velocity(m/s)")
+        plt.plot(positions, rotation_rec, color='red', marker='*', markersize=2, linestyle='solid',
+                 label="angular_velocity(rad/s)")
+        plt.plot(positions, action_left_rec, color='yellow', marker='^', markersize=2, linestyle='solid',
+                 label="acc_l(m/s^2)")
+        plt.plot(positions, action_right_rec, color='purple', marker='d', markersize=2, linestyle='solid',
+                 label="acc_r(m/s^2)")
+        plt.legend(loc='upper left')
+        print('finish')
+        if args.traj:
+            env.render('traj', args.video_file)
+        else:
+            if args.video_dir is not None:
+                if policy_config.name == 'gcn':
+                    args.video_file = os.path.join(args.video_dir,
+                                                   policy_config.name + '_' + policy_config.gcn.similarity_function)
+                else:
+                    args.video_file = os.path.join(args.video_dir, policy_config.name)
+                args.video_file = args.video_file + '_' + args.phase + '_' + str(args.test_case) + '.mp4'
+            env.render('video', args.video_file)
+        print('It takes %.2f seconds to finish. Final status is %s, cumulative_reward is %f'%(
+                     env.global_time, info, cumulative_reward))
+        if robot.visible and info == 'reach goal':
+            human_times = env.get_human_times()
+            logging.info('Average time for humans to reach goal: %.2f', sum(human_times) / len(human_times))
+    else:
+        success_times = []
+        collision_times = []
+        timeout_times = []
+        success = 0
+        collision = 0
+        timeout = 0
+        discomfort = 0
+        min_dist = []
+        cumulative_rewards = []
+        average_returns = []
+        returns_list = []
+        collision_cases = []
+        timeout_cases = []
+        discomfort_nums = []
+        k=env_config.env.test_size
+        for i in range(k):
+            states = []
             actions = []
+            rewards = []
+            dones = []
+            num_discoms =[]
             done = False
-            ob = env.reset(args.phase, args.test_case + i)
+            ob = env.reset(args.phase)
             last_pos = np.array(robot.get_position())
             while not done:
+                num_discom = 0
                 robot_pose, robot_velocity, robot_goal, obstacles = ob2req(ob, env.robot.get_full_state())
                 rospy.wait_for_service('/teb_crowd_sim_node/crowd_sim_info')
                 try:
@@ -233,117 +362,97 @@ def main(args):
                     teb_server = rospy.ServiceProxy('/teb_crowd_sim_node/crowd_sim_info', TebCrowdSim)
                     resp1 = teb_server(robot_pose, robot_velocity, robot_goal, obstacles)
                     vx = resp1.velocity.linear.x
-                    vy = resp1.velocity.linear.y
+                    dt = resp1.velocity.linear.y
                     w = resp1.velocity.angular.z
                     if robot.kinematics is 'differential':
                         vel_left = (vx - w * env.robot.radius)
                         vel_right = (vx + w * env.robot.radius)
-                        al = (vel_left - env.robot.v_left) / 0.25
-                        ar = (vel_right - env.robot.v_right) / 0.25
+                        if dt == 0.0:
+                            print("dt is 0")
+                            dt = 0.5
+                        al = (vel_left - env.robot.v_left) / (0.5 * dt)
+                        ar = (vel_right - env.robot.v_right) / (0.5 * dt)
                         action = ActionDiff(al, ar)
                     elif robot.kinematics is 'unicycle':
                         theta = w * robot.time_step
                         action = ActionRot(vx, theta)
                     else:
-                        action = ActionXY(vx*np.cos(robot.theta), vy*np.sin(robot.theta))
-                    ob, _, done, info = env.step(action)
-                    rewards.append(_)
-                    current_pos = np.array(robot.get_position())
-                    logging.debug('Speed: %.2f', np.linalg.norm(current_pos - last_pos) / robot.time_step)
-                    last_pos = current_pos
-                    actions.append(action)
-                    last_velocity = np.array(robot.get_velocity())
-                    vel_rec.append(last_velocity)
+                        action = ActionXY(vx * np.cos(robot.theta), vy * np.sin(robot.theta))
+                    ob, reward, done, info = env.step(action)
+                    # if phase in ['train', 'test']:
+                    #     self.env.render(mode='debug')
+                    # actually, final states of timeout cases is not terminal states
+                    if isinstance(info, Timeout):
+                        dones.append(False)
+                    else:
+                        dones.append(done)
+                    rewards.append(reward)
+                    if isinstance(info, Discomfort):
+                        discomfort += 1
+                        min_dist.append(info.min_dist)
+                        num_discom = info.num
+                    num_discoms.append(num_discom)
+
                     # 如果调用失败，可能会抛出rospy.ServiceException
                 except rospy.ServiceException:
                     print("Service call failed:")
-            last_velocity = np.array(robot.get_velocity())
-            vel_rec.append(last_velocity)
-            gamma = 0.95
-            cumulative_reward = sum([pow(gamma, t * robot.time_step * robot.v_pref)
-                                     * reward for t, reward in enumerate(rewards)])
-            if isinstance(info, Collision):
-                print("collision happed %d"%(i))
-            # positions = []
-            # velocity_left_rec = []
-            # velocity_right_rec = []
-            # velocity_rec = []
-            # rotation_rec = []
-            # action_left_rec = []
-            # action_right_rec = []
-            # for i in range(len(vel_rec) - 1):
-            #     if i % 1 == 0:
-            #         positions.append(i * robot.time_step)
-            #         vel = vel_rec[i]
-            #         action = actions[i]
-            #         if robot.kinematics is 'unicycle':
-            #             velocity_left_rec.append(vel[0])
-            #             velocity_right_rec.append((vel[1]))
-            #             velocity_rec.append((vel[0] + vel[1]) * 0.5)
-            #             rotation_rec.append((vel[1] - vel[0]) / (2 * robot.radius))
-            #         elif robot.kinematics is 'holonomic':
-            #             velocity_rec.append(vel[0])
-            #             rotation_rec.append(vel[1])
-            #         elif robot.kinematics is 'differential':
-            #             velocity_left_rec.append(vel[0])
-            #             velocity_right_rec.append((vel[1]))
-            #             velocity_rec.append((vel[0] + vel[1]) * 0.5)
-            #             rotation_rec.append((vel[1] - vel[0]) / (2 * robot.radius))
-            #             action_left_rec.append(action.al)
-            #             action_right_rec.append(action.ar)
-            #
-            # # plt.plot(positions, velocity_left_rec, color='green', marker='*', linestyle='solid')
-            # # plt.plot(positions, velocity_right_rec, color='magenta', marker='^', linestyle='solid')
-            #
-            # plt.xlabel("t(s)")
-            # # plt.ylim((-250, 250))
-            # plt.grid = True
-            # plt.plot(positions, velocity_left_rec, color='green', marker='d', markersize=2, linestyle='solid',
-            #          label="vel_l(m/s)")
-            # plt.plot(positions, velocity_right_rec, color='magenta', marker='^', markersize=2, linestyle='solid',
-            #          label="vel_r(m/s)")
-            # plt.plot(positions, velocity_rec, color='blue', marker='o', markersize=2, linestyle='solid',
-            #          label="linear_velocity(m/s)")
-            # plt.plot(positions, rotation_rec, color='red', marker='*', markersize=2, linestyle='solid',
-            #          label="angular_velocity(rad/s)")
-            # plt.plot(positions, action_left_rec, color='yellow', marker='^', markersize=2, linestyle='solid',
-            #          label="acc_l(m/s^2)")
-            # plt.plot(positions, action_right_rec, color='purple', marker='d', markersize=2, linestyle='solid',
-            #          label="acc_r(m/s^2)")
-            # plt.legend(loc='upper left')
+            # add the terminal state
+            if isinstance(info, ReachGoal):
+                success += 1
+                success_times.append(env.global_time)
+            elif isinstance(info, Collision):
+                collision += 1
+                collision_cases.append(i)
+                collision_times.append(env.global_time)
+                if args.phase in ['test']:
+                    print('collision happen %f and %d'%(env.global_time, i))
+            elif isinstance(info, Timeout):
+                timeout += 1
+                timeout_cases.append(i)
+                if args.phase in ['test']:
+                    print('timeout happen and %f and %d'%(env.global_time, i))
+                    rewards[-1] = rewards[-1]
+                timeout_times.append(env.time_limit)
+            else:
+                raise ValueError('Invalid end signal from environment')
+            discomfort_nums.append(sum(num_discoms))
+            # cumulative_rewards.append(sum([pow(self.gamma, t * self.robot.time_step * self.robot.v_pref)
+            #                                * reward for t, reward in enumerate(rewards)]))
+            cumulative_rewards.append(sum(rewards))
+            returns = []
+            for step in range(len(rewards)):
+                step_return = sum([pow(0.95, t * robot.time_step * robot.v_pref)
+                                   * reward for t, reward in enumerate(rewards[step:])])
+                returns.append(step_return)
+            returns_list = returns_list + returns
+            average_returns.append(np.average(returns))
 
-            # for i in range(len(actions)):
-            #     positions.append(i)
-            #     action = actions[i]
-            #     if robot.kinematics is 'unicycle':
-            #         velocity_rec.append(action.v)
-            #         rotation_rec.append(action.r)
-            #     elif robot.kinematics is 'holonomic':
-            #         velocity_rec.append(action.vx)
-            #         rotation_rec.append(action.vy)
-            #     elif robot.kinematics is 'differential':
-            #         velocity_rec.append(action.al)
-            #         rotation_rec.append(action.ar)
-            # plt.plot(positions, velocity_rec, color='r', marker='.', linestyle='dashed')
-            # plt.plot(positions, rotation_rec, color='b', marker='.', linestyle='dashed')
-            # plt.show()
-            # print('finish')
-            # if args.traj:
-            #     env.render('traj', args.video_file)
-            # else:
-            #     if args.video_dir is not None:
-            #         if policy_config.name == 'gcn':
-            #             args.video_file = os.path.join(args.video_dir,
-            #                                            policy_config.name + '_' + policy_config.gcn.similarity_function)
-            #         else:
-            #             args.video_file = os.path.join(args.video_dir, policy_config.name)
-            #         args.video_file = args.video_file + '_' + args.phase + '_' + str(args.test_case) + '.mp4'
-            #     env.render('video', args.video_file)
-            # logging.info('It takes %.2f seconds to finish. Final status is %s, cumulative_reward is %f',
-            #              env.global_time, info, cumulative_reward)
-            # if robot.visible and info == 'reach goal':
-            #     human_times = env.get_human_times()
-            #     logging.info('Average time for humans to reach goal: %.2f', sum(human_times) / len(human_times))
+        success_rate = success / k
+        collision_rate = collision / k
+        assert success + collision + timeout == k
+        avg_nav_time = sum(success_times) / len(success_times) if success_times else env.time_limit
+        avg_col_time = sum(collision_times) / len(collision_times) if collision_times else env.time_limit
+        # extra_info = '' if episode is None else 'in episode {} '.format(episode)
+        # extra_info = extra_info + '' if epoch is None else extra_info + ' in epoch {} '.format(epoch)
+        logging.info('{:<5} has success rate: {:.3f}, collision rate: {:.3f}, nav time: {:.3f}, col time: {:.3f}, total reward: {:.4f},'
+                     ' average return: {:.4f}'. format(k, success_rate, collision_rate,
+                                                       avg_nav_time, avg_col_time, sum(cumulative_rewards),
+                                                       np.average(average_returns)))
+        print('%d has success rate: %.4f, collision rate: %.4f, nav time: %.3f, col time: %.3f, total reward: %.4f,'
+                     ' average return: %.4f'%(k, success_rate, collision_rate,
+                                                       avg_nav_time, avg_col_time, sum(cumulative_rewards),
+                                                       np.average(average_returns)))
+        # if phase in ['val', 'test'] or imitation_learning:
+        total_time = sum(success_times + collision_times + timeout_times) / robot.time_step
+        logging.info('Frequency of being in danger: %.3f and average min separate distance in danger: %.2f',
+                    discomfort / total_time, np.average(min_dist))
+        print('Frequency of being in danger: %.3f and average min separate distance in danger: %.2f'%
+              (discomfort / total_time, np.average(min_dist)))
+        print('discomfor nums is %.0f and return is %.04f and length is %.0f'%( sum(discomfort_nums),
+                     np.average(returns_list), len(returns_list)))
+        if True:
+            print('Collision cases: ' + ' '.join([str(x) for x in collision_cases]))
+            print('Timeout cases: ' + ' '.join([str(x) for x in timeout_cases]))
 
 
 if __name__ == '__main__':
@@ -355,7 +464,7 @@ if __name__ == '__main__':
     parser.add_argument('--il', default=False, action='store_true')
     parser.add_argument('--rl', default=False, action='store_true')
     parser.add_argument('--gpu', default=False, action='store_true')
-    parser.add_argument('-v', '--visualize', default=True, action='store_true')
+    parser.add_argument('-v', '--visualize', default=False, action='store_true')
     parser.add_argument('--phase', type=str, default='test')
     parser.add_argument('-c', '--test_case', type=int, default=26)
     parser.add_argument('--square', default=False, action='store_true')

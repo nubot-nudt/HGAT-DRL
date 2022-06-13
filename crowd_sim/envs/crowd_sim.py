@@ -666,7 +666,7 @@ class CrowdSim(gym.Env):
                 collision = True
                 logging.debug("Collision: distance between robot and pedestrian{} is {:.2E} at time {:.2E}".format(
                     i, closest_dist, self.global_time))
-                print("Collision: distance between robot and human %d is %f at time %f"%(i, closest_dist, self.global_time))
+                # print("Collision: distance between robot and human %d is %f at time %f"%(i, closest_dist, self.global_time))
             if closest_dist < dmin:
                 dmin = closest_dist
             if closest_dist < self.discomfort_dist:
@@ -684,7 +684,7 @@ class CrowdSim(gym.Env):
                 collision = True
                 logging.debug("Collision: distance between robot and obstacle{} is {:.2E} at time {:.2E}".format(
                     i, closest_dist, self.global_time))
-                print("Collision: distance between robot and obstacle %d is %f at time %f"%(i, closest_dist, self.global_time))
+                # print("Collision: distance between robot and obstacle %d is %f at time %f"%(i, closest_dist, self.global_time))
                 num_discom = num_discom + 1
             # if closest_dist < dmin:
             # dmin = closest_dist
@@ -712,7 +712,7 @@ class CrowdSim(gym.Env):
                 collision = True
                 logging.debug("Collision: distance between robot and wall {} is {:.2E} at time {:.2E}".format(
                     i, closest_dist, self.global_time))
-                print("Collision: distance between robot and wall %d is %f at time %f"%(i, closest_dist, self.global_time))
+                # print("Collision: distance between robot and wall %d is %f at time %f"%(i, closest_dist, self.global_time))
                 num_discom = num_discom + 1
             # if closest_dist < dmin:
             #     dmin = closest_dist
