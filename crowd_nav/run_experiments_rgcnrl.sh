@@ -22,7 +22,7 @@ do
 	--re_rvo  $e    \
 	--human_num 5  \
 	--re_theta $f \
-  --gnn $1
+        --gnn $1
 #	python train.py \
 #	--policy model-predictive-rl \
 #	--output_dir data/$day/mprl/$i \
