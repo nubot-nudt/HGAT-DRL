@@ -149,7 +149,7 @@ def main(args):
     policy = policy_factory[policy_config.name]()
     reward_estimator = Reward_Estimator()
     env_config = config.EnvConfig(args.debug)
-    env_config.env.time_step = 0.1
+    env_config.env.time_step = 0.25
     reward_estimator.configure(env_config)
     policy.reward_estimator = reward_estimator
     if args.planning_depth is not None:
@@ -210,7 +210,8 @@ def main(args):
         else:
             robot.policy.safety_space = args.safety_space
         logging.info('ORCA agent buffer: %f', robot.policy.safety_space)
-    env.set_phase(11)
+    env.set_phase(env_config.sim.human_num)
+    print(env_config.sim.human_num)
     policy.set_env(env)
     robot.print_info()
     vel_rec = []

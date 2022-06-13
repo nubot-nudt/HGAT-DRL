@@ -245,7 +245,7 @@ if __name__ == '__main__':
     parser.add_argument('--il', default=False, action='store_true')
     parser.add_argument('--rl', default=False, action='store_true')
     parser.add_argument('--gpu', default=False, action='store_true')
-    parser.add_argument('-v', '--visualize', default=False, action='store_true')
+    parser.add_argument('-v', '--visualize', default=True, action='store_true')
     parser.add_argument('--phase', type=str, default='test')
     parser.add_argument('-c', '--test_case', type=int, default=10)
     parser.add_argument('--square', default=False, action='store_true')
