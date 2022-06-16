@@ -66,23 +66,19 @@ class rvo_inter(reciprocal_vel_obs):
         vo_list2 = list(map(lambda y: self.config_static_vo_circle2(robot_state, y, action, **kwargs), oc_list))
         vo_list3 = list(map(lambda z: self.config_vo_line2(robot_state, z, action, **kwargs), ol_list))
 
-        vo_flag = False
-        min_exp_time = inf
-        min_dis = inf
+        vo_flag_array = []
+        min_exp_array= []
+        min_dis_array = []
 
         for vo_inf in vo_list1 + vo_list2 + vo_list3:
-
-            if vo_inf[4] < min_dis:
-                min_dis = vo_inf[4]
-
+            min_dis_array.append(vo_inf[4])
             if vo_inf[1] is True:
-                vo_flag = True
-                if vo_inf[2] < min_exp_time:
-                    min_exp_time = vo_inf[2]
-
-        new_des_list = [des_v[-1] for des_v in vo_list3]
-        
-        return vo_flag, min_exp_time, min_dis
+                vo_flag_array.append(True)
+                min_exp_array.append(vo_inf[2])
+            else:
+                vo_flag_array.append(False)
+                min_exp_array.append(inf)
+        return vo_flag_array, min_exp_array, min_dis_array
 
 
     def config_vo_observe(self, robot_state, nei_state_list, obs_cir_list, obs_line_list):

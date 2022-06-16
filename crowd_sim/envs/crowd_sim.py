@@ -775,23 +775,28 @@ class CrowdSim(gym.Env):
         human_state_array = human_state.numpy()
         obstacle_state_array = obstacle_state.numpy()
         wall_state_array = wall_state.numpy()
-        vo_flag, min_exp_time, min_dis = self.rvo_inter.config_vo_reward(robot_state_array, human_state_array,
+        vo_flag_array, min_exp_time_array, min_dis_array = self.rvo_inter.config_vo_reward(robot_state_array, human_state_array,
                                                                    obstacle_state_array, wall_state_array)
         p1, p2, p3, p4, p5, p6, p7, p8 = reward_parameter
-        if min_exp_time < 0:
-            min_exp_time = 0
-        exp_time_reward = - 0.5 / (min_exp_time + 0.5)
-        # rvo reward
         p1 = 0.2
         p4 = 0.4
         p5 = 0
         rvo_reward = 0.0
-        if vo_flag:
-            rvo_reward = -0.1 + p1 * exp_time_reward  # -0.1 to -0.2
-            if min_exp_time < 0.5:
-                rvo_reward = -0.1 + p4 * exp_time_reward  # -0.3 to -0.5
-        else:
-            rvo_reward = p5
+        for i in range(len(vo_flag_array)):
+            vo_flag = vo_flag_array[i]
+            min_exp_time = min_exp_time_array[i]
+            min_dis = min_dis_array[i]
+            if min_exp_time < 0:
+                min_exp_time = 0
+            exp_time_reward = - 0.5 / (min_exp_time + 0.5)
+            if vo_flag is True:
+                if min_exp_time < 1.0:
+                    rvo_reward = -0.1 + p4 * exp_time_reward  + rvo_reward# -0.3 to -0.5
+                else:
+                    # rvo reward
+                    rvo_reward = -0.1 + p1 * exp_time_reward + rvo_reward  # -0.1 to -0.2
+            else:
+                rvo_reward = p5 + rvo_reward
         # rvo_reward = np.round(rvo_reward, 4)
         # if rvo_reward > 0.0:
         #     print("error rvo reward")
