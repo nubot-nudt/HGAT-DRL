@@ -37,7 +37,7 @@ class BaseEnvConfig(object):
     reward.goal_factor = 0.1
     reward.discomfort_penalty_factor = 1.0
     reward.discomfort_dist = 0.2
-    reward.re_rvo = 0.03
+    reward.re_rvo = 0.02
     reward.re_theta = 0.01
 
 
@@ -172,7 +172,7 @@ class BaseTrainConfig(object):
     # number of batches to train at the end of training episode il_episodes
     train.train_batches = 50
     # training episodes in outer loop
-    train.train_episodes = 30000
+    train.train_episodes = 20000
     # number of episodes sampled in one training episode
     train.sample_episodes = 1
     train.target_update_interval = interval

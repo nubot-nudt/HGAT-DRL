@@ -5,8 +5,8 @@ a=0.1
 b=-0.25
 c=0.25
 d=1.0
-e=0.03
-f=0.02
+e=0.02
+f=0.01
 # Script to reproduce results
 for ((i=$1;i<$2;i+=1))
 do
