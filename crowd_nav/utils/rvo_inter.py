@@ -61,7 +61,10 @@ class rvo_inter(reciprocal_vel_obs):
     def config_vo_reward(self, robot_state, nei_state_list, obs_cir_list, obs_line_list, action=np.zeros((2,)), **kwargs):
 
         robot_state, ns_list, oc_list, ol_list = self.preprocess(robot_state, nei_state_list, obs_cir_list, obs_line_list)
-
+        robot_state = robot_state.squeeze()
+        linear_vel = (robot_state[2] + robot_state[3]) / 2.0
+        theta = robot_state[8]
+        action = np.array([linear_vel * np.cos(theta), linear_vel * np.sin(theta)])
         vo_list1 = list(map(lambda x: self.config_vo_circle2(robot_state, x, action, 'vo', **kwargs), ns_list))
         vo_list2 = list(map(lambda y: self.config_static_vo_circle2(robot_state, y, action, **kwargs), oc_list))
         vo_list3 = list(map(lambda z: self.config_vo_line2(robot_state, z, action, **kwargs), ol_list))
@@ -91,10 +94,9 @@ class rvo_inter(reciprocal_vel_obs):
         return self.config_vo_circle2(state, circular, action, mode='vo', **kwargs)
 
     def config_vo_circle2(self, state, circular, action, mode='rvo', **kwargs):
-        
         x, y, vl, vr, r, _, _, _, theta = state[0:9]
-        vx = (vl + vr) / 2.0 * np.cos(theta)
-        vy = (vl + vr) / 2.0 * np.sin(theta)
+        vx = action[0]
+        vy = action[1]
         mx, my, mvx, mvy, mr = circular[0:5]
 
         if mvx == 0 and mvy == 0:
@@ -125,7 +127,7 @@ class rvo_inter(reciprocal_vel_obs):
                 dis_mr = r + mr
                 
         ratio = (r + mr)/dis_mr
-        half_angle = asin( ratio ) 
+        half_angle = asin(ratio)
         line_left_ori = reciprocal_vel_obs.wraptopi(angle_mr + half_angle) 
         line_right_ori = reciprocal_vel_obs.wraptopi(angle_mr - half_angle) 
 
@@ -164,6 +166,7 @@ class rvo_inter(reciprocal_vel_obs):
         x, y, vl, vr, r, _, _, _, theta = robot_state[0:9]
         vx = (vl + vr) / 2.0 * np.cos(theta)
         vy = (vl + vr) / 2.0 * np.sin(theta)
+
         apex = [0, 0]
 
         theta1 = atan2(line[0][1] - y, line[0][0] - x)
@@ -199,11 +202,11 @@ class rvo_inter(reciprocal_vel_obs):
         p2s, p2s_angle = rvo_inter.point2segment(temp, temp1)
 
         env_train = kwargs.get('env_train', self.env_train)
-
-        if env_train:
-            collision_flag = True if p2s <= r else False
-        else:
-            collision_flag = True if p2s <= r - self.exp_radius else False
+        collision_flag = True if p2s <= r else False
+        # if env_train:
+        #
+        # else:
+        #     collision_flag = True if p2s <= r - self.exp_radius else False
 
         if self.vo_out_jud_vector(vx, vy, vo):
             vo_flag = False
