@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 from matplotlib.pyplot import plot, savefig
 import numpy as np
 episode_phase1 = 4000
-episode_phase2 = 4000
+episode_phase2 = 8000
 episode_phase3 = 12000
 episode_phase4 = 20000
 def set_random_seeds(seed):
@@ -346,7 +346,7 @@ def main(args):
             _, _, _, reward, average_return, _, _ = explorer.run_k_episodes(env.case_size['val'], 'val', episode=episode)
             explorer.log('val', episode // evaluation_interval)
 
-            if episode % checkpoint_interval == 0 and average_return > best_val_return and episode > episode_phase4:
+            if episode % checkpoint_interval == 0 and average_return > best_val_return and episode > episode_phase3:
                 best_val_return = average_return
                 best_val_model = copy.deepcopy(policy.get_state_dict())
         # test after every evaluation to check how the generalization performance evolves
