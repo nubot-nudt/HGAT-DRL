@@ -52,7 +52,7 @@ class RGCNRL(Policy):
         # max_action must be a tensor
         self.max_action = None
         self.min_action = None
-        self.expl_noise = 0.05
+        self.expl_noise = 0.2
 
     def set_common_parameters(self, config):
         self.gamma = config.rl.gamma
