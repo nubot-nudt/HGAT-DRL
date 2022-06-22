@@ -881,7 +881,7 @@ class CrowdSim(gym.Env):
         reward = reward + self.re_rvo * rvo_reward
         reward = reward * 100
         self.rewards.append(reward)
-        print("test %f %f "%(reward,rvo_reward))
+        # print("test %f %f "%(reward,rvo_reward))
         # if info ==Collision():
         #     reward = rvo_reward - 15
         # elif info ==ReachGoal():

@@ -2,10 +2,10 @@
 day=`date +%m%d`
 echo "The Script begin at $day"
 a=0.1
-b=-0.25
-c=0.25
-d=1.0
-e=0.02
+b=-1.0
+c=1.0
+d=0.2
+e=0.05
 f=0.01
 # Script to reproduce results
 for ((i=$2;i<$3;i+=1))
