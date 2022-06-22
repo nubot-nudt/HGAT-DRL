@@ -13,9 +13,9 @@ class CrowdNavGraph():
         self.rels = ['h2r', 'o2r', 'w2r', 'o2h', 'w2h', 'h2h']
         self.use_rvo = True
         if self.use_rvo is True:
-            self.rvo_inter = rvo_inter(neighbor_region=6, neighbor_num=20, vxmax=1, vymax=1, acceler=1.0,
+            self.rvo_inter = rvo_inter(neighbor_region=5, neighbor_num=20, vxmax=1, vymax=1, acceler=1.0,
                                        env_train=True,
-                                       exp_radius=0.0, ctime_threshold=3.0, ctime_line_threshold=2.0)
+                                       exp_radius=0.0, ctime_threshold=3.0, ctime_line_threshold=3.0)
             rotated_data = self.config_rvo_state(data)
             self.build_up_graph_on_rvostate(rotated_data)
         else:
