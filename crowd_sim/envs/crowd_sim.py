@@ -789,13 +789,12 @@ class CrowdSim(gym.Env):
             min_dis = min_dis_array[i]
             if min_exp_time < 0:
                 min_exp_time = 0
-            exp_time_reward = 1 / (min_exp_time + 1.0)
+            exp_time_reward = 1.0 / (min_exp_time + 1.0)  #(0, -1)
             if vo_flag is True:
-                # if min_exp_time < 1.0:
-                #     rvo_reward = -0.1 + p4 * exp_time_reward + rvo_reward# -0.3 to -0.5
-                # else:
-                #     # rvo reward
-                rvo_reward = 1 / (3.0 + 1.0) - exp_time_reward + rvo_reward - 0.1 # -0.1 to -0.85
+                if min_exp_time < 1.0:
+                    rvo_reward = (1 / (3.0 + 1.0) - exp_time_reward) * 3.0 + rvo_reward - 0.1 # -0.35 to -2.25
+                else:
+                    rvo_reward = 1 / (3.0 + 1.0) - exp_time_reward + rvo_reward - 0.1 # -0.1 to -0.35
         # rvo_reward = np.round(rvo_reward, 4)
         # if rvo_reward > 0.0:
         #     print("error rvo reward")
@@ -882,6 +881,7 @@ class CrowdSim(gym.Env):
         reward = reward + self.re_rvo * rvo_reward
         reward = reward * 100
         self.rewards.append(reward)
+        print("test %f %f "%(reward,rvo_reward))
         # if info ==Collision():
         #     reward = rvo_reward - 15
         # elif info ==ReachGoal():
