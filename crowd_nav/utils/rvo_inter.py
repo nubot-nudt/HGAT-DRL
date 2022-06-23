@@ -154,7 +154,7 @@ class rvo_inter(reciprocal_vel_obs):
                 vo_flag = False
                 exp_time = inf
             
-        input_exp_time = 1 / (exp_time+0.2)
+        input_exp_time = 1 / (exp_time+1.0)
         min_dis = real_dis_mr-mr
 
         observation_vo = [vo[0], vo[1], cos(vo[2]), sin(vo[2]), cos(vo[3]), sin(vo[3]), min_dis, input_exp_time, -rel_x, -rel_y, mr]

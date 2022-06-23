@@ -87,7 +87,7 @@ class CrowdSim(gym.Env):
         self.human_goals = []
         self.phase_num = 0
         self.last_state = None
-        self.rvo_inter = rvo_inter(neighbor_region=5, neighbor_num=20, vxmax=1, vymax=1, acceler=1.0,
+        self.rvo_inter = rvo_inter(neighbor_region=6, neighbor_num=20, vxmax=1, vymax=1, acceler=1.0,
                                    env_train=True,
                                    exp_radius=0.0, ctime_threshold=3.0, ctime_line_threshold=3.0)
         # 动作空间: 速度，朝向
@@ -743,7 +743,7 @@ class CrowdSim(gym.Env):
         robot2goal = goal_position - cur_position
         theta_r2g = np.math.atan2(robot2goal[1], robot2goal[0])
         reward_theta = (np.cos(self.robot.theta) * np.cos(theta_r2g) + np.sin(self.robot.theta) * np.sin(theta_r2g) - 1)
-        reward_theta = reward_theta / (norm(cur_position - goal_position) + 5)
+        reward_theta = reward_theta / (norm(cur_position - goal_position) + 5.0)
         robot_vel = (self.robot.v_left + self.robot.v_right) / 2.0
         if robot_vel < -0.3:
             reward_vel = (0.1 + robot_vel) * 0.1
