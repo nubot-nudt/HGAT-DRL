@@ -135,6 +135,8 @@ def main(args):
                     for i in range(len(statistical)):
                         booksheet.write(count, 3 + i, statistical[i])
                     count = count + 1
+                    save_path = args.model_dir + '/result.xls'
+                    workbook.save(save_path)
 
                 for obstacle_num in range(2, 10):
                     human_num = 5
@@ -146,9 +148,10 @@ def main(args):
                         booksheet.write(count, 3 + i, statistical[i])
                     count = count + 1
 
-    save_path = args.model_dir + '/result.xls'
-    print(save_path)
-    workbook.save(save_path)
+                    save_path = args.model_dir + '/result.xls'
+                    workbook.save(save_path)
+
+
 
 
 
