@@ -785,13 +785,14 @@ class CrowdSim(gym.Env):
         rvo_reward = 0.0
         for i in range(len(vo_flag_array)):
             vo_flag = vo_flag_array[i]
-            min_exp_time = min_exp_time_array[i]
+            input_exp_time = min_exp_time_array[i]
             min_dis = min_dis_array[i]
             if min_exp_time < 0:
                 min_exp_time = 0
-            exp_time_reward = 1.0 / (min_exp_time + 1.0)  #(0, -1)
+
+            exp_time_reward = input_exp_time
             if vo_flag is True:
-                if min_exp_time < 1.0:
+                if input_exp_time < 0.5:  # input_exp_time is 0.5 means that min_exp_time is 1.0
                     rvo_reward = (1 / (3.0 + 1.0) - exp_time_reward) * 3.0 + rvo_reward - 0.1 # -0.35 to -2.25
                 else:
                     rvo_reward = 1 / (3.0 + 1.0) - exp_time_reward + rvo_reward - 0.1 # -0.1 to -0.35
