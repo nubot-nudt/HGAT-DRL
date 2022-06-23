@@ -122,34 +122,35 @@ def main(args):
     if args.model_dir is not None:
         dirs = os.listdir(args.model_dir)
         for gnn_dir in dirs:
-            args.gnn = gnn_dir
-            dirs_models = os.listdir(args.model_dir + '/' + gnn_dir)
-            for dir_file in dirs_models:
-                model_dir = args.model_dir + '/' + gnn_dir + '/' + dir_file
-                for human_num in range(2,10):
-                    obstacle_num = 3
-                    statistical = test(human_num, obstacle_num, model_dir, args)
-                    booksheet.write(count, 0, dir_file)
-                    booksheet.write(count, 1, human_num)
-                    booksheet.write(count, 2, obstacle_num)
-                    for i in range(len(statistical)):
-                        booksheet.write(count, 3 + i, statistical[i])
-                    count = count + 1
-                    save_path = args.model_dir + '/result.xls'
-                    workbook.save(save_path)
+            if os.path.isdir(args.model_dir + '/' + gnn_dir):
+                dirs_models = os.listdir(args.model_dir + '/' + gnn_dir)
+                print(args.model_dir + '/' + gnn_dir)
+                args.gnn = gnn_dir
+                for dir_file in dirs_models:
+                    model_dir = args.model_dir + '/' + gnn_dir + '/' + dir_file
+                    for human_num in range(10, 11):
+                        obstacle_num = 3
+                        statistical = test(human_num, obstacle_num, model_dir, args)
+                        booksheet.write(count, 0, dir_file)
+                        booksheet.write(count, 1, human_num)
+                        booksheet.write(count, 2, obstacle_num)
+                        for i in range(len(statistical)):
+                            booksheet.write(count, 3 + i, statistical[i])
+                        count = count + 1
+                        save_path = args.model_dir + '/result1.xls'
+                        workbook.save(save_path)
 
-                for obstacle_num in range(2, 10):
-                    human_num = 5
-                    statistical = test(human_num, obstacle_num, model_dir, args)
-                    booksheet.write(count, 0, dir_file)
-                    booksheet.write(count, 1, human_num)
-                    booksheet.write(count, 2, obstacle_num)
-                    for i in range(len(statistical)):
-                        booksheet.write(count, 3 + i, statistical[i])
-                    count = count + 1
-
-                    save_path = args.model_dir + '/result.xls'
-                    workbook.save(save_path)
+                    for obstacle_num in range(10, 11):
+                        human_num = 5
+                        statistical = test(human_num, obstacle_num, model_dir, args)
+                        booksheet.write(count, 0, dir_file)
+                        booksheet.write(count, 1, human_num)
+                        booksheet.write(count, 2, obstacle_num)
+                        for i in range(len(statistical)):
+                            booksheet.write(count, 3 + i, statistical[i])
+                        count = count + 1
+                        save_path = args.model_dir + '/result1.xls'
+                        workbook.save(save_path)
 
 
 
