@@ -119,8 +119,8 @@ class CrowdSim(gym.Env):
         self.square_width = config.sim.square_width
         self.circle_radius = config.sim.circle_radius
         self.human_num = config.sim.human_num
-        self.human_num = 0
-        self.static_obstacle_num = 3
+        if config.sim.obstacle_num:
+            self.static_obstacle_num = config.sim.obstacle_num
         self.wall_num = 0
 
         self.nonstop_human = config.sim.nonstop_human
@@ -168,9 +168,9 @@ class CrowdSim(gym.Env):
             self.wall_num = 0
             self.human_num = np.random.randint(5, 10)
         elif self.phase_num == 10 or self.phase_num == 11: #for test
-            self.static_obstacle_num = 3
+            self.static_obstacle_num = self.static_obstacle_num
             self.wall_num = 0
-            self.human_num = 5
+            self.human_num = self.human_num
 
     def set_robot(self, robot):
         self.robot = robot
