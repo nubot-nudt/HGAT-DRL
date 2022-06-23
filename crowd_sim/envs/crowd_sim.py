@@ -787,8 +787,8 @@ class CrowdSim(gym.Env):
             vo_flag = vo_flag_array[i]
             input_exp_time = min_exp_time_array[i]
             min_dis = min_dis_array[i]
-            if min_exp_time < 0:
-                min_exp_time = 0
+            if input_exp_time < 0:
+                input_exp_time = 0
 
             exp_time_reward = input_exp_time
             if vo_flag is True:
