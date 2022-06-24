@@ -448,7 +448,7 @@ class CrowdSim(gym.Env):
         if self.phase_num >= 0:
             corridor_width = self.square_width
             corridor_length = self.square_width * 2.0
-            self.walls.append(self.generate_wall([-corridor_width / 2, -corridor_length / 2], [-corridor_width / 2, corridor_length / 2]))
+            self.walls.append(self.generate_wall([-corridor_width / 2, corridor_length / 2], [-corridor_width / 2, -corridor_length / 2]))
             self.walls.append(self.generate_wall([corridor_width / 2, -corridor_length / 2], [corridor_width / 2, corridor_length / 2]))
 
     def generate_open_scenario(self):

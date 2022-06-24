@@ -4,6 +4,7 @@ from crowd_sim.envs.policy.policy import Policy
 from crowd_sim.envs.utils.action import ActionXY, ActionRot
 from crowd_sim.envs.utils.state import ObservableState, JointState_2tyeps, JointState
 from crowd_nav.utils.a_star import Astar
+from crowd_sim.envs.policy.subtarget import subtarget
 
 def rotate_2d_point(theta, point):
     cos = np.cos(theta)
@@ -164,13 +165,15 @@ class ORCA(Policy):
         if dis < 2.0:
             velocity = np.array((robot_state.gx - robot_state.px, robot_state.gy - robot_state.py))
         else:
-            target_pos = self.astarplanner.set_state2((robot_state, state.human_states, state.obstacle_states, state.wall_states))
-            if target_pos is None:
-                # print('no solution')
-                target_pos = (robot_state.gx, robot_state.px)
-            dis = (target_pos[0] - robot_state.px) * (target_pos[0] - robot_state.px) + (target_pos[1] - robot_state.py) * (target_pos[1] - robot_state.py)
-            dis = np.sqrt(dis)
-            velocity = np.array((target_pos[0] - robot_state.px, target_pos[1] - robot_state.py)) / dis
+            target_theta = subtarget(robot_state,state.human_states, state.obstacle_states, state.wall_states)
+            velocity = np.array((np.cos(target_theta), np.sin(target_theta)))
+            # target_pos = self.astarplanner.set_state2((robot_state, state.human_states, state.obstacle_states, state.wall_states))
+            # if target_pos is None:
+            #     # print('no solution')
+            #     target_pos = (robot_state.gx, robot_state.px)
+            # dis = (target_pos[0] - robot_state.px) * (target_pos[0] - robot_state.px) + (target_pos[1] - robot_state.py) * (target_pos[1] - robot_state.py)
+            # dis = np.sqrt(dis)
+            # velocity = np.array((target_pos[0] - robot_state.px, target_pos[1] - robot_state.py)) / dis
         speed = np.linalg.norm(velocity)
         pref_vel = velocity / speed if speed > 1 else velocity
 
