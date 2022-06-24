@@ -13,8 +13,8 @@ class Config(object):
 interval = 500
 v_pref = 1.0
 rotation_constraint = np.pi/6
-kinematics = 'differential'
-#kinematics = 'unicycle'
+#kinematics = 'differential'
+kinematics = 'unicycle'
 human_num = 5
 obstacle_num = 3
 wall_num = 4
