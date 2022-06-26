@@ -12,6 +12,7 @@ from crowd_nav.policy.graph_model import PG_GAT_RL
 from crowd_nav.policy.actor import Actor
 from crowd_nav.policy.critic import Critic
 
+
 class TD3RL(Policy):
     def __init__(self):
         super().__init__()
@@ -405,3 +406,6 @@ class TD3RL(Policy):
             new_state = torch.cat((new_robot_state, new_human_state),
                                   dim=0)
         return new_state
+
+
+

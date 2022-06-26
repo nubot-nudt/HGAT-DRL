@@ -179,22 +179,22 @@ def main(args):
         # plt.plot(positions, velocity_left_rec, color='green', marker='*', linestyle='solid')
         # plt.plot(positions, velocity_right_rec, color='magenta', marker='^', linestyle='solid')
 
-        plt.xlabel("t(s)")
-        # plt.ylim((-250, 250))
-        plt.grid = True
-        plt.plot(positions, velocity_left_rec, color='green', marker='d', markersize=2, linestyle='solid',
-                 label="vel_l(m/s)")
-        plt.plot(positions, velocity_right_rec, color='magenta', marker='^', markersize=2, linestyle='solid',
-                 label="vel_r(m/s)")
-        plt.plot(positions, velocity_rec, color='blue', marker='o', markersize=2, linestyle='solid',
-                 label="linear_velocity(m/s)")
-        plt.plot(positions, rotation_rec, color='red', marker='*', markersize=2, linestyle='solid',
-                 label="angular_velocity(rad/s)")
-        plt.plot(positions, action_left_rec, color='yellow', marker='^', markersize=2, linestyle='solid',
-                 label="acc_l(m/s^2)")
-        plt.plot(positions, action_right_rec, color='purple', marker='d', markersize=2, linestyle='solid',
-                 label="acc_r(m/s^2)")
-        plt.legend(loc='upper left')
+        # plt.xlabel("t(s)")
+        # # plt.ylim((-250, 250))
+        # plt.grid = True
+        # plt.plot(positions, velocity_left_rec, color='green', marker='d', markersize=2, linestyle='solid',
+        #          label="vel_l(m/s)")
+        # plt.plot(positions, velocity_right_rec, color='magenta', marker='^', markersize=2, linestyle='solid',
+        #          label="vel_r(m/s)")
+        # plt.plot(positions, velocity_rec, color='blue', marker='o', markersize=2, linestyle='solid',
+        #          label="linear_velocity(m/s)")
+        # plt.plot(positions, rotation_rec, color='red', marker='*', markersize=2, linestyle='solid',
+        #          label="angular_velocity(rad/s)")
+        # plt.plot(positions, action_left_rec, color='yellow', marker='^', markersize=2, linestyle='solid',
+        #          label="acc_l(m/s^2)")
+        # plt.plot(positions, action_right_rec, color='purple', marker='d', markersize=2, linestyle='solid',
+        #          label="acc_r(m/s^2)")
+        # plt.legend(loc='upper left')
 
         # for i in range(len(actions)):
         #     positions.append(i)
@@ -210,8 +210,8 @@ def main(args):
         #         rotation_rec.append(action.ar)
         # plt.plot(positions, velocity_rec, color='r', marker='.', linestyle='dashed')
         # plt.plot(positions, rotation_rec, color='b', marker='.', linestyle='dashed')
-        plt.show()
-        print('finish')
+        # plt.show()
+        # print('finish')
         if args.traj:
             env.render('traj', args.video_file)
         else:
@@ -239,9 +239,9 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Parse configuration file')
     parser.add_argument('--config', type=str, default=None)
-    parser.add_argument('--policy', type=str, default='orca')
+    parser.add_argument('--policy', type=str, default='td3_rl')
     parser.add_argument('--gnn', type=str, default='rgcn')
-    parser.add_argument('-m', '--model_dir', type=str, default='data/from_zirui/0605/gat/10/')#None
+    parser.add_argument('-m', '--model_dir', type=str, default='data/sgdqn_data_and_model/10human/tsrl10rot/tsrl/0')#None
     parser.add_argument('--il', default=False, action='store_true')
     parser.add_argument('--rl', default=False, action='store_true')
     parser.add_argument('--gpu', default=False, action='store_true')
