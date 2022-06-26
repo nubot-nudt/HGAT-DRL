@@ -4,7 +4,7 @@ echo "The Script begin at $day"
 a=0.1
 b=-0.25
 c=0.25
-d=0.2
+d=0.5
 e=0.01
 f=0.01
 # Script to reproduce results
