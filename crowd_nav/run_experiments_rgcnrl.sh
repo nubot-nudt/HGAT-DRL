@@ -12,7 +12,7 @@ for ((i=$2;i<$3;i+=1))
 do
 	python3 train.py \
 	--policy rgcn_rl \
-	--output_dir data/$day/$1/$i \
+	--output_dir data/ablution/$day/$1/$i \
 	--randomseed $i  \
 	--config configs/icra_benchmark/rgcnrl.py \
 	--safe_weight $d \
