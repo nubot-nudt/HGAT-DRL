@@ -15,7 +15,8 @@ from crowd_sim.envs.policy.orca import ORCA
 from crowd_nav.policy.reward_estimate import Reward_Estimator
 from crowd_sim.envs.utils.info import *
 from crowd_sim.envs.utils.action import ActionRot, ActionXY, ActionDiff
-
+import xlwt
+from tqdm import tqdm
 import rospy
 import numpy as np
 #from test_py_ros.msg import test
@@ -97,7 +98,7 @@ def generateObstacles(obstacle_state, human_state, line_obstacle):
         id = id + 1
     return obstacle_msg
 
-def main(args):
+def teb_test(args, human_num, obstacle_num):
     global vx,vy,w,v
     # configure logging and device
     level = logging.DEBUG if args.debug else logging.INFO
@@ -108,7 +109,7 @@ def main(args):
     robot_pub = rospy.Publisher('/robot_state',RobotState,queue_size = 1)
     human_pub = rospy.Publisher('/test_optim_node/obstacles', ObstacleArrayMsg, queue_size=1)
 
-    rospy.init_node("test_obstacle_msg")
+
     obstacle_msg = ObstacleArrayMsg()
     obstacle_msg.header.stamp = rospy.Time.now()
     obstacle_msg.header.frame_id = "odom"  # CHANGE HERE: odom/map
@@ -166,6 +167,9 @@ def main(args):
         policy_config.gat.human_num = args.human_num
 
 
+    env_config.sim.human_num = human_num
+    env_config.sim.obstacle_num = obstacle_num
+
     policy.configure(policy_config, device)
     if policy.trainable:
         if args.model_dir is None:
@@ -212,6 +216,7 @@ def main(args):
         logging.info('ORCA agent buffer: %f', robot.policy.safety_space)
     env.set_phase(env_config.sim.human_num)
     print(env_config.sim.human_num)
+    print(env_config.sim.obstacle_num)
     print(sys_args.randomseed)
     policy.set_env(env)
     robot.print_info()
@@ -346,6 +351,7 @@ def main(args):
         timeout_cases = []
         discomfort_nums = []
         k=env_config.env.test_size
+        pbar = tqdm(total=k)
         for i in range(k):
             states = []
             actions = []
@@ -381,9 +387,6 @@ def main(args):
                     else:
                         action = ActionXY(vx * np.cos(robot.theta), vy * np.sin(robot.theta))
                     ob, reward, done, info = env.step(action)
-                    # if phase in ['train', 'test']:
-                    #     self.env.render(mode='debug')
-                    # actually, final states of timeout cases is not terminal states
                     if isinstance(info, Timeout):
                         dones.append(False)
                     else:
@@ -429,6 +432,10 @@ def main(args):
             returns_list = returns_list + returns
             average_returns.append(np.average(returns))
 
+            if pbar:
+                pbar.update(1)
+
+
         success_rate = success / k
         collision_rate = collision / k
         assert success + collision + timeout == k
@@ -456,13 +463,52 @@ def main(args):
             print('Collision cases: ' + ' '.join([str(x) for x in collision_cases]))
             print('Timeout cases: ' + ' '.join([str(x) for x in timeout_cases]))
 
+        statistics = success_rate, collision_rate, avg_nav_time, avg_col_time, sum(cumulative_rewards), np.average(average_returns), discomfort, total_time
+
+        return statistics
+
+
+def main(args):
+    rospy.init_node("test_obstacle_msg")
+    workbook = xlwt.Workbook(encoding='utf-8')
+    booksheet = workbook.add_sheet('Sheet 1', cell_overwrite_ok=True)
+    sheet_head_info = ['seed', 'human_num', 'obs_num', 'suc_rate', 'col_rate', 'nav_time', 'col_time', 'cum_reward',
+                       'ave_return', 'discomfort', 'total_time']
+    for i in range(len(sheet_head_info)):
+        booksheet.write(0, i, sheet_head_info[i])
+
+    count = 1
+    if args.model_dir is not None:
+        for human_num in range(2, 11):
+            obstacle_num = 3
+            statistical = teb_test(args, human_num, obstacle_num)
+            booksheet.write(count, 0, 'teb')
+            booksheet.write(count, 1, human_num)
+            booksheet.write(count, 2, obstacle_num)
+            for i in range(len(statistical)):
+                booksheet.write(count, 3 + i, statistical[i])
+            count = count + 1
+            save_path = args.model_dir + '/' + '/result.xls'
+            workbook.save(save_path)
+
+        for obstacle_num in range(2, 11):
+            obstacle_num = 5
+            statistical = teb_test(args, human_num, obstacle_num)
+            booksheet.write(count, 0, 'teb')
+            booksheet.write(count, 1, human_num)
+            booksheet.write(count, 2, obstacle_num)
+            for i in range(len(statistical)):
+                booksheet.write(count, 3 + i, statistical[i])
+            count = count + 1
+            save_path = args.model_dir + '/' + '/result.xls'
+            workbook.save(save_path)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Parse configuration file')
     parser.add_argument('--config', type=str, default=None)
     parser.add_argument('--policy', type=str, default='orca')
     parser.add_argument('--gnn', type=str, default='rgcn')
-    parser.add_argument('-m', '--model_dir', type=str, default='data/from_zirui/0605/gat/10/')#None
+    parser.add_argument('-m', '--model_dir', type=str, default='data/final_data/teb/10')#None
     parser.add_argument('--il', default=False, action='store_true')
     parser.add_argument('--rl', default=False, action='store_true')
     parser.add_argument('--gpu', default=False, action='store_true')
