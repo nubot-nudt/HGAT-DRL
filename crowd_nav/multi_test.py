@@ -128,40 +128,38 @@ def main(args):
                 args.gnn = gnn_dir
                 for dir_file in dirs_models:
                     model_dir = args.model_dir + '/' + gnn_dir + '/' + dir_file
-                    for human_num in range(2, 11):
-                        obstacle_num = 3
-                        statistical = test(human_num, obstacle_num, model_dir, args)
-                        booksheet.write(count, 0, dir_file)
-                        booksheet.write(count, 1, human_num)
-                        booksheet.write(count, 2, obstacle_num)
-                        for i in range(len(statistical)):
-                            booksheet.write(count, 3 + i, statistical[i])
-                        count = count + 1
-                        save_path = args.model_dir + '/result.xls'
-                        workbook.save(save_path)
+                    if os.path.isdir(model_dir):
+                        for human_num in range(5,6):
+                            obstacle_num = 3
+                            statistical = test(human_num, obstacle_num, model_dir, args)
+                            booksheet.write(count, 0, dir_file)
+                            booksheet.write(count, 1, human_num)
+                            booksheet.write(count, 2, obstacle_num)
+                            for i in range(len(statistical)):
+                                booksheet.write(count, 3 + i, statistical[i])
+                            count = count + 1
+                            save_path = args.model_dir + '/' + gnn_dir + '/result.xls'
+                            workbook.save(save_path)
 
-                    for obstacle_num in range(2, 11):
-                        human_num = 5
-                        statistical = test(human_num, obstacle_num, model_dir, args)
-                        booksheet.write(count, 0, dir_file)
-                        booksheet.write(count, 1, human_num)
-                        booksheet.write(count, 2, obstacle_num)
-                        for i in range(len(statistical)):
-                            booksheet.write(count, 3 + i, statistical[i])
-                        count = count + 1
-                        save_path = args.model_dir + '/result.xls'
-                        workbook.save(save_path)
-
-
-
+                        for obstacle_num in range(2, 11):
+                            human_num = 5
+                            statistical = test(human_num, obstacle_num, model_dir, args)
+                            booksheet.write(count, 0, dir_file)
+                            booksheet.write(count, 1, human_num)
+                            booksheet.write(count, 2, obstacle_num)
+                            for i in range(len(statistical)):
+                                booksheet.write(count, 3 + i, statistical[i])
+                            count = count + 1
+                            save_path = args.model_dir + '/result.xls'
+                            workbook.save(save_path)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Parse configuration file')
     parser.add_argument('--config', type=str, default=None)
     parser.add_argument('--policy', type=str, default='orca')
-    parser.add_argument('--gnn', type=str, default='rgcn')
-    parser.add_argument('-m', '--model_dir', type=str, default='/home/nubot1/workspace/2021TITS/crowd_nav/data/final_data/nh-orca')#None
+    parser.add_argument('--gnn', type=str, default='tsrl')
+    parser.add_argument('-m', '--model_dir', type=str, default='data/sgdqn_data_and_model/10human/tsrl10rot')#None
     parser.add_argument('--il', default=False, action='store_true')
     parser.add_argument('--rl', default=False, action='store_true')
     parser.add_argument('--gpu', default=False, action='store_true')
