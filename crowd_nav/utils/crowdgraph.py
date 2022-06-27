@@ -12,7 +12,7 @@ class CrowdNavGraph():
         self.robot_visible = False
         self.rels = ['h2r', 'o2r', 'w2r', 'o2h', 'w2h', 'h2h']
         self.use_rvo = True
-        self.mode = 2
+        self.mode = 0
         if self.use_rvo is True:
             self.rvo_inter = rvo_inter(neighbor_region=6, neighbor_num=20, vxmax=1, vymax=1, acceler=1.0,
                                        env_train=True,

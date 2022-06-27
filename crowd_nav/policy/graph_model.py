@@ -471,7 +471,7 @@ class DGL_RGCN_RL(nn.Module):
         """
         super().__init__()
         self.multiagent_training = config.gcn.multiagent_training
-        self.mode = 2
+        self.mode = 0
         if self.mode ==0:
             self.robot_state_dim = 5
             self.human_state_dim = 11
