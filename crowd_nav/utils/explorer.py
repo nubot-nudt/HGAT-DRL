@@ -133,7 +133,7 @@ class Explorer(object):
             logging.info('Collision cases: ' + ' '.join([str(x) for x in collision_cases]))
             logging.info('Timeout cases: ' + ' '.join([str(x) for x in timeout_cases]))
 
-        self.statistics = success_rate, collision_rate, avg_nav_time, sum(cumulative_rewards), average(average_returns), discomfort, total_time
+        self.statistics = success_rate, collision_rate, avg_nav_time, avg_col_time, sum(cumulative_rewards), average(average_returns), discomfort, total_time
 
         return self.statistics
 

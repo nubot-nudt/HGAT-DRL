@@ -15,7 +15,16 @@ from crowd_sim.envs.policy.orca import ORCA
 from crowd_nav.policy.reward_estimate import Reward_Estimator
 from crowd_sim.envs.utils.info import *
 from crowd_sim.envs.utils.action import ActionRot, ActionXY, ActionDiff
+from crowd_sim.envs.policy.subtarget import subtarget
+from crowd_nav.utils.a_star import Astar
+def wraptopi(theta):
+    if theta > np.pi:
+        theta = theta - 2 * np.pi
 
+    if theta < -np.pi:
+        theta = theta + 2 * np.pi
+
+    return theta
 import rospy
 import numpy as np
 #from test_py_ros.msg import test
@@ -26,14 +35,24 @@ import math
 from costmap_converter.msg import ObstacleArrayMsg, ObstacleMsg
 from geometry_msgs.msg import PolygonStamped, Point32 , Twist,PoseArray
 from geometry_msgs.msg import Pose2D, Pose, Twist
-def ob2req(ob, robot_state):
+
+astarplanner = Astar()
+def ob2req(ob, robot_state, target_theta):
     tebCrowdSimInfo = TebCrowdSim()
     human_state, obstacle_state, line_obstacle = ob
-    robot_pose, robot_velocity, robot_goal = generateRobotPose(robot_state)
+    robot_pose, robot_velocity, robot_goal = generateRobotPose(robot_state, target_theta)
+
+
+    # if target_pos is None:
+    #     # print('no solution')
+    #     target_pos = (robot_state.gx, robot_state.px)
+    # dis = (target_pos[0] - robot_state.px) * (target_pos[0] - robot_state.px) + (target_pos[1] - robot_state.py) * (target_pos[1] - robot_state.py)
+    # dis = np.sqrt(dis)
+    # velocity = np.array((target_pos[0] - robot_state.px, target_pos[1] - robot_state.py)) / dis
     obstaclearray = generateObstacles(obstacle_state, human_state, line_obstacle)
     return robot_pose, robot_velocity, robot_goal, obstaclearray
 
-def generateRobotPose(robot_state):
+def generateRobotPose(robot_state, target_theta):
     robot_pose2d = Pose2D()
     robot_pose2d.x = robot_state.px
     robot_pose2d.y = robot_state.py
@@ -47,10 +66,15 @@ def generateRobotPose(robot_state):
     robot_velocity.angular.y = 0
     robot_velocity.angular.x = 0
     robot_goal = Pose2D()
-    robot_goal.x = robot_state.gx
-    robot_goal.y = robot_state.gy
-    robot_goal.theta = np.pi
-    return robot_pose, robot_velocity,robot_goal
+    if np.sqrt((robot_state.gx - robot_state.px)**2 +(robot_state.gy - robot_state.py)**2) < 3.0:
+        robot_goal.x = robot_state.gx
+        robot_goal.y = robot_state.gy
+        robot_goal.theta = np.pi /2.0
+    else:
+        robot_goal.x = robot_state.px + 2.5 * np.cos(target_theta)
+        robot_goal.y = robot_state.py + 2.5 * np.sin(target_theta)
+        robot_goal.theta = target_theta
+    return robot_pose, robot_velocity, robot_goal
 
 def generateObstacles(obstacle_state, human_state, line_obstacle):
     obstacle_msg = ObstacleArrayMsg()
@@ -166,8 +190,8 @@ def main(args):
         policy_config.model_predictive_rl.sparse_search = True
 
     if args.human_num is not None:
-        env_config.sim.human_num = args.human_num
-        policy_config.gat.human_num = args.human_num
+        env_config.sim.human_num = 5
+        policy_config.gat.human_num = 5
 
 
     policy.configure(policy_config, device)
@@ -214,7 +238,7 @@ def main(args):
         else:
             robot.policy.safety_space = args.safety_space
         logging.info('ORCA agent buffer: %f', robot.policy.safety_space)
-    env.set_phase(env_config.sim.human_num)
+    env.set_phase(10)
     print(env_config.sim.human_num)
     print(sys_args.randomseed)
     policy.set_env(env)
@@ -231,40 +255,78 @@ def main(args):
         ob = env.reset(args.phase, args.test_case)
         last_pos = np.array(robot.get_position())
         while not done:
-            robot_pose, robot_velocity, robot_goal, obstacles = ob2req(ob, env.robot.get_full_state())
-            rospy.wait_for_service('/test_mpc_crowd_sim_node/crowd_sim_info')
-            try:
-                # 创建服务的处理句柄,可以像调用函数一样，调用句柄
-                teb_server = rospy.ServiceProxy('/test_mpc_crowd_sim_node/crowd_sim_info', TebCrowdSim)
-                resp1 = teb_server(robot_pose, robot_velocity, robot_goal, obstacles)
-                vx = resp1.velocity.linear.x
-                dt = resp1.velocity.linear.y
-                w = resp1.velocity.angular.z
-                if robot.kinematics is 'differential':
-                    vel_left = (vx - w * env.robot.radius)
-                    vel_right = (vx + w * env.robot.radius)
-                    if dt == 0.0:
-                        print("dt is 0")
-                        dt = 0.5
-                    al = (vel_left - env.robot.v_left) / (0.5 * dt)
-                    ar = (vel_right - env.robot.v_right) / (0.5 * dt)
-                    action = ActionDiff(al, ar)
-                elif robot.kinematics is 'unicycle':
-                    theta = w * robot.time_step
-                    action = ActionRot(vx, theta)
-                else:
-                    action = ActionXY(vx * np.cos(robot.theta), vy * np.sin(robot.theta))
-                ob, _, done, info = env.step(action)
-                rewards.append(_)
-                current_pos = np.array(robot.get_position())
-                logging.debug('Speed: %.2f', np.linalg.norm(current_pos - last_pos) / robot.time_step)
-                last_pos = current_pos
-                actions.append(action)
-                last_velocity = np.array(robot.get_velocity())
-                vel_rec.append(last_velocity)
-                # 如果调用失败，可能会抛出rospy.ServiceException
-            except rospy.ServiceException:
-                print("Service call failed:")
+            target_theta = subtarget(env.robot.get_full_state(), ob[0], ob[1], ob[2])
+            robot_pose, robot_velocity, robot_goal, obstacles = ob2req(ob, env.robot.get_full_state(),target_theta)
+            robot_state = env.robot.get_full_state()
+            disr2g = np.sqrt((robot_state.px -robot_state.gx)**2+(robot_state.py -robot_state.gy)**2)
+            if disr2g > 0.4:
+                rospy.wait_for_service('/test_mpc_crowd_sim_node/crowd_sim_info')
+                try:
+                    # 创建服务的处理句柄,可以像调用函数一样，调用句柄
+                    teb_server = rospy.ServiceProxy('/test_mpc_crowd_sim_node/crowd_sim_info', TebCrowdSim)
+                    resp1 = teb_server(robot_pose, robot_velocity, robot_goal, obstacles)
+                    vx = resp1.velocity.linear.x
+                    dt = resp1.velocity.linear.y
+                    w = resp1.velocity.angular.z
+                    if robot.kinematics is 'differential':
+                        vel_left = (vx - w * env.robot.radius)
+                        vel_right = (vx + w * env.robot.radius)
+                        if dt == 0.0:
+                            print("dt is 0")
+                            dt = 0.25
+                        al = (vel_left - env.robot.v_left) / (dt)
+                        ar = (vel_right - env.robot.v_right) / (dt)
+                        action = ActionDiff(al, ar)
+                    elif robot.kinematics is 'unicycle':
+                        theta = w * robot.time_step
+                        action = ActionRot(vx, theta)
+                    else:
+                        action = ActionXY(vx * np.cos(robot.theta), vy * np.sin(robot.theta))
+                    ob, _, done, info = env.step(action)
+                    rewards.append(_)
+                    current_pos = np.array(robot.get_position())
+                    logging.debug('Speed: %.2f', np.linalg.norm(current_pos - last_pos) / robot.time_step)
+                    last_pos = current_pos
+                    actions.append(action)
+                    last_velocity = np.array(robot.get_velocity())
+                    vel_rec.append(last_velocity)
+                    # 如果调用失败，可能会抛出rospy.ServiceException
+                except rospy.ServiceException:
+                    print("Service call failed:")
+            else:
+                rospy.wait_for_service('/test_mpc_crowd_sim_node/crowd_sim_info')
+                try:
+                    vx = disr2g * 2
+                    dt = 0.25
+                    delta_theta = np.math.atan2(env.robot.gy - env.robot.py,
+                                                env.robot.gx - env.robot.px) - env.robot.theta
+                    w = (wraptopi(delta_theta)) / np.pi
+                    if robot.kinematics is 'differential':
+                        vel_left = (vx - w * env.robot.radius)
+                        vel_right = (vx + w * env.robot.radius)
+                        if dt == 0.0:
+                            print("dt is 0")
+                            dt = 0.25
+                        al = (vel_left - env.robot.v_left) / (dt)
+                        ar = (vel_right - env.robot.v_right) / (dt)
+                        action = ActionDiff(al, ar)
+                    elif robot.kinematics is 'unicycle':
+                        theta = w * robot.time_step
+                        action = ActionRot(vx, theta)
+                    else:
+                        action = ActionXY(vx * np.cos(robot.theta), vy * np.sin(robot.theta))
+                    ob, _, done, info = env.step(action)
+                    rewards.append(_)
+                    current_pos = np.array(robot.get_position())
+                    logging.debug('Speed: %.2f', np.linalg.norm(current_pos - last_pos) / robot.time_step)
+                    last_pos = current_pos
+                    actions.append(action)
+                    last_velocity = np.array(robot.get_velocity())
+                    vel_rec.append(last_velocity)
+                        # 如果调用失败，可能会抛出rospy.ServiceException
+                except rospy.ServiceException:
+                    print("Service call failed:")
+
         last_velocity = np.array(robot.get_velocity())
         vel_rec.append(last_velocity)
         gamma = 0.95
@@ -361,7 +423,9 @@ def main(args):
             last_pos = np.array(robot.get_position())
             while not done:
                 num_discom = 0
-                robot_pose, robot_velocity, robot_goal, obstacles = ob2req(ob, env.robot.get_full_state())
+                target_theta = subtarget(env.robot.get_full_state(), ob[0], ob[1], ob[2])
+                robot_pose, robot_velocity, robot_goal, obstacles = ob2req(ob, env.robot.get_full_state(), target_theta)
+                # robot_pose, robot_velocity, robot_goal, obstacles = ob2req(ob, env.robot.get_full_state())
                 rospy.wait_for_service('/test_mpc_crowd_sim_node/crowd_sim_info')
                 try:
                     # 创建服务的处理句柄,可以像调用函数一样，调用句柄
@@ -374,10 +438,9 @@ def main(args):
                         vel_left = (vx - w * env.robot.radius)
                         vel_right = (vx + w * env.robot.radius)
                         if dt == 0.0:
-                            print("dt is 0")
                             dt = 0.5
-                        al = (vel_left - env.robot.v_left) / (0.5 * dt)
-                        ar = (vel_right - env.robot.v_right) / (0.5 * dt)
+                        al = (vel_left - env.robot.v_left) / (dt)
+                        ar = (vel_right - env.robot.v_right) / (dt)
                         action = ActionDiff(al, ar)
                     elif robot.kinematics is 'unicycle':
                         theta = w * robot.time_step

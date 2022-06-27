@@ -47,6 +47,7 @@ class BaseEnvConfig(object):
     sim.square_width = 10
     sim.circle_radius = 4
     sim.human_num = human_num
+    sim.obstacle_num = 3
     sim.nonstop_human = True
     sim.obstacle_num = 3
     sim.wall_num = 4
