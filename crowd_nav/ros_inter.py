@@ -72,6 +72,8 @@ class sgdqn_planner:
 
         # configure policy
         policy_config = config.PolicyConfig(args.debug)
+        if policy_config.name == 'rgcn_rl':
+            policy_config.gnn_model = args.gnn
         policy = policy_factory[policy_config.name]()
         reward_estimator = Reward_Estimator()
         env_config = config.EnvConfig(args.debug)
@@ -108,10 +110,12 @@ class sgdqn_planner:
             env.test_scenario = args.test_scenario
 
         # for continous action
+        robot = Robot(env_config, 'robot')
+        env.set_robot(robot)
         action_dim = env.action_space.shape[0]
-        max_action = np.array([1.0, 1.0])
-        min_action = np.array([-1.0, -1.0])
-        if policy.name == 'TD3RL':
+        max_action = env.action_space.high
+        min_action = env.action_space.low
+        if policy.name == 'TD3RL' or policy.name == 'RGCNRL':
             policy.set_action(action_dim, max_action, min_action)
         self.robot_policy = policy
         policy.set_v_pref(1.0)
@@ -146,6 +150,7 @@ class sgdqn_planner:
             self.robot_policy.set_obstacle_num(disc_num, wall_num)
         observable_states = (peds_full_state, obstacle_states, wall_states)
         self.cur_state = JointState(robot_full_state, observable_states)
+
         action_cmd = ActionCmd()
 
         dis = np.sqrt((robot_full_state.px - robot_full_state.gx)**2 + (robot_full_state.py - robot_full_state.gy)**2)
@@ -190,8 +195,9 @@ class sgdqn_planner:
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Parse configuration file')
     parser.add_argument('--config', type=str, default=None)
-    parser.add_argument('--policy', type=str, default='tree_search_rl')
-    parser.add_argument('-m', '--model_dir', type=str, default='data/success/td3_rl/2')#None
+    parser.add_argument('--policy', type=str, default='td3_rl')
+    parser.add_argument('--gnn', type=str, default='transformer')
+    parser.add_argument('-m', '--model_dir', type=str, default='data/final_data/transformer_test/transformer/5')#None
     parser.add_argument('--il', default=False, action='store_true')
     parser.add_argument('--rl', default=False, action='store_true')
     parser.add_argument('--gpu', default=False, action='store_true')

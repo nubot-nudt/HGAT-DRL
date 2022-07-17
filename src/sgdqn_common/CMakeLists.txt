@@ -23,7 +23,16 @@ add_message_files(DIRECTORY msgs FILES ObserveInfo.msg
 RobotState.msg
 PedState.msg
 ActionCmd.msg
+DiscState.msg
+LineState.msg
 )
 add_service_files(DIRECTORY srv FILES TebCrowdSim.srv)
 
 generate_messages(DEPENDENCIES std_msgs   geometry_msgs   costmap_converter)
+set(sgdqn_common_includes
+               ${catkin_INCLUDE_DIRS}
+)
+include_directories(${sgdqn_common_includes})
+catkin_package(
+  INCLUDE_DIRS ${sgdqn_common_includes}
+)

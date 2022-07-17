@@ -240,8 +240,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser('Parse configuration file')
     parser.add_argument('--config', type=str, default=None)
     parser.add_argument('--policy', type=str, default='td3_rl')
-    parser.add_argument('--gnn', type=str, default='rgcn')
-    parser.add_argument('-m', '--model_dir', type=str, default='data/sgdqn_data_and_model/10human/tsrl10rot/tsrl/0')#None
+    parser.add_argument('--gnn', type=str, default='transformer')
+    parser.add_argument('-m', '--model_dir', type=str, default='data/final_data/transformer_test/transformer/5')#None
     parser.add_argument('--il', default=False, action='store_true')
     parser.add_argument('--rl', default=False, action='store_true')
     parser.add_argument('--gpu', default=False, action='store_true')
