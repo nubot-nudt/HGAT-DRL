@@ -225,7 +225,7 @@ class DQNNetwork(nn.Module):
         #  'px', 'py', 'vx', 'vy', 'radius'
         #  0     1      2     3      4
         assert len(state[0].shape) == 3
-        if len(state[1].shape) == 3:
+        if state[1] is not None:
             batch = state[0].shape[0]
             robot_state = state[0]
             human_state = state[1]
@@ -261,21 +261,44 @@ class DQNNetwork(nn.Module):
             dy = robot_state[:, :, 6] - robot_state[:, :, 1]
             dx = dx.unsqueeze(1)
             dy = dy.unsqueeze(1)
-            radius_r = robot_state[:, :, 4].unsqueeze(1)
             dg = torch.norm(torch.cat([dx, dy], dim=2), 2, dim=2, keepdim=True)
             rot = torch.atan2(dy, dx)
             cos_rot = torch.cos(rot)
             sin_rot = torch.sin(rot)
-            vx = (robot_state[:, :, 2].unsqueeze(1) * cos_rot +
-                  robot_state[:, :, 3].unsqueeze(1) * sin_rot).reshape((batch, 1, -1))
-            vy = (robot_state[:, :, 3].unsqueeze(1) * cos_rot -
-                  robot_state[:, :, 2].unsqueeze(1) * sin_rot).reshape((batch, 1, -1))
+            transform_matrix = torch.cat((cos_rot, -sin_rot, sin_rot, cos_rot), dim=1).reshape(batch, 2, 2)
+            robot_velocities = torch.bmm(robot_state[:, :, 2:4], transform_matrix)
+            radius_r = robot_state[:, :, 4].unsqueeze(1)
             v_pref = robot_state[:, :, 7].unsqueeze(1)
-            theta = robot_state[:, :, 8].unsqueeze(1)
-            px_r = torch.zeros_like(v_pref)
-            py_r = torch.zeros_like(v_pref)
-            new_robot_state = torch.cat((px_r, py_r, vx, vy, radius_r, dg, rot, v_pref, theta), dim=2)
+            target_heading = torch.zeros_like(radius_r)
+            pos_r = torch.zeros_like(robot_velocities)
+            cur_heading = (robot_state[:, :, 8].unsqueeze(1) - rot + np.pi) % (2 * np.pi) - np.pi
+            new_robot_state = torch.cat((pos_r, robot_velocities, radius_r, dg, target_heading, v_pref, cur_heading),
+                                        dim=2)
+
             new_state = (new_robot_state, None)
+
+
+            # batch = state[0].shape[0]
+            # robot_state = state[0]
+            # dx = robot_state[:, :, 5] - robot_state[:, :, 0]
+            # dy = robot_state[:, :, 6] - robot_state[:, :, 1]
+            # dx = dx.unsqueeze(1)
+            # dy = dy.unsqueeze(1)
+            # radius_r = robot_state[:, :, 4].unsqueeze(1)
+            # dg = torch.norm(torch.cat([dx, dy], dim=2), 2, dim=2, keepdim=True)
+            # rot = torch.atan2(dy, dx)
+            # cos_rot = torch.cos(rot)
+            # sin_rot = torch.sin(rot)
+            # vx = (robot_state[:, :, 2].unsqueeze(1) * cos_rot +
+            #       robot_state[:, :, 3].unsqueeze(1) * sin_rot).reshape((batch, 1, -1))
+            # vy = (robot_state[:, :, 3].unsqueeze(1) * cos_rot -
+            #       robot_state[:, :, 2].unsqueeze(1) * sin_rot).reshape((batch, 1, -1))
+            # v_pref = robot_state[:, :, 7].unsqueeze(1)
+            # theta = robot_state[:, :, 8].unsqueeze(1)
+            # px_r = torch.zeros_like(v_pref)
+            # py_r = torch.zeros_like(v_pref)
+            # new_robot_state = torch.cat((px_r, py_r, vx, vy, radius_r, dg, rot, v_pref, theta), dim=2)
+            # new_state = (new_robot_state, None)
             return new_state
 
 

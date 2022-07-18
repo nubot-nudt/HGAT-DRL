@@ -16,19 +16,30 @@ import rospy
 from crowd_sim.envs.utils.state import ObservableState, FullState, JointState, ObstacleState, WallState
 from sgdqn_common.msg import ObserveInfo, ActionCmd
 from crowd_sim.envs.utils.action import ActionXY, ActionRot
-
+from dynamic_reconfigure.server import Server
+from sgdqn_common.cfg import GoalConfig
 class sgdqn_planner:
     def init(self):
         self.robot_policy = None
         self.peds_policy = None
         self.cur_state = None
+        self.goal_x = 0.0
+        self.goal_y = 4.0
         rospy.init_node('sgdqn_planner_node', anonymous=True)
 
+
     def start(self):
+        srv = Server(GoalConfig, self.callback)
         rospy.Subscriber("observeInfo", ObserveInfo, self.state_callback)
         # self.human_vel_pub = rospy.Publisher('human_vel_cmd', VelInfo, queue_size=10)
         self.robot_action_pub = rospy.Publisher('robot_action_cmd', ActionCmd, queue_size=10)
         rospy.spin()
+
+    def callback(self, ros_config, level):
+        self.goal_x = ros_config.goal_x
+        self.goal_y = ros_config.goal_y
+        rospy.loginfo("""Reconfigure Request: {goal_x}, {goal_y}""".format(**ros_config))
+        return ros_config
 
     def configure(self):
         self.robot_policy = policy_factory['tree_search_rl']()
@@ -135,6 +146,8 @@ class sgdqn_planner:
 
     def state_callback(self, observe_info):
         robot_state = observe_info.robot_state
+        robot_state.goal_x = self.goal_x
+        robot_state.goal_y = self.goal_y
         robot_full_state = FullState(robot_state.pos_x, robot_state.pos_y, robot_state.vel_x, robot_state.vel_y,
                                      robot_state.radius, robot_state.goal_x, robot_state.goal_y, robot_state.vmax,
                                      robot_state.theta)
