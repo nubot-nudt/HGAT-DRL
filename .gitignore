@@ -21,3 +21,5 @@ crowd_nav/useless/*
 .catkin_workspace
 *.sh
 *.txt
+*.zip
+*.user

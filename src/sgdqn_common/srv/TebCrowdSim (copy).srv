@@ -1,0 +1,9 @@
+geometry_msgs/Pose2D                 robot_pose
+geometry_msgs/Twist                robot_velocity
+geometry_msgs/Pose2D                 goal_pose
+costmap_converter/ObstacleArrayMsg obstacles
+geometry_msgs/Twist[]              velocities
+uint32[]                           ids
+---
+uint8 plan_found
+geometry_msgs/Twist velocity
