@@ -14,27 +14,34 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
+  geometry_msgs
+  costmap_converter
   dynamic_reconfigure
 )
 #add dynamic reconfigure api
 #find_package(catkin REQUIRED dynamic_reconfigure)
 generate_dynamic_reconfigure_options(
   config/goal.cfg
-  #...
 )
 add_message_files(DIRECTORY msgs FILES ObserveInfo.msg
 RobotState.msg
 PedState.msg
 ActionCmd.msg
-LineState.msg
 DiscState.msg
+LineState.msg
 )
-generate_messages(DEPENDENCIES std_msgs)
+
+add_service_files(DIRECTORY srv FILES TebCrowdSim.srv)
+
+generate_messages(DEPENDENCIES std_msgs   geometry_msgs   costmap_converter)
+set(sgdqn_common_includes
+               ${catkin_INCLUDE_DIRS}
+)
+include_directories(${sgdqn_common_includes})
 catkin_package(
-  LIBRARIES custom_dynamic_reconfigure
+ LIBRARIES custom_dynamic_reconfigure
   CATKIN_DEPENDS dynamic_reconfigure roscpp std_msgs)
-include_directories(${catkin_INCLUDE_DIRS})
-
-
+  INCLUDE_DIRS ${sgdqn_common_includes}
+)
 
 

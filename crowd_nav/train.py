@@ -11,8 +11,8 @@ import git
 import re
 from tensorboardX import SummaryWriter
 from crowd_sim.envs.utils.robot import Robot
-from crowd_nav.utils.trainer import VNRLTrainer, MPRLTrainer, TSRLTrainer, TD3RLTrainer
-from crowd_nav.utils.memory import ReplayMemory
+from crowd_nav.utils.trainer import VNRLTrainer, MPRLTrainer, TSRLTrainer, TD3RLTrainer, RGCNRLTrainer
+from crowd_nav.utils.memory import ReplayMemory, GraphReplayMemory
 from crowd_nav.utils.explorer import Explorer
 from crowd_nav.policy.policy_factory import policy_factory
 from crowd_nav.policy.reward_estimate import Reward_Estimator
@@ -20,7 +20,10 @@ from crowd_nav.policy.reward_estimate import Reward_Estimator
 import matplotlib.pyplot as plt
 from matplotlib.pyplot import plot, savefig
 import numpy as np
-
+episode_phase1 = 4000
+episode_phase2 = 8000
+episode_phase3 = 12000
+episode_phase4 = 20000
 def set_random_seeds(seed):
     """
     Sets the random seeds for pytorch cpu and gpu
@@ -82,6 +85,8 @@ def main(args):
     logging.info('Current git head hash code: {}'.format(repo.head.object.hexsha))
     logging.info('Current random seed: {}'.format(sys_args.randomseed))
     logging.info('Current safe_weight: {}'.format(sys_args.safe_weight))
+    logging.info('Current re_rvo_weight: {}'.format(sys_args.re_rvo))
+    logging.info('Current re_rvo_weight: {}'.format(sys_args.re_theta))
     logging.info('Current goal_weight: {}'.format(sys_args.goal_weight))
     logging.info('Current re_collision: {}'.format(sys_args.re_collision))
     logging.info('Current re_arrival: {}'.format(sys_args.re_arrival))
@@ -90,8 +95,11 @@ def main(args):
     logging.info('Using device: %s', device)
     writer = SummaryWriter(log_dir=args.output_dir)
 
+
     # configure policy
     policy_config = config.PolicyConfig()
+    if policy_config.name == 'rgcn_rl':
+        policy_config.gnn_model = args.gnn
     policy = policy_factory[policy_config.name]()
     if not policy.trainable:
         parser.error('Policy has to be trainable')
@@ -105,9 +113,17 @@ def main(args):
     env_config.reward.success_reward = args.re_arrival
     env_config.reward.goal_factor = args.goal_weight
     env_config.reward.discomfort_penalty_factor = args.safe_weight
+    env_config.reward.re_rvo = args.re_rvo
+    env_config.reward.re_theta = args.re_theta
     env_config.sim.human_num = args.human_num
 
     env = gym.make('CrowdSim-v0')
+    if args.square:
+        env.current_scenario = 'square_crossing'
+        print('square scenario')
+    if args.circle:
+        env.current_scenario = 'circle_crossing'
+        print('circle scenario')
     env.configure(env_config)
     robot = Robot(env_config, 'robot')
     robot.time_step = env.time_step
@@ -136,7 +152,10 @@ def main(args):
     checkpoint_interval = train_config.train.checkpoint_interval
 
     # configure trainer and explorer
-    memory = ReplayMemory(capacity)
+    if policy_config.name == "rgcn_rl":
+        memory = GraphReplayMemory(capacity)
+    else:
+        memory = ReplayMemory(capacity)
     model = policy.get_model()
     batch_size = train_config.trainer.batch_size
     optimizer = train_config.trainer.optimizer
@@ -163,6 +182,13 @@ def main(args):
     elif policy_config.name == 'td3_rl':
         policy.set_action(action_dim, max_action, min_action)
         trainer = TD3RLTrainer(policy.actor, policy.critic, policy.state_predictor, memory, device, policy, writer,
+                              batch_size, optimizer, env.human_num, reduce_sp_update_frequency=train_config.train.reduce_sp_update_frequency,
+                              freeze_state_predictor=train_config.train.freeze_state_predictor,
+                              detach_state_predictor=train_config.train.detach_state_predictor,
+                              share_graph_model=policy_config.model_predictive_rl.share_graph_model)
+    elif policy_config.name == 'rgcn_rl':
+        policy.set_action(action_dim, max_action, min_action)
+        trainer = RGCNRLTrainer(policy.actor, policy.critic, policy.state_predictor, memory, device, policy, writer,
                               batch_size, optimizer, env.human_num, reduce_sp_update_frequency=train_config.train.reduce_sp_update_frequency,
                               freeze_state_predictor=train_config.train.freeze_state_predictor,
                               detach_state_predictor=train_config.train.detach_state_predictor,
@@ -209,20 +235,21 @@ def main(args):
 
     # reinforcement learning
     policy.set_env(env)
+
     robot.set_policy(policy)
     robot.print_info()
     trainer.set_rl_learning_rate(rl_learning_rate)
     # fill the memory pool with some RL experience
     if args.resume:
         robot.policy.set_epsilon(epsilon_end)
-        explorer.run_k_episodes(100, 'train', update_memory=True, episode=0)
+        explorer.run_k_episodes(3000, 'train', update_memory=True, episode=0)
         logging.info('Experience set size: %d/%d', len(memory), memory.capacity)
     episode = 0
     best_val_reward = -1
     best_val_return = -1
     best_val_model = None
     # evaluate the model after imitation learning
-
+    env.set_phase(0)
     if episode % evaluation_interval == 0:
         logging.info('Evaluate the model instantly after imitation learning on the validation cases')
         explorer.run_k_episodes(env.case_size['val'], 'val', episode=episode)
@@ -246,9 +273,12 @@ def main(args):
     eps_count = 0
     fw = open(sys_args.output_dir + '/data.txt', 'w')
     print("%f %f %f %f %f" % (0,0,0,0,0), file=fw)
-    # robot.policy.set_epsilon(epsilon_start)
-    # _, _, nav_time, sum_reward, ave_return, discom_time, total_time = \
-    #     explorer.run_k_episodes(300, 'train', update_memory=True, episode=episode)
+    robot.policy.set_epsilon(epsilon_start)
+
+
+
+    _, _, nav_time, sum_reward, ave_return, discom_time, total_time = \
+        explorer.run_k_episodes(1, 'train', update_memory=True, episode=episode)
     while episode < train_episodes:
         if args.resume:
             epsilon = epsilon_end
@@ -258,7 +288,21 @@ def main(args):
             else:
                 epsilon = epsilon_end
         robot.policy.set_epsilon(epsilon)
-
+        if episode == 0:
+        # no any obstacles
+            env.set_phase(0)
+        elif episode == episode_phase1:
+        # add walls, human, and static obstacles
+            env.set_phase(1)
+        elif episode == episode_phase2:
+        # add poly obstacles
+            env.set_phase(2)
+        elif episode == episode_phase3:
+            env.set_phase(3)
+        elif episode == episode_phase4:
+            env.set_phase(4)
+        # elif episode == 15000:
+        #     env.set_phase(5)
         # sample k episodes into memory and optimize over the generated memory
         _, _, nav_time, sum_reward, ave_return, discom_time, total_time = \
             explorer.run_k_episodes(sample_episodes, 'train', update_memory=True, episode=episode)
@@ -284,8 +328,8 @@ def main(args):
             nav_time__in_last_interval = 0
             discom_time_in_last_interval = 0
             total_time_in_last_interval = 0
-            min_reward = (np.min(reward_rec) // 5.0 ) * 5.0
-            max_reward = (np.max(reward_rec) // 5.0 + 1) * 5.0
+            min_reward = (np.min(reward_rec) // 50) * 50
+            max_reward = (np.max(reward_rec) // 50 + 1) * 50
             pos = np.array(range(1, len(reward_rec)+1)) * interval
             plt.plot(pos, reward_rec, color='r', marker='.', linestyle='dashed')
             plt.axis([0, eps_count, min_reward, max_reward])
@@ -294,7 +338,7 @@ def main(args):
 
         trainer.optimize_batch(train_batches, episode)
         episode += 1
-
+        # useless code
         if episode % target_update_interval == 0:
             trainer.update_target_model(model)
         # evaluate the model
@@ -302,7 +346,7 @@ def main(args):
             _, _, _, reward, average_return, _, _ = explorer.run_k_episodes(env.case_size['val'], 'val', episode=episode)
             explorer.log('val', episode // evaluation_interval)
 
-            if episode % checkpoint_interval == 0 and average_return > best_val_return:
+            if episode % checkpoint_interval == 0 and average_return > best_val_return and episode > episode_phase3:
                 best_val_return = average_return
                 best_val_model = copy.deepcopy(policy.get_state_dict())
         # test after every evaluation to check how the generalization performance evolves
@@ -321,13 +365,19 @@ def main(args):
         policy.load_state_dict(best_val_model)
         torch.save(best_val_model, os.path.join(args.output_dir, 'best_val.pth'))
         logging.info('Save the best val model with the return: {}'.format(best_val_return))
+    env.set_phase(10)
+    explorer.run_k_episodes(env.case_size['test'], 'test', episode=episode, print_failure=True)
+    env.set_phase(11)
     explorer.run_k_episodes(env.case_size['test'], 'test', episode=episode, print_failure=True)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Parse configuration file')
-    parser.add_argument('--policy', type=str, default='td3_rl')
-    parser.add_argument('--config', type=str, default='configs/icra_benchmark/td3.py')
+    parser.add_argument('--policy', type=str, default='rgcn_rl')
+    parser.add_argument('--config', type=str, default='configs/icra_benchmark/rgcnrl.py')
+    #parser.add_argument('--policy', type=str, default='td3rl')
+    #parser.add_argument('--config', type=str, default='configs/icra_benchmark/td3.py')
+    parser.add_argument('--gnn', type=str, default='rgcn')
     parser.add_argument('--output_dir', type=str, default='data/output')
     parser.add_argument('--overwrite', default=False, action='store_true')
     parser.add_argument('--weights', type=str)
@@ -336,11 +386,15 @@ if __name__ == '__main__':
     parser.add_argument('--debug', default=False, action='store_true')
     parser.add_argument('--test_after_every_eval', default=False, action='store_true')
     parser.add_argument('--randomseed', type=int, default=7)
-    parser.add_argument('--human_num', type=int, default=5)
+    parser.add_argument('--human_num', type=int, default=1)
     parser.add_argument('--safe_weight', type=float, default=1.0)
-    parser.add_argument('--goal_weight', type=float, default=0.2)
+    parser.add_argument('--goal_weight', type=float, default=0.1)
     parser.add_argument('--re_collision', type=float, default=-0.25)
     parser.add_argument('--re_arrival', type=float, default=0.25)
+    parser.add_argument('--re_rvo', type=float, default=0.01)
+    parser.add_argument('--re_theta', type=float, default=0.01)
+    parser.add_argument('--square', default=False, action='store_true')
+    parser.add_argument('--circle', default=False, action='store_true')
 
 
     # arguments for GCN

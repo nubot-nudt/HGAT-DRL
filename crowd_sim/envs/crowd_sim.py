@@ -1,14 +1,14 @@
 import logging
 import random
 import math
-
+import copy
 import gym
 from gym import spaces
 import matplotlib.lines as mlines
 from matplotlib import patches
 import numpy as np
 from numpy.linalg import norm
-
+from crowd_nav.utils.rvo_inter import rvo_inter
 from crowd_sim.envs.policy.policy_factory import policy_factory
 from crowd_sim.envs.utils.state import tensor_to_joint_state, JointState
 from crowd_sim.envs.utils.action import ActionRot, ActionDiff
@@ -16,8 +16,7 @@ from crowd_sim.envs.utils.human import Human
 from crowd_sim.envs.utils.obstacle import Obstacle
 from crowd_sim.envs.utils.wall import Wall
 from crowd_sim.envs.utils.info import *
-from crowd_sim.envs.utils.utils import point_to_segment_dist
-
+from crowd_sim.envs.utils.utils import point_to_segment_dist, counterclockwise, point_in_poly, theta_mod
 
 class CrowdSim(gym.Env):
     metadata = {'render.modes': ['human']}
@@ -64,6 +63,10 @@ class CrowdSim(gym.Env):
         self.static_obstacle_num = 3
         self.wall_num = 4
 
+        self.fig = None
+        self.ax = None
+        self.poly_obstacles = []
+
         # for visualization
         self.states = None
         self.action_values = None
@@ -82,7 +85,11 @@ class CrowdSim(gym.Env):
         self.dynamic_human_num = []
         self.human_starts = []
         self.human_goals = []
-
+        self.phase_num = 0
+        self.last_state = None
+        self.rvo_inter = rvo_inter(neighbor_region=6, neighbor_num=20, vxmax=1, vymax=1, acceler=1.0,
+                                   env_train=True,
+                                   exp_radius=0.0, ctime_threshold=3.0, ctime_line_threshold=3.0)
         # 动作空间: 速度，朝向
         self.action_space = spaces.Box(
             low=np.array([0, -np.pi]),
@@ -100,6 +107,8 @@ class CrowdSim(gym.Env):
         self.success_reward = config.reward.success_reward
         self.collision_penalty = config.reward.collision_penalty
         self.goal_factor = config.reward.goal_factor
+        self.re_rvo = config.reward.re_rvo
+        self.re_theta = config.reward.re_theta
         self.discomfort_penalty_factor = config.reward.discomfort_penalty_factor
         self.discomfort_dist = config.reward.discomfort_dist
         self.case_capacity = {'train': np.iinfo(np.uint32).max - 2000, 'val': 1000, 'test': 1000}
@@ -110,8 +119,9 @@ class CrowdSim(gym.Env):
         self.square_width = config.sim.square_width
         self.circle_radius = config.sim.circle_radius
         self.human_num = config.sim.human_num
-        self.static_obstacle_num = 3
-        self.wall_num = 4
+        if config.sim.obstacle_num:
+            self.static_obstacle_num = config.sim.obstacle_num
+        self.wall_num = 0
 
         self.nonstop_human = config.sim.nonstop_human
         self.centralized_planning = config.sim.centralized_planning
@@ -130,6 +140,37 @@ class CrowdSim(gym.Env):
             logging.info("Not randomize human's radius and preferred speed")
         logging.info('Training simulation: {}, test simulation: {}'.format(self.train_val_scenario, self.test_scenario))
         logging.info('Square width: {}, circle width: {}'.format(self.square_width, self.circle_radius))
+
+    def set_phase(self, phase_num):
+        self.phase_num = phase_num
+        if self.phase_num == 0:
+            self.static_obstacle_num = 1
+            self.wall_num = 0
+            self.human_num = 1
+        elif self.phase_num == 1:
+            self.static_obstacle_num = 3
+            self.wall_num = 0
+            self.human_num = 1
+        elif self.phase_num == 2:
+            self.static_obstacle_num = 3
+            self.wall_num = 0
+            self.human_num = 3
+        elif self.phase_num == 3:
+            self.static_obstacle_num = 3
+            self.wall_num = 0
+            self.human_num = 5
+        elif self.phase_num == 4:
+            self.static_obstacle_num = 3
+            self.wall_num = 0
+            self.human_num = 5
+        elif self.phase_num == 4:
+            self.static_obstacle_num = np.random.randint(2, 5)
+            self.wall_num = 0
+            self.human_num = np.random.randint(5, 10)
+        elif self.phase_num == 10 or self.phase_num == 11: #for test
+            self.static_obstacle_num = self.static_obstacle_num
+            self.wall_num = 0
+            self.human_num = self.human_num
 
     def set_robot(self, robot):
         self.robot = robot
@@ -155,24 +196,47 @@ class CrowdSim(gym.Env):
             )
         logging.info('rotation constraint: {}'.format(self.robot.rotation_constraint))
 
+    def set_human_num(self, human_num):
+        self.human_num = human_num
+        logging.info('human number is {}'.format(self.human_num))
+
     def generate_human(self, human=None, non_stop=False, square=False):
         if human is None:
             human = Human(self.config, 'humans')
         if self.randomize_attributes:
             human.sample_random_attributes()
         if square is False and non_stop is False:
-            while True:
+            for sample_count in range(200):
                 angle = np.random.random() * np.pi * 2
                 # add some noise to simulate all the possible cases robot could meet with human
                 px_noise = (np.random.random() - 0.5) * human.v_pref
                 py_noise = (np.random.random() - 0.5) * human.v_pref
-                px = self.circle_radius * np.cos(angle) + px_noise
-                py = self.circle_radius * np.sin(angle) + py_noise
+                ex_noise = (np.random.random() - 0.5) * human.v_pref
+                ey_noise = (np.random.random() - 0.5) * human.v_pref
+                px = (self.circle_radius + 0.5) * np.cos(angle) + px_noise
+                py = (self.circle_radius + 0.5) * np.sin(angle) + py_noise
+                gx = -(self.circle_radius + 0.5) * np.cos(angle) + ex_noise
+                gy = -(self.circle_radius + 0.5) * np.sin(angle) + ey_noise
                 collide = False
-                for agent in [self.robot] + self.humans:
+                for agent in [self.robot]:
+                    min_dist = human.radius + agent.radius + self.discomfort_dist + 0.5
+                    if norm((px - agent.px, py - agent.py)) < min_dist or \
+                            norm((px - agent.gx, py - agent.gy)) < min_dist:
+                        collide = True
+                        break
+                for agent in self.humans:
                     min_dist = human.radius + agent.radius + self.discomfort_dist
                     if norm((px - agent.px, py - agent.py)) < min_dist or \
                             norm((px - agent.gx, py - agent.gy)) < min_dist:
+                        collide = True
+                        break
+                for wall in self.walls:
+                    if point_to_segment_dist(wall.sx, wall.sy, wall.ex, wall.ey, px, py) < human.radius + 0.3 and \
+                            point_to_segment_dist(wall.sx, wall.sy, wall.ex, wall.ey, gx, gy) < human.radius + 0.3:
+                        collide = True
+                        break
+                for poly_obs in self.poly_obstacles:
+                    if point_in_poly(px, py, poly_obs) or point_in_poly(gx, gy, poly_obs):
                         collide = True
                         break
                 if not collide:
@@ -180,9 +244,9 @@ class CrowdSim(gym.Env):
             # px = 0.0
             # py = 0.0
             human.start_pos.append((px, py))
-            human.set(px, py, -px, -py, 0, 0, 0)
+            human.set(px, py, gx, gy, 0, 0, 0)
         elif square is False and non_stop is True:
-            while True:
+            for sample_count in range(200):
                 angle = np.random.random() * np.pi * 2
                 # add some noise to simulate all the possible cases robot could meet with human
                 px = human.px
@@ -193,10 +257,21 @@ class CrowdSim(gym.Env):
                 gy = self.circle_radius * np.sin(angle) + gy_noise
                 collide = False
                 for agent in [self.robot] + self.humans:
-                    min_dist = human.radius + agent.radius + self.discomfort_dist
-                    # if norm((px - agent.px, py - agent.py)) == 0.0:
-                    #     continue
+                    min_dist = human.radius + agent.radius + self.discomfort_dist + 0.5
                     if norm((gx - agent.gx, gy - agent.gy)) < min_dist:
+                        collide = True
+                        break
+                for agent in [self.robot]:
+                    min_dist = human.radius + agent.radius + self.discomfort_dist
+                    if norm((gx - agent.gx, gy - agent.gy)) < min_dist:
+                        collide = True
+                        break
+                for wall in self.walls:
+                    if point_to_segment_dist(wall.sx, wall.sy, wall.ex, wall.ey, gx, gy) < human.radius + self.robot.radius:
+                        collide = True
+                        break
+                for poly_obs in self.poly_obstacles:
+                    if point_in_poly(gx, gy, poly_obs):
                         collide = True
                         break
                 if not collide:
@@ -209,22 +284,40 @@ class CrowdSim(gym.Env):
                 sign = -1
             else:
                 sign = 1
-            while True:
+            for sample_count in range(200):
                 px = np.random.random() * self.square_width * 0.5 * sign
                 py = (np.random.random() - 0.5) * self.square_width
                 collide = False
                 for agent in [self.robot] + self.humans:
-                    if norm((px - agent.px, py - agent.py)) < human.radius + agent.radius + self.discomfort_dist:
+                    min_dist = human.radius + agent.radius + self.discomfort_dist + 0.5
+                    if norm((px - agent.px, py - agent.py)) < min_dist:
+                        collide = True
+                        break
+                for wall in self.walls:
+                    if point_to_segment_dist(wall.sx, wall.sy, wall.ex, wall.ey, px, py) < human.radius + self.robot.radius:
+                        collide = True
+                        break
+                for poly_obs in self.poly_obstacles:
+                    if point_in_poly(px, py, poly_obs):
                         collide = True
                         break
                 if not collide:
                     break
-            while True:
+            for sample_count in range(200):
                 gx = np.random.random() * self.square_width * 0.5 * (- sign)
                 gy = (np.random.random() - 0.5) * self.square_width
                 collide = False
                 for agent in [self.robot] + self.humans:
-                    if norm((gx - agent.gx, gy - agent.gy)) < human.radius + agent.radius + self.discomfort_dist:
+                    min_dist = human.radius + agent.radius + self.discomfort_dist + 0.5
+                    if  norm((gx - agent.gx, gy - agent.gy)) < min_dist:
+                        collide = True
+                        break
+                for wall in self.walls:
+                    if point_to_segment_dist(wall.sx, wall.sy, wall.ex, wall.ey, gx, gy) < human.radius + self.robot.radius:
+                        collide = True
+                        break
+                for poly_obs in self.poly_obstacles:
+                    if point_in_poly(gx, gy, poly_obs) or point_in_poly(gx, gy, poly_obs):
                         collide = True
                         break
                 if not collide:
@@ -237,7 +330,7 @@ class CrowdSim(gym.Env):
             else:
                 sign = 1
             goal_count = 0
-            while True:
+            for sample_count in range(200):
                 goal_count = goal_count + 1
                 px = human.px
                 py = human.py
@@ -246,9 +339,16 @@ class CrowdSim(gym.Env):
                 collide = False
                 for agent in [self.robot] + self.humans:
                     min_dist = human.radius + agent.radius + self.discomfort_dist
-                    # if norm((px - agent.px, py - agent.py)) == 0.0:
-                    #     break
                     if norm((gx - agent.gx, gy - agent.gy)) < min_dist:
+                        collide = True
+                        break
+                for wall in self.walls:
+                    if point_to_segment_dist(wall.sx, wall.sy, wall.ex, wall.ey, gx,
+                                             gy) < human.radius + self.robot.radius:
+                        collide = True
+                        break
+                for poly_obs in self.poly_obstacles:
+                    if point_in_poly(gx, gy, poly_obs) or point_in_poly(gx, gy, poly_obs):
                         collide = True
                         break
                 if not collide:
@@ -257,31 +357,162 @@ class CrowdSim(gym.Env):
             human.set(px, py, gx, gy, 0, 0, 0)
         return human
 
-    def generate_static_obstcale(self, obstacle=None):
-        obstacle = Obstacle()
-        if self.randomize_attributes:
+    def generate_static_obstacle(self, obstacle=None):
+        self.obstacles = []
+        for i in range(self.static_obstacle_num):
+            obstacle = Obstacle()
+        # if self.randomize_attributes:
             obstacle.sample_random_attributes()
-        else:
-            obstacle.radius = 0.3
-        while True:
-            px = (np.random.random() - 0.5) * self.square_width * 0.8
-            py = (np.random.random() - 0.5) * self.circle_radius * 2
-            obstacle.set(px, py, obstacle.radius)
-            collide = False
-            for agent in [self.robot] + self.humans:
-                if norm((px - agent.px, py - agent.py)) < obstacle.radius + agent.radius + 0.2 or \
-                        norm((px - agent.gx, py - agent.gy)) < obstacle.radius + agent.radius + 0.2:
-                    collide = True
+        # else:
+        #     obstacle.radius = 0.3
+            sample_count = 0
+            for sample_count in range(200):
+                px = (np.random.random() - 0.5) * self.square_width * 0.8
+                py = (np.random.random() - 0.5) * self.circle_radius * 2
+                obstacle.set(px, py, obstacle.radius)
+                collide = False
+                for agent in [self.robot] + self.humans:
+                    if norm((px - agent.px, py - agent.py)) < obstacle.radius + agent.radius + 0.5 or \
+                            norm((px - agent.gx, py - agent.gy)) < obstacle.radius + agent.radius + 0.5:
+                        collide = True
+                        break
+                for agent in self.obstacles:
+                    if norm((px - agent.px, py - agent.py)) < obstacle.radius + agent.radius + 0.5:
+                        collide = True
+                        break
+                for wall in self.walls:
+                    if point_to_segment_dist(wall.sx, wall.sy, wall.ex, wall.ey, px, py) < obstacle.radius + 0.8:
+                        collide = True
+                        break
+                for poly_obs in self.poly_obstacles:
+                    if point_in_poly(px, py, poly_obs):
+                        collide = True
+                        break
+                if not collide:
                     break
-            if not collide:
-                break
-        return obstacle
+            if sample_count < 200:
+                self.obstacles.append(obstacle)
 
+    def generate_center_obstacle(self, obstacle=None):
+        corridor_width = self.square_width - 1.0
+        transfer_width = 3.0
+        center_x = (np.random.random() - 0.5) * 2
+        center_y = (np.random.random() - 0.5) * 2
+        width = np.clip(np.random.normal(2, 1.0), 1, 3)
+        length = np.clip(np.random.normal(2, 1.0), 1, 3)
+        x1 = center_x - width / 2.0
+        x2 = center_x + width / 2.0
+        y1 = center_y - length / 2.0
+        y2 = center_y + length / 2.0
+        if self.phase_num == 10:
+            y1 = -0.5
+            y2 = 0.5
+            x1 = -1.25
+            x2 = 1.25
+        if self.phase_num == 11:
+            y1 = -0.5
+            y2 = 1.5
+            x1 = -0.5
+            x2 = 0.5
+        transfer_vertex =([x1, y1], [x2, y1], [x2, y2], [x1, y2], [x1,y1])
+        # transfer_vertex = ([corridor_width/6, -transfer_width / 2], [corridor_width/2, -transfer_width / 2],
+        # [corridor_width/2, transfer_width / 2], [corridor_width/6, transfer_width / 2], [corridor_width/6, -transfer_width / 2])
+        for i in range(len(transfer_vertex)-1):
+            self.walls.append(self.generate_wall(transfer_vertex[i], transfer_vertex[i+1]))
+        self.poly_obstacles.clear()
+        self.poly_obstacles.append(transfer_vertex)
+
+
+    def generate_airport_transfer(self):
+        self.generate_corridor_scenario()
+        if self.phase_num >= 1:
+            self.generate_center_obstacle()
+        # for i in range(self.wall_num):
+        #     self.walls.append(self.generate_line_obstacle())
+        # self.generate_transfer()
+        # self.generate_open_scenario()
+
+    def generate_constrained_room(self):
+        self.generate_corridor_scenario()
+
+    def generate_doorway_scenario(self):
+        room_width = self.square_width - 1
+        room_length = self.square_width - 1
+        wall_vertex = (
+            [-room_width / 2, -room_length / 2], [room_width / 2, -room_length / 2], [room_width / 2, room_length / 2],
+            [-room_width / 2, room_length / 2], [-room_width / 2, -room_length / 2])
+        for i in range(len(wall_vertex) - 1):
+            self.walls.append(self.generate_wall(wall_vertex[i], wall_vertex[i + 1]))
+
+    def generate_corridor_scenario(self):
+        if self.phase_num >= 0:
+            corridor_width = self.square_width
+            corridor_length = self.square_width * 2.0
+            self.walls.append(self.generate_wall([-corridor_width / 2, corridor_length / 2], [-corridor_width / 2, -corridor_length / 2]))
+            self.walls.append(self.generate_wall([corridor_width / 2, -corridor_length / 2], [corridor_width / 2, corridor_length / 2]))
+
+    def generate_open_scenario(self):
+        room_width = self.square_width - 1
+        room_length = self.square_width - 1
+        wall_vertex = (
+        [-room_width / 2, -room_length / 2], [room_width / 2, -room_length / 2], [room_width / 2, room_length / 2],
+        [-room_width / 2, room_length / 2], [-room_width / 2, -room_length / 2])
+        for i in range(len(wall_vertex)-1):
+            self.walls.append(self.generate_wall(wall_vertex[i], wall_vertex[i+1]))
+
+    def generate_transfer(self):
+        corridor_width = self.square_width - 1.0
+        transfer_width = 2.0
+        x1 = 0 - 2 + 1
+        x2 = 2 - 1
+        y1 = -transfer_width/2
+        y2 = transfer_width/2.0
+        transfer_vertex =([x1, y1], [x2, y1], [x2, y2], [x1, y2], [x1,y1])
+        # transfer_vertex = ([corridor_width/6, -transfer_width / 2], [corridor_width/2, -transfer_width / 2],
+        # [corridor_width/2, transfer_width / 2], [corridor_width/6, transfer_width / 2], [corridor_width/6, -transfer_width / 2])
+        for i in range(len(transfer_vertex)-1):
+            if i ==0:
+                self.walls.append(self.generate_wall(transfer_vertex[i], transfer_vertex[i+1]))
+        self.poly_obstacles.clear()
+        self.poly_obstacles.append(transfer_vertex)
+
+    def generate_ward_scenario(self):
+        room_width = self.square_width - 1
+        room_length = self.square_width - 1
+        self.walls = []
+        wall_vertex = (
+            [-room_width / 2, -room_length / 2], [room_width / 2, -room_length / 2], [room_width / 2, room_length / 2],
+            [-room_width / 2, room_length / 2], [-room_width / 2, -room_length / 2])
+        for i in range(len(wall_vertex) - 1):
+            self.walls.append(self.generate_wall(wall_vertex[i], wall_vertex[i + 1]))
 
     def generate_wall(self, start_position, end_position, wall=None):
         wall = Wall(self.config)
         wall.set_position(start_position, end_position)
         return wall
+
+    def generate_line_obstacle(self, wall=None):
+        wall = Wall(self.config)
+        while True:
+            start_x = (np.random.random() - 0.5) * self.square_width * 0.6
+            start_y = (np.random.random() - 0.5) * self.square_width * 0.6
+            mean_length = self.circle_radius * 0.75
+            wall_length = np.random.normal(mean_length, 0.1)
+            theta = (np.random.random() - 0.5) * np.pi / 9 + len(self.walls) * np.pi / 2
+            if wall_length == 0.0:
+                print('error')
+                break
+            else:
+                end_y = start_y + np.sin(theta) * wall_length
+                end_x = start_x + np.cos(theta) * wall_length
+                end_y = np.clip(end_y, -0.5*self.square_width, 0.5*self.square_width)
+                end_x = np.clip(end_x, -0.5*self.square_width, 0.5*self.square_width)
+            collide = False
+            if not collide:
+                wall.set_position([start_x, start_y], [end_x, end_y])
+                break
+        return wall
+
 
 
     def reset(self, phase='test', test_case=None):
@@ -302,58 +533,58 @@ class CrowdSim(gym.Env):
         test_seed_begin = [0, 10, 100, 1000, 10000]
         base_seed = {'train': self.case_capacity['val'] + self.case_capacity['test'] + train_seed_begin[1],
                      'val': 0 + val_seed_begin[1], 'test': self.case_capacity['val']+test_seed_begin[2]+1000}
-
-        self.robot.set(0, -self.circle_radius, 0, self.circle_radius, 0, 0, np.pi / 2)
         self.random_seed = base_seed[phase] + self.case_counter[phase]
         np.random.seed(self.random_seed)
-        if self.case_counter[phase] >= 0:
-            # np.random.seed(base_seed[phase] + self.case_counter[phase])
-            # random.seed(base_seed[phase] + self.case_counter[phase])
-            # random.seed(2100)
+        robot_theta = np.pi / 2 + np.random.random() * np.pi / 4.0 - np.pi / 8.0
+        if self.phase_num == 10 or self.phase_num == 11:
+            target_x = 0
+            target_y = self.circle_radius
+            robot_theta = np.pi / 2 + np.random.random() * np.pi / 4.0 - np.pi / 8.0
+        # elif self.phase_num <= 3:
+        elif self.phase_num == 0:
+            target_x = (np.random.random() - 0.5) * self.square_width * 0.8
+            target_y = self.circle_radius - np.random.random() * 6
+            robot_theta = (np.random.random() - 0.5) * 2 * np.pi
+        else:
+            target_x = (np.random.random() - 0.5) * self.square_width * 0.8
+            target_y = self.circle_radius
+            robot_theta = np.pi / 2 + np.random.random() * np.pi / 4.0 - np.pi / 8.0
+        if self.phase_num == 4:
+            self.static_obstacle_num = np.random.randint(2, 5)
+            self.human_num = np.random.randint(5, 10)
 
+            # target_x = 0
+            # target_y = self.circle_radius
+            # robot_theta = np.pi / 2
+        # else:
+        #     target_x = 0
+        #     target_y = self.circle_radius
+        #     robot_theta = np.pi / 2 + np.random.random() * np.pi / 4.0 - np.pi / 8.0
+        # target_x = 0
+        # target_y = self.circle_radius
+        self.robot.set(0, -self.circle_radius, target_x, target_y, 0, 0, robot_theta)
+
+        if self.case_counter[phase] >= 0:
+            # self.generate_constrained_room()
+            self.walls = []
+            self.generate_airport_transfer()
             if phase == 'test':
                 logging.debug('current test seed is:{}'.format(base_seed[phase] + self.case_counter[phase]))
                 # print('current test seed is:{}'.format(base_seed[phase] + self.case_counter[phase]))
             if not self.robot.policy.multiagent_training and phase in ['train', 'val']:
-                human_num = 1
+                # human_num = 1
                 self.current_scenario = 'circle_crossing'
             else:
                 self.current_scenario = self.test_scenario
-                human_num = self.human_num
+                # human_num = self.human_num
             self.humans = []
-            for i in range(human_num):
-                if self.current_scenario == 'circle_crossing':
-                    # if human_num > 5 and i > 4:
-                    #     self.humans.append(self.generate_human(square=True))
-                    # else:
+            for i in range(self.human_num):
+                if self.current_scenario == 'circle_crossing' and i < 5:
                     self.humans.append(self.generate_human())
                 else:
                     self.humans.append(self.generate_human(square=True))
-
-            self.obstacles = []
-            for i in range(self.static_obstacle_num):
-                self.obstacles.append(self.generate_static_obstcale())
-            # obstacle_1 = Obstacle()
-            # obstacle_1.set(2.0, 3.0)
-            # self.obstacles.append(obstacle_1)
-            #
-            # obstacle_2 = Obstacle()
-            # obstacle_2.set(2.0, -3.0)
-            # self.obstacles.append(obstacle_2)
-            #
-            # obstacle_3 = Obstacle()
-            # obstacle_3.set(-2.0, -2.0)
-            # self.obstacles.append(obstacle_3)
-
-            room_width = self.square_width -1
-            room_length = self.square_width
-            self.walls = []
-            wall_vertex = ([-room_width/2, -room_length/2], [room_width/2, -room_length/2], [room_width/2, room_length/2],
-                           [-room_width/2, room_length/2], [-room_width/2, -room_length/2])
-            for i in range(len(wall_vertex)-1):
-                self.walls.append(self.generate_wall(wall_vertex[i], wall_vertex[i+1]))
-
-            # case_counter is always between 0 and case_size[phase]
+            self.generate_static_obstacle()
+            # self.generate_center_obstcale()
             self.case_counter[phase] = (self.case_counter[phase] + 1) % self.case_size[phase]
         else:
             assert phase == 'test'
@@ -392,188 +623,141 @@ class CrowdSim(gym.Env):
         # get current observation
         if self.robot.sensor == 'coordinates':
             ob_human = self.compute_observation_for(self.robot)
-            ob_obstacles = [obstacle.get_observable_state() for i, obstacle in enumerate(self.obstacles)]
-            ob_walls = [wall.get_observable_state() for i, wall in enumerate(self.walls)]
+            if self.obstacles is not None:
+                ob_obstacles = [obstacle.get_observable_state() for i, obstacle in enumerate(self.obstacles)]
+            else:
+                ob_obstacles = None
+            if self.walls is not None:
+                ob_walls = [wall.get_observable_state() for i, wall in enumerate(self.walls)]
+            else:
+                ob_walls = None
             ob = (ob_human, ob_obstacles, ob_walls)
         elif self.robot.sensor == 'RGB':
             raise NotImplementedError
-
         return ob
 
     def onestep_lookahead(self, action):
+
         return self.step(action, update=False)
 
-    def step(self, action, update=True):
+    def reward_cal(self, action, human_actions):
         """
         Compute actions for all agents, detect collision, update environment and return (ob, reward, done, info)
         """
-        if self.centralized_planning:
-            agent_states = [human.get_full_state() for human in self.humans]
-            self.centralized_planner.set_walls(self.walls)
-            self.centralized_planner.set_static_obstacles(self.obstacles)
-            if self.robot.visible:
-                agent_states.append(self.robot.get_full_state())
-                human_actions = self.centralized_planner.predict(agent_states)[:-1]
-            else:
-                human_actions = self.centralized_planner.predict(agent_states)
-        else:
-            human_actions = []
-            for human in self.humans:
-                ob = self.compute_observation_for(human)
-                human_actions.append(human.act(ob))
-
+        """Firstly, predict the robot position"""
+        pre_robot_pos_x, pre_robot_pos_y = self.robot.compute_position(action, self.time_step)
         weight_goal = self.goal_factor
         weight_safe = self.discomfort_penalty_factor
         weight_terminal = 1.0
         re_collision = self.collision_penalty
         re_arrival = self.success_reward
+        re_theta = self.re_theta
         # collision detection
         dmin = float('inf')
         collision = False
         safety_penalty = 0.0
         num_discom = 0
-        if self.robot.kinematics =="holonomic":
-            for i, human in enumerate(self.humans):
-                px = human.px - self.robot.px
-                py = human.py - self.robot.py
-                vx = human_actions[i].vx - action.vx
-                vy = human_actions[i].vy - action.vy
-                ex = px + vx * self.time_step
-                ey = py + vy * self.time_step
-                # closest distance between boundaries of two agents
+        """Secondly, deal with humans """
+        for i, human in enumerate(self.humans):
+            px = human.px - self.robot.px
+            py = human.py - self.robot.py
+            end_human_x = human_actions[i].vx * self.time_step + human.px
+            end_human_y = human_actions[i].vy * self.time_step + human.py
+            ex = end_human_x - pre_robot_pos_x
+            ey = end_human_y - pre_robot_pos_y
+            if self.phase is 'test':
+                closest_dist = point_to_segment_dist(px, py, ex, ey, 0, 0) - human.radius - self.robot.radius + 0.1
+            else:
                 closest_dist = point_to_segment_dist(px, py, ex, ey, 0, 0) - human.radius - self.robot.radius
-                if closest_dist < 0:
-                    collision = True
-                    logging.debug("Collision: distance between robot and p{} is {:.2E} at time {:.2E}".format(human.id,
-                                   closest_dist, self.global_time))
-                if closest_dist < dmin:
-                    dmin = closest_dist
-                if closest_dist < self.discomfort_dist:
-                    safety_penalty = safety_penalty + (closest_dist - self.discomfort_dist)
-                    num_discom = num_discom + 1
-        elif self.robot.kinematics == 'differential':
-            left_acc = action.al
-            right_acc = action.ar
-            vel_left = self.robot.v_left + left_acc * self.time_step
-            vel_right = self.robot.v_right + right_acc * self.time_step
-            if np.abs(vel_left) > self.robot.v_pref:
-                vel_left = vel_left * self.robot.v_pref / np.abs(vel_left)
-            if np.abs(vel_right) > self.robot.v_pref:
-                vel_right = vel_right * self.robot.v_pref / np.abs(vel_right)
-            t_right = (vel_right - self.robot.v_right) / (right_acc + 1e-9)
-            t_left = (vel_left - self.robot.v_left) / (left_acc + 1e-9)
-            s_right = (vel_right + self.robot.v_right) * (0.5 * t_right) + vel_right * (self.time_step - t_right)
-            s_left = (vel_left + self.robot.v_left) * (0.5 * t_left) + vel_left * (self.time_step - t_left)
-            s = (s_right + s_left) * 0.5
-            d_theta = (s_right - s_left) / (2 * self.robot.radius)
-            end_theta = (self.robot.theta + d_theta) % (2 * np.pi)
-            s_direction = (self.robot.theta + d_theta * 0.5) % (2 * np.pi)
-            end_robot_x = self.robot.px + s * np.cos(s_direction)
-            end_robot_y = self.robot.py + s * np.sin(s_direction)
-            for i, human in enumerate(self.humans):
-                px = human.px - self.robot.px
-                py = human.py - self.robot.py
-                end_human_x = human_actions[i].vx * self.time_step + human.px
-                end_human_y = human_actions[i].vy * self.time_step + human.py
-                ex = end_human_x - end_robot_x
-                ey = end_human_y - end_robot_y
-                closest_dist = point_to_segment_dist(px, py, ex, ey, 0, 0) - human.radius - self.robot.radius
-                if closest_dist < 0:
-                    collision = True
-                    logging.debug("Collision: distance between robot and pedestrian{} is {:.2E} at time {:.2E}".format(human.id,
-                                   closest_dist, self.global_time))
-                if closest_dist < dmin:
-                    dmin = closest_dist
-                if closest_dist < self.discomfort_dist:
-                    safety_penalty = safety_penalty + (closest_dist - self.discomfort_dist)
-                    num_discom = num_discom + 1
+            if closest_dist < 0:
+                collision = True
+                logging.debug("Collision: distance between robot and pedestrian{} is {:.2E} at time {:.2E}".format(
+                    i, closest_dist, self.global_time))
+                print("Collision: distance between robot and human %d is %f at time %f"%(i, closest_dist, self.global_time))
+            if closest_dist < dmin:
+                dmin = closest_dist
+            if closest_dist < self.discomfort_dist:
+                safety_penalty = safety_penalty + (closest_dist - self.discomfort_dist)
+                num_discom = num_discom + 1
 
-            for i, obstacle in enumerate(self.obstacles):
-                px = obstacle.px - self.robot.px
-                py = obstacle.py - self.robot.py
-                ex = obstacle.px - end_robot_x
-                ey = obstacle.py - end_robot_y
+        """ Thirdly, deal with obstacles"""
+        for i, obstacle in enumerate(self.obstacles):
+            px = obstacle.px - self.robot.px
+            py = obstacle.py - self.robot.py
+            ex = obstacle.px - pre_robot_pos_x
+            ey = obstacle.py - pre_robot_pos_y
+            if self.phase is 'test':
+                closest_dist = point_to_segment_dist(px, py, ex, ey, 0, 0) - obstacle.radius - self.robot.radius + 0.1
+            else:
                 closest_dist = point_to_segment_dist(px, py, ex, ey, 0, 0) - obstacle.radius - self.robot.radius
-                if closest_dist < 0:
-                    collision = True
-                    logging.debug("Collision: distance between robot and obstacle{} is {:.2E} at time {:.2E}".format(i,
-                                   closest_dist, self.global_time))
-                    num_discom = num_discom + 1
+            if closest_dist < 0:
+                collision = True
+                logging.debug("Collision: distance between robot and obstacle{} is {:.2E} at time {:.2E}".format(
+                    i, closest_dist, self.global_time))
+                print("Collision: distance between robot and obstacle %d is %f at time %f"%(i, closest_dist, self.global_time))
+                num_discom = num_discom + 1
+            # if closest_dist < dmin:
+            # dmin = closest_dist
+            if closest_dist < self.discomfort_dist * 0.5:
+                safety_penalty = safety_penalty + (closest_dist - self.discomfort_dist * 0.5) * 0.5
+                num_discom = num_discom + 1
 
-            for i, wall in enumerate(self.walls):
-                px = wall.sx - self.robot.px
-                py = wall.sy - self.robot.py
-                ex = wall.ex - end_robot_x
-                ey = wall.ey - end_robot_y
-                closest_dist = point_to_segment_dist(px, py, ex, ey, 0, 0) - self.robot.radius
-                if closest_dist < 0:
-                    collision = True
-                    logging.debug("Collision: distance between robot and wall {} is {:.2E} at time {:.2E}".format(i,
-                                   closest_dist, self.global_time))
-                    num_discom = num_discom + 1
-        else:
-            end_robot_x, end_robot_y = self.robot.compute_position(action, self.time_step)
-            for i, human in enumerate(self.humans):
-                px = human.px - self.robot.px
-                py = human.py - self.robot.py
-                end_human_x = human_actions[i].vx * self.time_step + human.px
-                end_human_y = human_actions[i].vy * self.time_step + human.py
-                ex = end_human_x - end_robot_x
-                ey = end_human_y - end_robot_y
-                closest_dist = point_to_segment_dist(px, py, ex, ey, 0, 0) - human.radius - self.robot.radius
-                if closest_dist < 0:
-                    collision = True
-                    logging.debug("Collision: distance between robot and pedestrian{} is {:.2E} "
-                                  "at time {:.2E}".format(human.id, closest_dist, self.global_time))
-                if closest_dist < dmin:
-                    dmin = closest_dist
-                if closest_dist < self.discomfort_dist:
-                    safety_penalty = safety_penalty + (closest_dist - self.discomfort_dist)
-                    num_discom = num_discom + 1
-
-            for i, obstacle in enumerate(self.obstacles):
-                px = obstacle.px - self.robot.px
-                py = obstacle.py - self.robot.py
-                ex = obstacle.px - end_robot_x
-                ey = obstacle.py - end_robot_y
-                closest_dist = point_to_segment_dist(px, py, ex, ey, 0, 0) - obstacle.radius - self.robot.radius
-                if closest_dist < 0:
-                    collision = True
-                    logging.debug("Collision: distance between robot and obstacle{} is {:.2E} at time {:.2E}".format(i, closest_dist, self.global_time))
-                    num_discom = num_discom + 1
-
-            # for i, wall in enumerate(self.walls):
-            #     px = wall.sx - self.robot.px
-            #     py = wall.sy - self.robot.py
-            #     ex = wall.ex - end_robot_x
-            #     ey = wall.ey - end_robot_y
-            #     closest_dist = point_to_segment_dist(px, py, ex, ey, 0, 0) - self.robot.radius
-            #     if closest_dist < 0:
-            #         collision = True
-            #         logging.debug("Collision: distance between robot and wall {} is {:.2E} at time {:.2E}".format(i, closest_dist, self.global_time))
-            #         num_discom = num_discom + 1
+        """ Then, deal with walls"""
+        for i, wall in enumerate(self.walls):
+            # across the wall #
+            if (counterclockwise(wall.sx, wall.sy, wall.ex, wall.ey, self.robot.px, self.robot.py) !=
+                counterclockwise(wall.sx, wall.sy, wall.ex, wall.ey, pre_robot_pos_x, pre_robot_pos_y)) and \
+                    (counterclockwise(self.robot.px, self.robot.py, pre_robot_pos_x, pre_robot_pos_y, wall.sx, wall.sy) !=
+                     counterclockwise(self.robot.px, self.robot.py, pre_robot_pos_x, pre_robot_pos_y, wall.ex, wall.ey)):
+                closest_dist = 0.0
+            else:
+                min_dis_start = point_to_segment_dist(wall.sx, wall.sy, wall.ex, wall.ey, self.robot.px, self.robot.py)
+                min_dis_end = point_to_segment_dist(wall.sx, wall.sy, wall.ex, wall.ey, pre_robot_pos_x, pre_robot_pos_y)
+                if min_dis_end < min_dis_start:
+                    closest_dist = min_dis_end
+                else:
+                    closest_dist = min_dis_start
+            if self.phase is 'test':
+                closest_dist = closest_dist - self.robot.radius + 0.1
+            else:
+                closest_dist = closest_dist - self.robot.radius
+            if closest_dist < 0:
+                collision = True
+                logging.debug("Collision: distance between robot and wall {} is {:.2E} at time {:.2E}".format(
+                    i, closest_dist, self.global_time))
+                print("Collision: distance between robot and wall %d is %f at time %f"%(i, closest_dist, self.global_time))
+                num_discom = num_discom + 1
+            # if closest_dist < dmin:
+            #     dmin = closest_dist
+            if closest_dist < self.discomfort_dist * 0.5:
+                safety_penalty = safety_penalty + (closest_dist - self.discomfort_dist * 0.5) * 0.5
+                num_discom = num_discom + 1
         # collision detection between humans
-        human_num = len(self.humans)
-        for i in range(human_num):
-            for j in range(i + 1, human_num):
-                dx = self.humans[i].px - self.humans[j].px
-                dy = self.humans[i].py - self.humans[j].py
-                dist = (dx ** 2 + dy ** 2) ** (1 / 2) - self.humans[i].radius - self.humans[j].radius
-                if dist < 0:
-                    # detect collision but don't take humans' collision into account
-                    logging.debug('Collision happens between humans in step()')
+        # human_num = len(self.humans)
+        # for i in range(human_num):
+        #     for j in range(i + 1, human_num):
+        #         dx = self.humans[i].px - self.humans[j].px
+        #         dy = self.humans[i].py - self.humans[j].py
+        #         dist = (dx ** 2 + dy ** 2) ** (1 / 2) - self.humans[i].radius - self.humans[j].radius
+        #         if dist < 0:
+        #             # detect collision but don't take humans' collision into account
+        #             logging.debug('Collision happens between humans in step()')
 
-        # check if reaching the goal
-        end_position = np.array(self.robot.compute_position(action, self.time_step))
+        """check if reaching the goal"""
+        end_position = np.array([pre_robot_pos_x, pre_robot_pos_y])
         cur_position = np.array((self.robot.px, self.robot.py))
         goal_position = np.array(self.robot.get_goal_position())
         reward_goal = (norm(cur_position - goal_position) - norm(end_position - goal_position))
         reaching_goal = norm(end_position - goal_position) < self.robot.radius
-        delta_w = 0.0
-        if delta_w < 0.5:
-            reward_omega = -0.01 * (0.5 - delta_w) * (0.5 - delta_w)
+        robot2goal = goal_position - cur_position
+        theta_r2g = np.math.atan2(robot2goal[1], robot2goal[0])
+        reward_theta = (np.cos(self.robot.theta) * np.cos(theta_r2g) + np.sin(self.robot.theta) * np.sin(theta_r2g) - 1)
+        reward_theta = reward_theta / (norm(cur_position - goal_position) + 5.0)
+        robot_vel = (self.robot.v_left + self.robot.v_right) / 2.0
+        if robot_vel < -0.3:
+            reward_vel = (0.1 + robot_vel) * 0.1
         else:
-            reward_omega = 0.0
+            reward_vel = 0.0
         reward_col = 0.0
         reward_arrival = 0.0
         if self.global_time >= self.time_limit - 1:
@@ -584,7 +768,6 @@ class CrowdSim(gym.Env):
             done = True
             info = Collision()
         elif reaching_goal:
-
             reward_arrival = re_arrival
             done = True
             info = ReachGoal()
@@ -596,9 +779,62 @@ class CrowdSim(gym.Env):
             done = False
             info = Nothing()
         reward_terminal = reward_arrival + reward_col
-        reward = weight_terminal * reward_terminal + weight_goal * reward_goal \
-                + weight_safe * safety_penalty
+        reward = weight_terminal * reward_terminal + weight_goal * reward_goal + weight_safe * safety_penalty + reward_theta * re_theta
+        return reward, done, info
 
+    def rvo_reward_cal(self, ob, reward_parameter=(0.2, 0.1, 0.1, 0.2, 0.2, 1, -10, 20)):
+        robot_state, human_state, obstacle_state, wall_state = self.robot.get_state(ob)
+        robot_state_array = robot_state.numpy()
+        human_state_array = human_state.numpy()
+        obstacle_state_array = obstacle_state.numpy()
+        wall_state_array = wall_state.numpy()
+        vo_flag_array, min_exp_time_array, min_dis_array = self.rvo_inter.config_vo_reward(robot_state_array, human_state_array,
+                                                                   obstacle_state_array, wall_state_array)
+        p1, p2, p3, p4, p5, p6, p7, p8 = reward_parameter
+        rvo_reward = 0.0
+        for i in range(len(vo_flag_array)):
+            vo_flag = vo_flag_array[i]
+            min_exp_time = min_exp_time_array[i]
+            min_dis = min_dis_array[i]
+            if min_exp_time < 0:
+                min_exp_time = 0
+            exp_time_reward = 1.0 / (min_exp_time + 1.0)  #(0, -1)
+            if vo_flag is True:
+                if min_exp_time < 1.0:
+                    rvo_reward = (1 / (3.0 + 1.0) - exp_time_reward) * 3.0 + rvo_reward - 0.1 # -0.35 to -2.25
+                else:
+                    rvo_reward = 1 / (3.0 + 1.0) - exp_time_reward + rvo_reward - 0.1 # -0.1 to -0.35
+        # rvo_reward = np.round(rvo_reward, 4)
+        # if rvo_reward > 0.0:
+        #     print("error rvo reward")
+        return rvo_reward
+
+    def step(self, action, update=True):
+        """
+        Compute actions for all agents, detect collision, update environment and return (ob, reward, done, info)
+        """
+        if self.centralized_planning:
+            agent_states = [human.get_full_state() for human in self.humans]
+            self.centralized_planner.set_walls(self.walls)
+            self.centralized_planner.set_static_obstacles(self.obstacles)
+            if self.robot.visible:
+                if self.robot.kinematics == 'differential':
+                    robot_state = self.robot.get_full_state()
+                    linear_vel = 0.5 * (robot_state.vx + robot_state.vy)
+                    robot_state.vx = linear_vel * np.cos(robot_state.theta)
+                    robot_state.vy = linear_vel * np.sin(robot_state.theta)
+                    agent_states.append(robot_state)
+                else:
+                    agent_states.append(self.robot.get_full_state())
+                human_actions = self.centralized_planner.predict(agent_states)[:-1]
+            else:
+                human_actions = self.centralized_planner.predict(agent_states)
+        else:
+            human_actions = []
+            for human in self.humans:
+                ob = self.compute_observation_for(human)
+                human_actions.append(human.act(ob))
+        reward, done, info = self.reward_cal(action, human_actions)
         if update:
             # store state, action value and attention weights
             if hasattr(self.robot.policy, 'action_values'):
@@ -620,7 +856,7 @@ class CrowdSim(gym.Env):
                 human.step(action)
                 if self.nonstop_human and human.reached_destination():
                     human.reach_count = human.reach_count + 1
-                    if human.reach_count == 2:
+                    if human.reach_count > 2 and norm((human.px - self.robot.px, human.py - self.robot.py)) > human.radius + self.robot.radius + 0.5:
                         if self.current_scenario == 'circle_crossing':
                             self.generate_human(human, non_stop=True)
                             human.reach_count = 0
@@ -632,7 +868,7 @@ class CrowdSim(gym.Env):
             self.states.append([self.robot.get_full_state(), [human.get_full_state() for human in self.humans],
                                 [human.id for human in self.humans]])
             self.robot_actions.append(action)
-            self.rewards.append(reward)
+
 
             # compute the observation
             if self.robot.sensor == 'coordinates':
@@ -650,7 +886,17 @@ class CrowdSim(gym.Env):
                 ob = (ob_human, ob_obstacles, ob_walls)
             elif self.robot.sensor == 'RGB':
                 raise NotImplementedError
-
+        rvo_reward = self.rvo_reward_cal(ob)
+        reward = reward + self.re_rvo * rvo_reward
+        reward = reward * 100
+        self.rewards.append(reward)
+        # print("test %f %f "%(reward,rvo_reward))
+        # if info ==Collision():
+        #     reward = rvo_reward - 15
+        # elif info ==ReachGoal():
+        #     reward = rvo_reward + 20
+        # else:
+        #     reward = rvo_reward
         return ob, reward, done, info
 
     def peds_predict(self, agent_states, robot_state):
@@ -694,7 +940,7 @@ class CrowdSim(gym.Env):
         if mode == 'traj':
             fig, ax = plt.subplots(figsize=(7, 7))
             ax.tick_params(labelsize=16)
-            ax.set_xlim(-self.panel_width/2, self.panel_width/2)
+            ax.set_xlim(-self.panel_width/2 -1 , self.panel_width/2 + 1)
             ax.set_ylim(-self.panel_height/2-0.5, self.panel_height/2+0.5)
             ax.set_xlabel('x(m)', fontsize=16)
             ax.set_ylabel('y(m)', fontsize=16)
@@ -775,7 +1021,7 @@ class CrowdSim(gym.Env):
         elif mode == 'video':
             fig, ax = plt.subplots(figsize=(7, 7))
             ax.tick_params(labelsize=12)
-            ax.set_xlim(-self.panel_width/2, self.panel_width/2)
+            ax.set_xlim(-self.panel_width/2 - 1, self.panel_width/2 + 1)
             ax.set_ylim(-self.panel_height/2-0.5, self.panel_height/2+0.5)
             ax.set_xlabel('x(m)', fontsize=14)
             ax.set_ylabel('y(m)', fontsize=14)
@@ -783,17 +1029,17 @@ class CrowdSim(gym.Env):
             robot_color = 'black'
             # add human start positions and goals
             human_colors = [cmap(20) for i in range(len(self.humans))]
-            if False:
-                for i in range(len(self.humans)):
-                    human = self.humans[i]
-                    human_goal = mlines.Line2D([human.get_goal_position()[0]], [human.get_goal_position()[1]],
-                                               color=human_colors[i],
-                                               marker='*', linestyle='None', markersize=8)
-                    ax.add_artist(human_goal)
-                    human_start = mlines.Line2D([human.get_start_position()[0]], [human.get_start_position()[1]],
-                                                color=human_colors[i],
-                                                marker='o', linestyle='None', markersize=8)
-                    ax.add_artist(human_start)
+            # if False:
+            #     for i in range(len(self.humans)):
+            #         human = self.humans[i]
+            #         human_goal = mlines.Line2D([human.get_goal_position()[0]], [human.get_goal_position()[1]],
+            #                                    color=human_colors[i],
+            #                                    marker='*', linestyle='None', markersize=8)
+            #         ax.add_artist(human_goal)
+            #         human_start = mlines.Line2D([human.get_start_position()[0]], [human.get_start_position()[1]],
+            #                                     color=human_colors[i],
+            #                                     marker='o', linestyle='None', markersize=8)
+            #         ax.add_artist(human_start)
             # add robot start position
             robot_start = mlines.Line2D([self.robot.get_start_position()[0]], [self.robot.get_start_position()[1]],
                                         color=robot_color,
@@ -958,7 +1204,7 @@ class CrowdSim(gym.Env):
                 # nonlocal scores
                 global_step = frame_num
                 robot.center = robot_positions[frame_num]
-                if self.human_num >0:
+                if self.human_num > 0:
                     for i, human in enumerate(humans):
                         human.center = human_positions[frame_num][i]
                         if display_numbers:
@@ -1082,7 +1328,7 @@ class CrowdSim(gym.Env):
                 anim.running ^= True
 
             fig.canvas.mpl_connect('key_press_event', on_click)
-            anim = animation.FuncAnimation(fig, update, frames=len(self.states), interval=self.time_step * 1000)
+            anim = animation.FuncAnimation(fig, update, frames=len(self.states), interval=self.time_step * 100)
             anim.running = True
 
             if output_file is not None:
@@ -1095,5 +1341,237 @@ class CrowdSim(gym.Env):
                 # anim.save(output_file, writer='imagemagic', fps=12)
             else:
                 plt.show()
+        elif mode == 'debug':
+            def update():
+                self.ax.clear()
+                self.ax.tick_params(labelsize=12)
+                self.ax.set_xlim(-self.panel_width / 2 - 1 , self.panel_width / 2 + 1)
+                self.ax.set_ylim(-self.panel_height / 2 - 0.5, self.panel_height / 2 + 0.5)
+                self.ax.set_xlabel('x(m)', fontsize=14)
+                self.ax.set_ylabel('y(m)', fontsize=14)
+                robot_color = 'black'
+                # add human positions and goals
+                human_colors = [cmap(20) for i in range(len(self.humans))]
+                # add robot and its goal
+                goal = mlines.Line2D([self.robot.get_goal_position()[0]], [self.robot.get_goal_position()[1]],
+                                     color='red', marker='*', linestyle='None',
+                                     markersize=15, label='Goal')
+                robot = plt.Circle(self.robot.get_position(), self.robot.radius, fill=False, color=robot_color)
+                self.ax.add_artist(robot)
+                self.ax.add_artist(goal)
+
+                for i in range(len(self.obstacles)):
+                    obstacle = self.obstacles[i]
+                    obstacle_mark = plt.Circle(obstacle.get_position(), obstacle.radius, fill=True, color='grey')
+                    self.ax.add_artist(obstacle_mark)
+
+                for i in range(len(self.walls)):
+                    wall = self.walls[i]
+                    wall_line = mlines.Line2D([wall.sx, wall.ex], [wall.sy, wall.ey], color='black', marker='.',
+                                              linestyle='solid', markersize=5)
+                    self.ax.add_artist(wall_line)
+                # sensor_range = plt.Circle(robot_positions[0], self.robot_sensor_range, fill=False, ls='dashed')
+                direction_length = 1.0
+
+                # if len(self.humans) == 0:
+
+                    # print('no human')
+                if len(self.humans) >= 0:
+                    # add humans and their numbers
+                    human_positions = [human.get_position() for human in self.humans]
+                    humans = [plt.Circle(human_positions[i], self.humans[i].radius, fill=False, color=human_colors[i])
+                              for i in range(len(self.humans))]
+                    # disable showing human numbers
+                    if display_numbers:
+                        human_numbers = [
+                            plt.text(humans[i].center[0] - x_offset, humans[i].center[1] + y_offset, str(i + 1),
+                                     color='black', fontsize=12) for i in range(len(self.humans))]
+                        if hasattr(self.robot.policy, 'get_attention_weights'):
+                            if self.test_changing_size is True:
+                                robot_attention = [plt.text(robot.center[0] + x_offset, robot.center[1] + y_offset,
+                                                            '{:.2f}'.format(self.attention_weights[0][0]),
+                                                            color='black',
+                                                            fontsize=12)]
+                                human_attentions = []
+                                count = 0
+                                for i in range(len(self.humans)):
+                                    human = humans[i]
+                                    dis2 = (human.center[0] - robot.center[0]) * (human.center[0] - robot.center[0]) + (
+                                            human.center[1] - robot.center[1]) * (human.center[1] - robot.center[1])
+                                    if dis2 < self.robot_sensor_range * self.robot_sensor_range:
+                                        human_attentions = human_attentions + [
+                                            plt.text(humans[i].center[0] + x_offset, humans[i].center[1] + y_offset,
+                                                     '{:.2f}'.format(self.attention_weights[0][count + 1]),
+                                                     color='black', fontsize=12)]
+                                        count = count + 1
+                                    else:
+                                        human_attentions = human_attentions + [
+                                            plt.text(humans[i].center[0] + x_offset, humans[i].center[1] + y_offset,
+                                                     'n',
+                                                     color='red', fontsize=12)]
+                                attentions = robot_attention + human_attentions
+                            else:
+                                attentions = [plt.text(robot.center[0] + x_offset, robot.center[1] + y_offset,
+                                                       '{:.2f}'.format(self.attention_weights[0][0]), color='black',
+                                                       fontsize=12)] + \
+                                             [plt.text(humans[i].center[0] + x_offset, humans[i].center[1] + y_offset,
+                                                       '{:.2f}'.format(self.attention_weights[0][i + 1]),
+                                                       color='black', fontsize=12) for i in range(len(self.humans))]
+                    for i, human in enumerate(humans):
+                        self.ax.add_artist(human)
+                        if display_numbers:
+                            self.ax.add_artist(human_numbers[i])
+
+                    # add time annotation
+                    time = plt.text(0.4, 6.02, 'Time: {}'.format(self.global_time), fontsize=16)
+                    self.ax.add_artist(time)
+
+                    # compute orientation in each step and use arrow to show the direction
+                    radius = self.robot.radius
+                    orientation = []
+                    for i in range(self.human_num + 1):
+                        agent_state = self.robot if i == 0 else self.humans[i - 1]
+                        if agent_state.kinematics == 'holonomic' or i != 0:
+                            theta = np.arctan2(agent_state.vy, agent_state.vx)
+                            direction = ((agent_state.px, agent_state.py),
+                                         (agent_state.px + direction_length * radius * np.cos(theta),
+                                          agent_state.py + direction_length * radius * np.sin(theta)))
+                            orientation.append(direction)
+                        else:
+                            direction = ((agent_state.px, agent_state.py),
+                                         (agent_state.px + direction_length * radius * np.cos(agent_state.theta),
+                                          agent_state.py + direction_length * radius * np.sin(agent_state.theta)))
+                            orientation.append(direction)
+                        if i == 0:
+                            robot_arrow_color = 'red'
+                            arrows = [
+                                patches.FancyArrowPatch(*orientation[0], color=robot_arrow_color,
+                                                        arrowstyle=arrow_style)]
+                        else:
+                            human_arrow_color = 'black'
+                            arrows.extend(
+                                [patches.FancyArrowPatch(*orientation[i], color=human_arrow_color,
+                                                         arrowstyle=arrow_style)])
+                    for arrow in arrows:
+                        self.ax.add_artist(arrow)
+            if self.fig is None:
+                self.fig, self.ax = plt.subplots(figsize=(7, 7))
+                self.ax.tick_params(labelsize=12)
+                self.ax.set_xlim(-self.panel_width / 2, self.panel_width / 2)
+                self.ax.set_ylim(-self.panel_height / 2 - 0.5, self.panel_height / 2 + 0.5)
+                self.ax.set_xlabel('x(m)', fontsize=14)
+                self.ax.set_ylabel('y(m)', fontsize=14)
+                plt.ion()
+                show_human_start_goal = False
+                robot_color = 'black'
+                # add human positions and goals
+                human_colors = [cmap(20) for i in range(len(self.humans))]
+                # add robot and its goal
+
+                robot_positions = self.robot.get_position()
+                goal = mlines.Line2D([self.robot.get_goal_position()[0]], [self.robot.get_goal_position()[1]],
+                                     color='red', marker='*', linestyle='None',
+                                     markersize=15, label='Goal')
+                robot = plt.Circle(self.robot.get_position(), self.robot.radius, fill=False, color=robot_color)
+                self.ax.add_artist(robot)
+                self.ax.add_artist(goal)
+
+                for i in range(len(self.obstacles)):
+                    obstacle = self.obstacles[i]
+                    obstacle_mark = plt.Circle(obstacle.get_position(), obstacle.radius, fill=True, color='grey')
+                    self.ax.add_artist(obstacle_mark)
+
+                for i in range(len(self.walls)):
+                    wall = self.walls[i]
+                    wall_line = mlines.Line2D([wall.sx, wall.ex], [wall.sy, wall.ey], color='black', marker='.',
+                                              linestyle='solid', markersize=5)
+                    self.ax.add_artist(wall_line)
+                # sensor_range = plt.Circle(robot_positions[0], self.robot_sensor_range, fill=False, ls='dashed')
+                direction_length = 1.0
+
+                if len(self.humans) == 0:
+                    print('no human')
+                else:
+                    # add humans and their numbers
+                    human_positions = [human.get_position() for human in self.humans]
+                    humans = [plt.Circle(human_positions[i], self.humans[i].radius, fill=False, color=human_colors[i])
+                              for i in range(len(self.humans))]
+                    # disable showing human numbers
+                    if display_numbers:
+                        human_numbers = [
+                            plt.text(humans[i].center[0] - x_offset, humans[i].center[1] + y_offset, str(i + 1),
+                                     color='black', fontsize=12) for i in range(len(self.humans))]
+                        if hasattr(self.robot.policy, 'get_attention_weights'):
+                            if self.test_changing_size is True:
+                                robot_attention = [plt.text(robot.center[0] + x_offset, robot.center[1] + y_offset,
+                                                            '{:.2f}'.format(self.attention_weights[0][0]),
+                                                            color='black',
+                                                            fontsize=12)]
+                                human_attentions = []
+                                count = 0
+                                for i in range(len(self.humans)):
+                                    human = humans[i]
+                                    dis2 = (human.center[0] - robot.center[0]) * (human.center[0] - robot.center[0]) + (
+                                            human.center[1] - robot.center[1]) * (human.center[1] - robot.center[1])
+                                    if dis2 < self.robot_sensor_range * self.robot_sensor_range:
+                                        human_attentions = human_attentions + [
+                                            plt.text(humans[i].center[0] + x_offset, humans[i].center[1] + y_offset,
+                                                     '{:.2f}'.format(self.attention_weights[0][count + 1]),
+                                                     color='black', fontsize=12)]
+                                        count = count + 1
+                                    else:
+                                        human_attentions = human_attentions + [
+                                            plt.text(humans[i].center[0] + x_offset, humans[i].center[1] + y_offset,
+                                                     'n',
+                                                     color='red', fontsize=12)]
+                                attentions = robot_attention + human_attentions
+                            else:
+                                attentions = [plt.text(robot.center[0] + x_offset, robot.center[1] + y_offset,
+                                                       '{:.2f}'.format(self.attention_weights[0][0]), color='black',
+                                                       fontsize=12)] + \
+                                             [plt.text(humans[i].center[0] + x_offset, humans[i].center[1] + y_offset,
+                                                       '{:.2f}'.format(self.attention_weights[0][i + 1]),
+                                                       color='black', fontsize=12) for i in range(len(self.humans))]
+                    for i, human in enumerate(humans):
+                        self.ax.add_artist(human)
+                        if display_numbers:
+                            self.ax.add_artist(human_numbers[i])
+
+                    # add time annotation
+                    time = plt.text(0.4, 1.02, 'Time: {}'.format(self.global_time), fontsize=16)
+                    self.ax.add_artist(time)
+
+                    # compute orientation in each step and use arrow to show the direction
+                    radius = self.robot.radius
+                    orientation = []
+                    for i in range(self.human_num + 1):
+                        agent_state = self.robot if i == 0 else self.humans[i - 1]
+                        if agent_state.kinematics == 'holonomic' or i != 0:
+                            theta = np.arctan2(agent_state.vy, agent_state.vx)
+                            direction = ((agent_state.px, agent_state.py),
+                                         (agent_state.px + direction_length * radius * np.cos(theta),
+                                          agent_state.py + direction_length * radius * np.sin(theta)))
+                            orientation.append(direction)
+                        else:
+                            direction = ((agent_state.px, agent_state.py),
+                                         (agent_state.px + direction_length * radius * np.cos(agent_state.theta),
+                                          agent_state.py + direction_length * radius * np.sin(agent_state.theta)))
+                            orientation.append(direction)
+                        if i == 0:
+                            robot_arrow_color = 'red'
+                            arrows = [
+                                patches.FancyArrowPatch(*orientation[0], color=robot_arrow_color,
+                                                        arrowstyle=arrow_style)]
+                        else:
+                            human_arrow_color = 'black'
+                            arrows.extend(
+                                [patches.FancyArrowPatch(*orientation[i], color=human_arrow_color,
+                                                         arrowstyle=arrow_style)])
+                    for arrow in arrows:
+                        self.ax.add_artist(arrow)
+                plt.pause(0.001)
+            else:
+                update()
+                plt.pause(0.001)
         else:
             raise NotImplementedError

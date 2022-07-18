@@ -2,25 +2,10 @@ import numpy as np
 import rvo2
 from crowd_sim.envs.policy.policy import Policy
 from crowd_sim.envs.utils.action import ActionXY, ActionRot
-from crowd_sim.envs.utils.state import ObservableState, JointState_2tyeps, JointState
-from crowd_nav.utils.a_star import Astar
-from crowd_sim.envs.policy.subtarget import subtarget
+from crowd_sim.envs.utils.state import ObservableState, JointState_2tyeps
 
-def rotate_2d_point(theta, point):
-    cos = np.cos(theta)
-    sin = np.sin(theta)
-    rotated_point_x = point[0] * cos - point[1] * sin
-    rotated_point_y = point[0] * sin + point[1] * cos
-    return (rotated_point_x, rotated_point_y)
 
-def rotate_2d_points(theta, points):
-    rotated_2d_points = []
-    for point in points:
-        rotated_2d_point = rotate_2d_point(theta, point)
-        rotated_2d_points.append(rotated_2d_point)
-    return rotated_2d_points
-
-class ORCA(Policy):
+class NHORCA(Policy):
     def __init__(self):
         """
         timeStep        The time step of the simulation.
@@ -69,7 +54,7 @@ class ORCA(Policy):
 
         """
         super().__init__()
-        self.name = 'ORCA'
+        self.name = 'NHORCA'
         self.trainable = False
         self.multiagent_training = True
         self.kinematics = 'holonomic'
@@ -85,8 +70,6 @@ class ORCA(Policy):
         self.rotation_samples = 16
         self.sampling = None
         self.rotation_constraint = None
-        self.astarplanner = Astar()
-        self.target_pos = None
 
     def configure(self, config, device='cpu'):
         self.set_common_parameters(config)
@@ -113,7 +96,7 @@ class ORCA(Policy):
         :param state:
         :return:
         """
-        # state = self.state_transform(state)
+        state = self.state_transform(state)
         robot_state = state.robot_state
         cur_theta = robot_state.theta
         params = self.neighbor_dist, self.max_neighbors, self.time_horizon, self.time_horizon_obst
@@ -122,58 +105,20 @@ class ORCA(Policy):
             self.sim = None
         if self.sim is None:
             self.sim = rvo2.PyRVOSimulator(self.time_step, *params, self.radius, self.max_speed)
-            robot_no = self.sim.addAgent(robot_state.position, *params, robot_state.radius + 0.1, # + self.safety_space,
+            robot__no = self.sim.addAgent(robot_state.position, *params, robot_state.radius, # + self.safety_space,
                               robot_state.v_pref, robot_state.velocity)
-            AHVVertices = [(-0.2, -0.12), (0.4, -0.4), (0.97, -0.26), (0.97, 0.26), (0.4, 0.4), (-0.2, 0.12)]
-            rotated_AHVVertices = rotate_2d_points(robot_state.theta, AHVVertices)
-            vertices_no = self.sim.setAHVConstraint(robot_no, rotated_AHVVertices)
-            # print(vertices_no)
             for human_state in state.human_states:
                 self.sim.addAgent(human_state.position, *params, human_state.radius + self.safety_space,
                                   self.max_speed, human_state.velocity)
-            for wall in state.wall_states:
-                self.sim.addObstacle([(wall.sx, wall.sy), (wall.ex, wall.ey)])
-                self.sim.processObstacles()
-            obstacle_params = 0.0, 0.0, 0.0, 0.0
-            for obstacle in state.obstacle_states:
-                self.sim.addAgent((obstacle.px, obstacle.py), *obstacle_params, obstacle.radius, 0.0, (0.0, 0.0))
         else:
             self.sim.setAgentPosition(0, robot_state.position)
             self.sim.setAgentVelocity(0, robot_state.velocity)
-            AHVVertices = [(-0.2, -0.12), (0.4, -0.4), (0.97, -0.26), (0.97, 0.26), (0.4, 0.4), (-0.2, 0.12)]
-            rotated_AHVVertices = rotate_2d_points(robot_state.theta, AHVVertices)
-            vertices_no = self.sim.setAHVConstraint(0, rotated_AHVVertices)
-            for human_state in state.human_states:
-                self.sim.addAgent(human_state.position, *params, human_state.radius + self.safety_space,
-                                  self.max_speed, human_state.velocity)
-            for wall in state.wall_states:
-                self.sim.addObstacle([(wall.sx, wall.sy), (wall.ex, wall.ey)])
-                self.sim.processObstacles()
-            obstacle_params = 0.0, 0.0, 0.0, 0.0
-            for obstacle in state.obstacle_states:
-                self.sim.addAgent((obstacle.px, obstacle.py), *obstacle_params, obstacle.radius, 0.0, (0.0, 0.0))
-            # print(vertices_no)
-
             for i, human_state in enumerate(state.human_states):
                 self.sim.setAgentPosition(i + 1, human_state.position)
                 self.sim.setAgentVelocity(i + 1, human_state.velocity)
 
         # Set the preferred velocity to be a vector of unit magnitude (speed) in the direction of the goal.
-
-        dis = np.sqrt((robot_state.gx - robot_state.px) * (robot_state.gx - robot_state.px) + (
-                    robot_state.gy - robot_state.py) * (robot_state.gy - robot_state.py))
-        if dis < 2.0:
-            velocity = np.array((robot_state.gx - robot_state.px, robot_state.gy - robot_state.py))
-        else:
-            target_theta = subtarget(robot_state,state.human_states, state.obstacle_states, state.wall_states)
-            velocity = np.array((np.cos(target_theta), np.sin(target_theta)))
-            # target_pos = self.astarplanner.set_state2((robot_state, state.human_states, state.obstacle_states, state.wall_states))
-            # if target_pos is None:
-            #     # print('no solution')
-            #     target_pos = (robot_state.gx, robot_state.px)
-            # dis = (target_pos[0] - robot_state.px) * (target_pos[0] - robot_state.px) + (target_pos[1] - robot_state.py) * (target_pos[1] - robot_state.py)
-            # dis = np.sqrt(dis)
-            # velocity = np.array((target_pos[0] - robot_state.px, target_pos[1] - robot_state.py)) / dis
+        velocity = np.array((robot_state.gx - robot_state.px, robot_state.gy - robot_state.py))
         speed = np.linalg.norm(velocity)
         pref_vel = velocity / speed if speed > 1 else velocity
 
@@ -222,76 +167,9 @@ class ORCA(Policy):
         human_state = state.human_states
         obstacle_state = state.obstacle_states
         robot_state = state.robot_state
-        wall_state = state.wall_state
-        obs_state = [human_state, obstacle_state, wall_state]
-        # for i in range((len(obstacle_state))):
-        #     obstacle_human = ObservableState(obstacle_state[i].px, obstacle_state[i].py, 0.0, 0.0, obstacle_state[i].radius)
-        #     human_state.append(obstacle_human)
-        state = JointState(robot_state, obs_state)
+        for i in range((len(obstacle_state))):
+            obstacle_human = ObservableState(obstacle_state[i].px, obstacle_state[i].py, 0.0, 0.0, obstacle_state[i].radius)
+
+            human_state.append(obstacle_human)
+        state = JointState_2tyeps(robot_state, human_state)
         return state
-
-
-class CentralizedORCA(ORCA):
-    def __init__(self):
-        super().__init__()
-        self.name = 'ORCA'
-        self.kinematics = 'holonomic'
-        self.safety_space = 0
-        self.neighbor_dist = 10
-        self.max_neighbors = 10
-        self.time_horizon = 5
-        self.time_horizon_obst = 5
-        self.radius = 0.3
-        self.max_speed = 1
-        self.sim = None
-        self.speed_samples = 5
-        self.rotation_samples = 16
-        self.sampling = None
-        self.rotation_constraint = None
-        self.time_step = 0.25
-        self.obstacles = None
-        self.walls = None
-
-    def set_static_obstacles(self, obstacles):
-        self.obstacles = obstacles
-
-    def set_walls(self, walls):
-        self.walls = walls
-
-    def predict(self, state):
-        """ Centralized planning for all agents """
-        params = self.neighbor_dist, self.max_neighbors, self.time_horizon, self.time_horizon_obst
-        if self.sim is not None and self.sim.getNumAgents() != len(state):
-            del self.sim
-            self.sim = None
-
-        if self.sim is None:
-            self.sim = rvo2.PyRVOSimulator(self.time_step, *params, self.radius, self.max_speed)
-            for agent_state in state:
-                self.sim.addAgent(agent_state.position, *params, agent_state.radius + 0.01 + self.safety_space,
-                                  self.max_speed, agent_state.velocity)
-        else:
-            for i, agent_state in enumerate(state):
-                self.sim.setAgentPosition(i, agent_state.position)
-                self.sim.setAgentVelocity(i, agent_state.velocity)
-
-        # Set the preferred velocity to be a vector of unit magnitude (speed) in the direction of the goal.
-        for i, agent_state in enumerate(state):
-            velocity = np.array((agent_state.gx - agent_state.px, agent_state.gy - agent_state.py))
-            speed = np.linalg.norm(velocity)
-            pref_vel = velocity / speed if speed > 1 else velocity
-            self.sim.setAgentPrefVelocity(i, (pref_vel[0], pref_vel[1]))
-        for i in range(len(self.walls)):
-            wall = self.walls[i]
-            self.sim.addObstacle([(wall.sx, wall.sy), (wall.ex, wall.ey)])
-            self.sim.processObstacles()
-
-        obstacle_params = 0.0, 0.0, 0.0, 0.0
-        for i in range(len(self.obstacles)):
-            obstacle = self.obstacles[i]
-            self.sim.addAgent((obstacle.px, obstacle.py), *obstacle_params, obstacle.radius, 0.0, (0.0, 0.0))
-        self.sim.doStep()
-        # actions = [ActionXY(0.0, 0.0) for i in range(len(state))]
-        actions = [ActionXY(*self.sim.getAgentVelocity(i)) for i in range(len(state))]
-
-        return actions

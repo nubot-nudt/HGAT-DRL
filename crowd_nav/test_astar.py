@@ -9,19 +9,111 @@ import gym
 from crowd_nav.utils.explorer import Explorer
 from crowd_nav.policy.policy_factory import policy_factory
 from crowd_sim.envs.utils.robot import Robot
-from crowd_sim.envs.policy.orca import ORCA
 from crowd_sim.envs.policy.socialforce import SocialForce
+
+from crowd_sim.envs.policy.orca import ORCA
 from crowd_nav.policy.reward_estimate import Reward_Estimator
 from crowd_sim.envs.utils.info import *
-from crowd_sim.envs.utils.action import ActionRot
+from crowd_sim.envs.utils.action import ActionRot, ActionXY, ActionDiff
+from crowd_nav.utils.a_star import Astar
+
+import rospy
+import numpy as np
+#from test_py_ros.msg import test
+from std_msgs.msg import String
+from sgdqn_common.msg import ObserveInfo, RobotState, PedState
+from sgdqn_common.srv import TebCrowdSim, TebCrowdSimRequest, TebCrowdSimResponse
+import math
+from costmap_converter.msg import ObstacleArrayMsg, ObstacleMsg
+from geometry_msgs.msg import PolygonStamped, Point32 , Twist,PoseArray
+from geometry_msgs.msg import Pose2D, Pose, Twist
+def ob2req(ob, robot_state):
+    tebCrowdSimInfo = TebCrowdSim()
+    human_state, obstacle_state, line_obstacle = ob
+    robot_pose, robot_velocity, robot_goal = generateRobotPose(robot_state)
+    obstaclearray = generateObstacles(obstacle_state, human_state, line_obstacle)
+    return robot_pose, robot_velocity, robot_goal, obstaclearray
+
+def generateRobotPose(robot_state):
+    robot_pose2d = Pose2D()
+    robot_pose2d.x = robot_state.px
+    robot_pose2d.y = robot_state.py
+    robot_pose2d.theta = robot_state.theta
+    robot_pose = robot_pose2d
+    robot_velocity = Twist()
+    robot_velocity.linear.x = (robot_state.vx + robot_state.vy) / 2.0
+    robot_velocity.linear.y = 0
+    robot_velocity.linear.z = 0
+    robot_velocity.angular.z = (robot_state.vx - robot_state.vy) / (2.0 * robot_state.radius)
+    robot_velocity.angular.y = 0
+    robot_velocity.angular.x = 0
+    robot_goal = Pose2D()
+    robot_goal.x = robot_state.gx
+    robot_goal.y = robot_state.gy
+    robot_goal.theta = np.pi * 0.5
+    return robot_pose, robot_velocity,robot_goal
+
+def generateObstacles(obstacle_state, human_state, line_obstacle):
+    obstacle_msg = ObstacleArrayMsg()
+    obstacle_msg.header.stamp = rospy.Time.now()
+    obstacle_msg.header.frame_id = "odom"  # CHANGE HERE: odom/map
+    id = 0
+    # Add point obstacle
+    for obstacle in obstacle_state:
+        obstacle_msg.obstacles.append(ObstacleMsg())
+        obstacle_msg.obstacles[-1].id = id
+        obstacle_msg.obstacles[-1].polygon.points = [Point32()]
+        obstacle_msg.obstacles[-1].polygon.points[0].x = obstacle.px
+        obstacle_msg.obstacles[-1].polygon.points[0].y = obstacle.py
+        obstacle_msg.obstacles[-1].polygon.points[0].z = 0
+        obstacle_msg.obstacles[-1].radius = obstacle.radius
+        id = id + 1
+
+    for human in human_state:
+        obstacle_msg.obstacles.append(ObstacleMsg())
+        obstacle_msg.obstacles[-1].id = id
+        obstacle_msg.obstacles[-1].polygon.points = [Point32()]
+        obstacle_msg.obstacles[-1].polygon.points[0].x = human.px
+        obstacle_msg.obstacles[-1].polygon.points[0].y = human.py
+        obstacle_msg.obstacles[-1].polygon.points[0].z = 0
+        obstacle_msg.obstacles[-1].radius = human.radius
+        obstacle_msg.obstacles[-1].velocities.twist.linear.x = human.vx
+        obstacle_msg.obstacles[-1].velocities.twist.linear.y = human.vy
+        obstacle_msg.obstacles[-1].velocities.twist.linear.z = 0
+        obstacle_msg.obstacles[-1].velocities.twist.angular.x = 0
+        obstacle_msg.obstacles[-1].velocities.twist.angular.y = 0
+        obstacle_msg.obstacles[-1].velocities.twist.angular.z = 0
+        id = id + 1
+
+    for line in line_obstacle:
+        obstacle_msg.obstacles.append(ObstacleMsg())
+        obstacle_msg.obstacles[-1].id = id
+        line_start = Point32()
+        line_start.x = line.sx
+        line_start.y = line.sy
+        line_end = Point32()
+        line_end.x = line.ex
+        line_end.y = line.ey
+        obstacle_msg.obstacles[-1].polygon.points = [line_start, line_end]
+        id = id + 1
+    return obstacle_msg
 
 def main(args):
+    global vx,vy,w,v
     # configure logging and device
     level = logging.DEBUG if args.debug else logging.INFO
     logging.basicConfig(level=level, format='%(asctime)s, %(levelname)s: %(message)s',
                         datefmt="%Y-%m-%d %H:%M:%S")
     device = torch.device("cuda:0" if torch.cuda.is_available() and args.gpu else "cpu")
     logging.info('Using device: %s', device)
+    robot_pub = rospy.Publisher('/robot_state',RobotState,queue_size = 1)
+    human_pub = rospy.Publisher('/test_optim_node/obstacles', ObstacleArrayMsg, queue_size=1)
+
+    rospy.init_node("test_obstacle_msg")
+    obstacle_msg = ObstacleArrayMsg()
+    obstacle_msg.header.stamp = rospy.Time.now()
+    obstacle_msg.header.frame_id = "odom"  # CHANGE HERE: odom/map
+    robot_state = RobotState()
 
     if args.model_dir is not None:
         if args.config is not None:
@@ -58,6 +150,7 @@ def main(args):
     policy = policy_factory[policy_config.name]()
     reward_estimator = Reward_Estimator()
     env_config = config.EnvConfig(args.debug)
+    env_config.env.time_step = 0.25
     reward_estimator.configure(env_config)
     policy.reward_estimator = reward_estimator
     if args.planning_depth is not None:
@@ -73,8 +166,6 @@ def main(args):
         env_config.sim.human_num = args.human_num
         policy_config.gat.human_num = args.human_num
 
-    # configure environment
-    env_config = config.EnvConfig(args.debug)
 
     policy.configure(policy_config, device)
     if policy.trainable:
@@ -91,7 +182,7 @@ def main(args):
         env.test_scenario = 'circle_crossing'
     if args.test_scenario is not None:
         env.test_scenario = args.test_scenario
-
+    astarplanner = Astar()
     robot = Robot(env_config, 'robot')
     env.set_robot(robot)
     # for continous action
@@ -101,6 +192,7 @@ def main(args):
     if policy.name == 'TD3RL' or policy.name == 'RGCNRL':
         policy.set_action(action_dim, max_action, min_action)
     robot.time_step = env.time_step
+    print(robot.time_step)
     robot.set_policy(policy)
     explorer = Explorer(env, robot, device, None, gamma=0.95)
 
@@ -119,147 +211,52 @@ def main(args):
         else:
             robot.policy.safety_space = args.safety_space
         logging.info('ORCA agent buffer: %f', robot.policy.safety_space)
-    env.set_phase(10)
+    env.set_phase(env_config.sim.human_num)
+    print(env_config.sim.human_num)
+    print(sys_args.randomseed)
     policy.set_env(env)
     robot.print_info()
     vel_rec = []
-    if args.visualize:
-        if robot.policy.name in ['tree_search_rl']:
-            policy.model[2].eval()
+
+    r = rospy.Rate(5)  # 10hz
+    t = 0.0
+
+    if True:
         rewards = []
         actions = []
-        ob = env.reset(args.phase, args.test_case)
         done = False
+        ob = env.reset(args.phase, args.test_case)
         last_pos = np.array(robot.get_position())
-
         while not done:
-            action, action_index = robot.act(ob)
-            ob, _, done, info = env.step(action)
-            if isinstance(info, Timeout):
-                _ = _ - 0.25
-            rewards.append(_)
-            current_pos = np.array(robot.get_position())
-            logging.debug('Speed: %.2f', np.linalg.norm(current_pos - last_pos) / robot.time_step)
-            last_pos = current_pos
-            actions.append(action)
-            last_velocity = np.array(robot.get_velocity())
-            vel_rec.append(last_velocity)
-        last_velocity = np.array(robot.get_velocity())
-        vel_rec.append(last_velocity)
-        gamma = 0.95
-        cumulative_reward = sum([pow(gamma, t * robot.time_step * robot.v_pref)
-             * reward for t, reward in enumerate(rewards)])
-        positions = []
-        velocity_left_rec = []
-        velocity_right_rec = []
-        velocity_rec = []
-        rotation_rec = []
-        action_left_rec = []
-        action_right_rec = []
-        for i in range(len(vel_rec) - 1):
-            if i % 1 == 0:
-                positions.append(i * robot.time_step)
-                vel = vel_rec[i]
-                action = actions[i]
-                if robot.kinematics is 'unicycle':
-                    velocity_left_rec.append(vel[0])
-                    velocity_right_rec.append((vel[1]))
-                    velocity_rec.append((vel[0] + vel[1]) * 0.5)
-                    rotation_rec.append((vel[1] - vel[0]) / (2 * robot.radius))
-                elif robot.kinematics is 'holonomic':
-                    velocity_rec.append(vel[0])
-                    rotation_rec.append(vel[1])
-                elif robot.kinematics is 'differential':
-                    velocity_left_rec.append(vel[0])
-                    velocity_right_rec.append((vel[1]))
-                    velocity_rec.append((vel[0] + vel[1]) * 0.5)
-                    rotation_rec.append((vel[1] - vel[0]) / (2 * robot.radius))
-                    action_left_rec.append(action.al)
-                    action_right_rec.append(action.ar)
-        # plt.plot(positions, velocity_left_rec, color='green', marker='*', linestyle='solid')
-        # plt.plot(positions, velocity_right_rec, color='magenta', marker='^', linestyle='solid')
+            target_pos = astarplanner.set_state2((env.robot.get_full_state(), ob[0], ob[1], ob[2]))
 
-        # plt.xlabel("t(s)")
-        # # plt.ylim((-250, 250))
-        # plt.grid = True
-        # plt.plot(positions, velocity_left_rec, color='green', marker='d', markersize=2, linestyle='solid',
-        #          label="vel_l(m/s)")
-        # plt.plot(positions, velocity_right_rec, color='magenta', marker='^', markersize=2, linestyle='solid',
-        #          label="vel_r(m/s)")
-        # plt.plot(positions, velocity_rec, color='blue', marker='o', markersize=2, linestyle='solid',
-        #          label="linear_velocity(m/s)")
-        # plt.plot(positions, rotation_rec, color='red', marker='*', markersize=2, linestyle='solid',
-        #          label="angular_velocity(rad/s)")
-        # plt.plot(positions, action_left_rec, color='yellow', marker='^', markersize=2, linestyle='solid',
-        #          label="acc_l(m/s^2)")
-        # plt.plot(positions, action_right_rec, color='purple', marker='d', markersize=2, linestyle='solid',
-        #          label="acc_r(m/s^2)")
-        # plt.legend(loc='upper left')
 
-        # for i in range(len(actions)):
-        #     positions.append(i)
-        #     action = actions[i]
-        #     if robot.kinematics is 'unicycle':
-        #         velocity_rec.append(action.v)
-        #         rotation_rec.append(action.r)
-        #     elif robot.kinematics is 'holonomic':
-        #         velocity_rec.append(action.vx)
-        #         rotation_rec.append(action.vy)
-        #     elif robot.kinematics is 'differential':
-        #         velocity_rec.append(action.al)
-        #         rotation_rec.append(action.ar)
-        # plt.plot(positions, velocity_rec, color='r', marker='.', linestyle='dashed')
-        # plt.plot(positions, rotation_rec, color='b', marker='.', linestyle='dashed')
-        # plt.show()
-        # print('finish')
-        if args.traj:
-            env.render('traj', args.video_file)
-        else:
-            if args.video_dir is not None:
-                if policy_config.name == 'gcn':
-                    args.video_file = os.path.join(args.video_dir, policy_config.name + '_' + policy_config.gcn.similarity_function)
-                else:
-                    args.video_file = os.path.join(args.video_dir, policy_config.name)
-                args.video_file = args.video_file + '_' + args.phase + '_' + str(args.test_case) + '.mp4'
-            env.render('video', args.video_file)
-        logging.info('It takes %.2f seconds to finish. Final status is %s, cumulative_reward is %f', env.global_time, info, cumulative_reward)
-        if robot.visible and info == 'reach goal':
-            human_times = env.get_human_times()
-            logging.info('Average time for humans to reach goal: %.2f', sum(human_times) / len(human_times))
-
-    else:
-        explorer.run_k_episodes(env.case_size[args.phase], args.phase, print_failure=True)
-        if args.plot_test_scenarios_hist:
-            test_angle_seeds = np.array(env.test_scene_seeds)
-            b = [i * 0.01 for i in range(101)]
-            n, bins, patches = plt.hist(test_angle_seeds, b, facecolor='g')
-            plt.savefig(os.path.join(args.model_dir, 'test_scene_hist.png'))
-            plt.close()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Parse configuration file')
     parser.add_argument('--config', type=str, default=None)
-    parser.add_argument('--policy', type=str, default='td3_rl')
-    parser.add_argument('--gnn', type=str, default='transformer')
-    parser.add_argument('-m', '--model_dir', type=str, default='data/final_data/transformer_test/transformer/5')#None
+    parser.add_argument('--policy', type=str, default='orca')
+    parser.add_argument('--gnn', type=str, default='rgcn')
+    parser.add_argument('-m', '--model_dir', type=str, default='data/from_zirui/0605/gat/10/')#None
     parser.add_argument('--il', default=False, action='store_true')
     parser.add_argument('--rl', default=False, action='store_true')
     parser.add_argument('--gpu', default=False, action='store_true')
     parser.add_argument('-v', '--visualize', default=False, action='store_true')
     parser.add_argument('--phase', type=str, default='test')
-    parser.add_argument('-c', '--test_case', type=int, default=10)
+    parser.add_argument('-c', '--test_case', type=int, default=26)
     parser.add_argument('--square', default=False, action='store_true')
     parser.add_argument('--circle', default=False, action='store_true')
     parser.add_argument('--video_file', type=str, default=None)
     parser.add_argument('--video_dir', type=str, default=None)
     parser.add_argument('--traj', default=False, action='store_true')
     parser.add_argument('--debug', default=False, action='store_true')
-    parser.add_argument('--human_num', type=int, default=5)
+    parser.add_argument('--human_num', type=int, default=10)
     parser.add_argument('--safety_space', type=float, default=0.2)
     parser.add_argument('--test_scenario', type=str, default=None)
     parser.add_argument('--plot_test_scenarios_hist', default=True, action='store_true')
     parser.add_argument('-d', '--planning_depth', type=int, default=None)
     parser.add_argument('-w', '--planning_width', type=int, default=None)
+    parser.add_argument('--randomseed', type=int, default=7)
     parser.add_argument('--sparse_search', default=False, action='store_true')
     sys_args = parser.parse_args()
     main(sys_args)

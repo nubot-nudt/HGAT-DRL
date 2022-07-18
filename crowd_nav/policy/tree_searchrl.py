@@ -12,6 +12,54 @@ from crowd_nav.policy.state_predictor import StatePredictor, LinearStatePredicto
 from crowd_nav.policy.graph_model import RGL,GAT_RL
 from crowd_nav.policy.value_estimator import DQNNetwork, Noisy_DQNNetwork
 
+def segment_in_circle(x, y, r, line):
+    #
+    # center: x, y, center point of the circle
+    # r, radius of the circle
+    # line: two point
+    # reference: https://stackoverflow.com/questions/1073336/circle-line-segment-collision-detection-algorithm
+    start_point = np.array(line[0:2])
+
+    d = np.array([line[2] - line[0], line[3] - line[1]])
+    f = np.array([line[0] - x, line[1] - y])
+
+    # t2 * (d · d) + 2t*( f · d ) + ( f · f - r2 ) = 0
+    a = d @ d
+    b = 2 * f @ d
+    c = f @ f - r ** 2
+
+    discriminant = b ** 2 - 4 * a * c
+
+    if discriminant < 0:
+        return None
+    else:
+        t1 = (-b - np.sqrt(discriminant)) / (2 * a)
+        t2 = (-b + np.sqrt(discriminant)) / (2 * a)
+
+        if t1 >= 0 and t1 <= 1 and t2 >= 0 and t2 <= 1:
+            segment_point1 = start_point + t1 * d
+            segment_point2 = start_point + t2 * d
+
+        elif t1 >= 0 and t1 <= 1 and t2 > 1:
+            segment_point1 = start_point + t1 * d
+            segment_point2 = np.array(line[2:4])
+
+        elif t1 < 0 and t2 >= 0 and t2 <= 1:
+            segment_point1 = np.array(line[0:2])
+            segment_point2 = start_point + t2 * d
+
+        elif t1 < 0 and t2 > 1:
+            segment_point1 = np.array(line[0:2])
+            segment_point2 = np.array(line[2:4])
+        else:
+            return None
+
+    diff_norm = np.linalg.norm(segment_point1 - segment_point2)
+
+    if diff_norm == 0:
+        return None
+
+    return [segment_point1, segment_point2]
 
 class TreeSearchRL(Policy):
     def __init__(self):
@@ -484,10 +532,62 @@ class TreeSearchRL(Policy):
         robot_state = state[0]
         human_state = state[1]
         obstacle_state = state[2]
+        wall_state = state[3]
         obs_pos = obstacle_state[:, :, 0:2]
         obs_vel = torch.zeros_like(obs_pos)
         obs_radius = obstacle_state[:, :, 2]
         obs_radius = obs_radius.unsqueeze(2)
         obs_human = torch.cat((obs_pos, obs_vel, obs_radius), dim=2)
-        human_state = torch.cat((human_state, obs_human), dim=1)
+        wall_human = self.generate_wall_human(wall_state, robot_state)
+        if wall_human.shape[0] is 0:
+            human_state = torch.cat((human_state, obs_human), dim=1)
+        else:
+            wall_human = wall_human.unsqueeze(dim=0)
+            human_state = torch.cat((human_state, obs_human, wall_human), dim=1)
+            # print(human_state.shape[1])
         return (robot_state, human_state)
+
+    def generate_wall_human(self, wall_state, robot_state):
+        wall_human_state_tensor = []
+
+        y1 = -0.5
+        y2 = 0.5
+        x1 = -1.25
+        x2 = 1.25
+        giving_radius = 0.5
+        human_state = np.array([x1, 0, 0, 0, 0.5])
+        wall_human_state_tensor.append(human_state)
+        human_state = np.array([x1+1.0, 0, 0, 0, 0.5])
+        wall_human_state_tensor.append(human_state)
+        human_state = np.array([x1+1.0, 0, 0, 0, 0.5])
+        wall_human_state_tensor.append(human_state)
+        # if len(wall_state.shape) == 3:
+        #     for i in range(wall_state.shape[1]):
+        #         new_line = segment_in_circle(robot_state[0,0,0], robot_state[0,0,1], 0.0, wall_state[0,i,0:4])
+        #         if new_line is None:
+        #             continue
+        #         dis = np.linalg.norm(new_line[0] - new_line[1])
+        #         if dis > 0:
+        #             direction = (new_line[0] - new_line[1]) / dis
+        #             for j in range(np.ceil(dis / giving_radius / 2).astype(int)):
+        #                 human_state=[]
+        #                 if j < np.ceil(dis / 0.6).astype(int) -1:
+        #                     human_radius = giving_radius
+        #                     human_positions = new_line[0] + (j * giving_radius * 2 + human_radius) * direction
+        #                 else:
+        #                     human_radius = (dis - j * giving_radius * 2) * 0.5
+        #                     human_positions = new_line[0] + (j * giving_radius * 2 + human_radius) * direction
+        #                 human_velocity = [0, 0]
+        #                 human_state = np.array([human_positions[0], human_positions[1], human_velocity[0], human_velocity[1],
+        #                          human_radius])
+        #                 wall_human_state_tensor.append(human_state)
+        #
+        #         else:
+        #             human_positions = new_line[0] + new_line[1]
+        #             human_radius = dis / 2.0
+        #             human_velocity = np.array([0,0])
+        #             human_state = np.array(
+        #                 [human_positions[0], human_positions[1], human_velocity[0], human_velocity[1], human_radius])
+        #             wall_human_state_tensor.append(human_state)
+        wall_human_state_tensor = torch.tensor(wall_human_state_tensor, dtype=torch.float32)
+        return wall_human_state_tensor

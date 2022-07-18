@@ -10,10 +10,11 @@ class Config(object):
     def __init__(self):
         pass
 
-interval = 200
+interval = 500
 v_pref = 1.0
 rotation_constraint = np.pi/6
 kinematics = 'differential'
+#kinematics = 'unicycle'
 human_num = 5
 obstacle_num = 3
 wall_num = 4
@@ -25,17 +26,19 @@ class BaseEnvConfig(object):
     env.time_limit = 30
     env.time_step = 0.25
     env.val_size = 100
-    env.test_size = 1000
+    env.test_size = 500
     env.train_size = np.iinfo(np.uint32).max - 2000
     env.randomize_attributes = False
     env.robot_sensor_range = 4
 
     reward = Config()
-    reward.collision_penalty = -0.25
-    reward.success_reward = 0.25
-    reward.goal_factor = 0.2
-    reward.discomfort_penalty_factor = 1.0
+    reward.collision_penalty = -1.0
+    reward.success_reward = 1.0
+    reward.goal_factor = 0.1
+    reward.discomfort_penalty_factor = 0.2
     reward.discomfort_dist = 0.2
+    reward.re_rvo = 0.05
+    reward.re_theta = 0.01
 
 
     sim = Config()
@@ -169,7 +172,7 @@ class BaseTrainConfig(object):
     # number of batches to train at the end of training episode il_episodes
     train.train_batches = 50
     # training episodes in outer loop
-    train.train_episodes = 6000
+    train.train_episodes = 20000
     # number of episodes sampled in one training episode
     train.sample_episodes = 1
     train.target_update_interval = interval

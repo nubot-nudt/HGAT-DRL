@@ -32,7 +32,8 @@ class Obstacle(object):
         Sample agent radius and v_pref attribute from certain distribution
         :return:
         """
-        self.radius = np.random.uniform(0.3, 0.5)
+        self.radius = np.clip(np.random.normal(0.25, 0.05), 0.1, 0.4)
+
 
     def set(self, px, py, radius=None):
         self.px = px
