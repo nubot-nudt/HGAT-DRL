@@ -12,7 +12,6 @@ from crowd_nav.policy.graph_model import PG_GAT_RL
 from crowd_nav.policy.actor import Actor
 from crowd_nav.policy.critic import Critic
 
-
 class TD3RL(Policy):
     def __init__(self):
         super().__init__()
@@ -166,6 +165,7 @@ class TD3RL(Policy):
                     self.actor(state_tensor).squeeze().detach().numpy()
                     + np.random.normal(0, self.max_action * self.expl_noise, size=self.action_dim)
             ).clip(-self.max_action, self.max_action)
+            action_nom = None
             Action = None
             if self.kinematics =='holonomic':
                 speed = action[0]
@@ -179,7 +179,6 @@ class TD3RL(Policy):
                 Action = ActionDiff(action[0],action[1])
             else:
                 print('wrong kinematics')
-            return Action, torch.tensor(action).float()
         else:
             with torch.no_grad():
                 action = self.actor(state_tensor).squeeze().numpy()
@@ -196,7 +195,7 @@ class TD3RL(Policy):
                     Action = ActionDiff(action[0], action[1])
                 else:
                     print('wrong kinematics')
-                return Action, torch.tensor(action).float()
+        return Action, torch.tensor(action).float()
 
     # def get_attention_weights(self):
     #     return self.actor.graph_model.attention_weights
