@@ -241,13 +241,13 @@ if __name__ == '__main__':
     parser.add_argument('--config', type=str, default=None)
     parser.add_argument('--policy', type=str, default='td3_rl')
     parser.add_argument('--gnn', type=str, default='transformer')
-    parser.add_argument('-m', '--model_dir', type=str, default='data/final_data/transformer_test/transformer/5')#None
+    parser.add_argument('-m', '--model_dir', type=str, default='data/final_data/transformer_test/transformer/4')#None
     parser.add_argument('--il', default=False, action='store_true')
     parser.add_argument('--rl', default=False, action='store_true')
     parser.add_argument('--gpu', default=False, action='store_true')
     parser.add_argument('-v', '--visualize', default=False, action='store_true')
     parser.add_argument('--phase', type=str, default='test')
-    parser.add_argument('-c', '--test_case', type=int, default=10)
+    parser.add_argument('-c', '--test_case', type=int, default=27)
     parser.add_argument('--square', default=False, action='store_true')
     parser.add_argument('--circle', default=False, action='store_true')
     parser.add_argument('--video_file', type=str, default=None)

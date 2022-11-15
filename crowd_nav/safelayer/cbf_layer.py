@@ -1,5 +1,4 @@
 import numpy as np
-#from rcbf_sac.dynamics import DYNAMICS_MODE
 from quadprog import solve_qp
 
 class CascadeCBFLayer:
@@ -17,9 +16,9 @@ class CascadeCBFLayer:
             confidence parameter desired (2.0 corresponds to ~95% for example).
         """
 
-        self.gamma_b = gamma_b
+        self.gamma_b = gamma_b / 100
         self.k_d = k_d
-        self.l_p = 1.0
+        self.l_p = 0.01
         # current, only build for honolomic robots.
         # if self.env.dynamics_mode not in DYNAMICS_MODE:
         #     raise Exception('Dynamics mode not supported.')
@@ -70,6 +69,8 @@ class CascadeCBFLayer:
         state, target_vel = self.getfromtensor(s, u_nom)
         P, q, G, h = self.get_cbf_qp_constraints(target_vel, state)
         u_safe = self.solve_qp(P, q, G, h)
+        if u_safe[0] ** 2 + u_safe[1] ** 2 <=0.001:
+            return u_nom
         target_vel = target_vel + u_safe
         u_opti = self.recoveryaction(s, target_vel)
         return u_opti
@@ -114,7 +115,7 @@ class CascadeCBFLayer:
             collision_radius = 0.3
 
             # p(x): lookahead output
-            robot_theta = robot_state[4]
+            robot_theta = robot_state[8]
             c_theta = np.cos(robot_theta)
             s_theta = np.sin(robot_theta)
             p_x = np.array([robot_state[0], robot_state[1]])
@@ -128,9 +129,9 @@ class CascadeCBFLayer:
                           [0, self.l_p]])
             g_p = R @ L
             # hs
+            a = np.sum((p_x - np.array(obstacle_state[:,0:2])) ** 2, axis = 1)
             hs = 0.5 * (np.sum((p_x - np.array(obstacle_state[:,0:2])) ** 2,
-                               axis=1) - np.array((obstacle_state[:,2:3].squeeze(dim=1) + 0.3)) ** 2)  # 1/2 * (||x - x_obs||^2 - r^2)
-
+                               axis=1) - np.array((obstacle_state[:,2:3].squeeze(dim=1) + 0.5)) ** 2)  # 1/2 * (||x - x_obs||^2 - r^2)
             dhdxs = (p_x - np.array(obstacle_state[:,0:2]))  # each row is dhdx_i for hazard i
 
             # # since we're dealing with p(x), we need to get the disturbance on p_x, p_y
@@ -140,7 +141,7 @@ class CascadeCBFLayer:
             # sigma_p = sigma_pred[:2] + self.l_p * np.array([-np.sin(state[2]), np.cos(state[2])]) * sigma_pred[2]
 
             n_u = u_nom.shape[0]  # dimension of control inputs
-            num_constraints = hs.shape[0] + 2 * n_u  # each cbf is a constraint, and we need to add actuator constraints (n_u of them)
+            num_constraints = hs.shape[0] + 2 * n_u + 2 * n_u  # each cbf is a constraint, and we need to add actuator constraints (n_u of them)
 
             # Inequality constraints (G[u, eps] <= h)
             G = np.zeros((num_constraints, n_u + 1))  # the plus 1 is for epsilon (to make sure qp is always feasible)
@@ -158,13 +159,12 @@ class CascadeCBFLayer:
                 G[ineq_constraint_counter, :n_u] = -dhdx_ @ g_p  # h1^Tg(x)  约束条件
                 G[ineq_constraint_counter, n_u] = -1  # for slack 松弛因子
                 h[ineq_constraint_counter] = self.gamma_b * (h_ ** 3) + np.dot(dhdx_, f_p) + np.dot(dhdx_ @ g_p, u_nom)
-
                 ineq_constraint_counter += 1
 
             # Let's also build the cost matrices, vectors to minimize control effort and penalize slack
             # the weight for velocity component is 1, while the weight for the rotation component is 1e-4
             # the robot appeal to change its heading rather than its velocity.
-            P = np.diag([1.e1, 1.e1,
+            P = np.diag([1.e1, 1.e-1,
                          1e7])  # in the original code, they use 1e24 instead of 1e7, but quadprog can't handle that...
             q = np.zeros(n_u + 1)
 
@@ -199,8 +199,8 @@ class CascadeCBFLayer:
             sigma_p = sigma_pred[:2] + self.l_p * np.array([-np.sin(state[2]), np.cos(state[2])]) * sigma_pred[2]
 
             n_u = u_nom.shape[0]  # dimension of control inputs
-            num_constraints = hs.shape[0] + 2 * n_u  # each cbf is a constraint, and we need to add actuator constraints (n_u of them)
-
+            num_constraints = hs.shape[0] + 2 * n_u + 2 * n_u  # each cbf is a constraint, and we need to add actuator constraints (n_u of them)
+            print(num_constraints)
             # Inequality constraints (G[u, eps] <= h)
             G = np.zeros((num_constraints, n_u + 1))  # the plus 1 is for epsilon (to make sure qp is always feasible)
             h = np.zeros(num_constraints)
@@ -221,6 +221,8 @@ class CascadeCBFLayer:
                                              - self.k_d * np.dot(np.abs(dhdx_), sigma_p)
 
                 ineq_constraint_counter += 1
+
+
 
             # Let's also build the cost matrices, vectors to minimize control effort and penalize slack
             P = np.diag([1.e1, 1.e-4, 1e7])  # in the original code, they use 1e24 instead of 1e7, but quadprog can't handle that...
@@ -318,6 +320,36 @@ class CascadeCBFLayer:
             h[ineq_constraint_counter] = vel_limit + u_nom[c]
             ineq_constraint_counter += 1
 
+        # Third let's add acceleration constraints
+        cur_vel = 0.5 * (robot_state[2] + robot_state[3]).item()
+        cur_omega_mul_radius = 0.5 * (robot_state[3] - robot_state[2]).item()
+        acc_limit = 1.0
+        time_step = 0.25
+        delta_vel = acc_limit * time_step
+        robot_radius = robot_state[4].item()
+
+        # for vel right
+        G[ineq_constraint_counter, 0] = 1.0
+        G[ineq_constraint_counter, 1] = robot_radius
+        h[ineq_constraint_counter] = delta_vel
+        ineq_constraint_counter += 1
+
+        G[ineq_constraint_counter, 0] = -1
+        G[ineq_constraint_counter, 1] = -robot_radius
+        h[ineq_constraint_counter] = delta_vel
+        ineq_constraint_counter += 1
+
+        # # for vel left
+        G[ineq_constraint_counter, 0] = 1.0
+        G[ineq_constraint_counter, 1] = -robot_radius
+        h[ineq_constraint_counter] = delta_vel
+        ineq_constraint_counter += 1
+
+        G[ineq_constraint_counter, 0] = -1
+        G[ineq_constraint_counter, 1] = robot_radius
+        h[ineq_constraint_counter] = delta_vel
+        ineq_constraint_counter += 1
+
         return P, q, G, h
 
     def solve_qp(self, P, q, G, h):
@@ -348,10 +380,10 @@ class CascadeCBFLayer:
         # print('h =\t {}'.format(h))
 
         # Here we normalize G and h to stay consistent with what we do in CVXPYLAYER which often crashes with big #s
-        Gh = np.concatenate((G, np.expand_dims(h, 1)), 1)
-        Gh_norm = np.expand_dims(np.max(np.abs(Gh), axis=1), axis=1)
-        G /= Gh_norm
-        h = h / Gh_norm.squeeze(-1)
+        # Gh = np.concatenate((G, np.expand_dims(h, 1)), 1)
+        # Gh_norm = np.expand_dims(np.max(np.abs(Gh), axis=1), axis=1)
+        # G /= Gh_norm
+        # h = h / Gh_norm.squeeze(-1)
 
         try:
             sol = solve_qp(P, q, -G.T, -h)
@@ -361,8 +393,8 @@ class CascadeCBFLayer:
             print('P = {},\nq = {},\nG = {},\nh = {}.'.format(P, q, G, h))
             raise e
 
-        if np.abs(sol[0][-1]) > 1e-1:
-            print('CBF indicates constraint violation might occur. epsilon = {}'.format(sol[0][-1]))
+        # if np.abs(sol[0][-1]) > 1e-1:
+        #     print('CBF indicates constraint violation might occur. epsilon = {}'.format(sol[0][-1]))
 
         return u_safe
 

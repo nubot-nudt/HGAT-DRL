@@ -277,7 +277,7 @@ def main(args):
 
 
 
-    _, _, nav_time, sum_reward, ave_return, discom_time, total_time = \
+    _, _, nav_time, _, sum_reward, ave_return, discom_time, total_time = \
         explorer.run_k_episodes(1, 'train', update_memory=True, episode=episode)
     while episode < train_episodes:
         if args.resume:
@@ -304,7 +304,7 @@ def main(args):
         # elif episode == 15000:
         #     env.set_phase(5)
         # sample k episodes into memory and optimize over the generated memory
-        _, _, nav_time, sum_reward, ave_return, discom_time, total_time = \
+        _, _, nav_time, _, sum_reward, ave_return, discom_time, total_time = \
             explorer.run_k_episodes(sample_episodes, 'train', update_memory=True, episode=episode)
         eps_count = eps_count + 1
         reward_in_last_interval = reward_in_last_interval + sum_reward
@@ -343,7 +343,8 @@ def main(args):
             trainer.update_target_model(model)
         # evaluate the model
         if episode % evaluation_interval == 0:
-            _, _, _, reward, average_return, _, _ = explorer.run_k_episodes(env.case_size['val'], 'val', episode=episode)
+
+            _, _, _, _, reward, average_return, _, _ = explorer.run_k_episodes(env.case_size['val'], 'val', episode=episode)
             explorer.log('val', episode // evaluation_interval)
 
             if episode % checkpoint_interval == 0 and average_return > best_val_return and episode > episode_phase3:

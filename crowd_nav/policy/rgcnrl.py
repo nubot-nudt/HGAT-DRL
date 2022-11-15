@@ -169,7 +169,7 @@ class RGCNRL(Policy):
                     + np.random.normal(0, self.max_action * self.expl_noise, size=self.action_dim)
             ).clip(-self.max_action, self.max_action)
             Action = None
-            safe_action = self.safelayer.get_safe_action(state_tensor, action)
+            # safe_action = self.safelayer.get_safe_action(state_tensor, action)
             if self.kinematics =='holonomic':
                 speed = action[0]
                 theta = action[1]
@@ -187,7 +187,7 @@ class RGCNRL(Policy):
             with torch.no_grad():
                 action = self.actor(state_graph).squeeze().numpy()
                 Action = None
-                safe_action = self.safelayer.get_safe_action(state_tensor, action)
+                # safe_action = self.safelayer.get_safe_action(state_tensor, action)
                 if self.kinematics == 'holonomic':
                     speed = action[0]
                     theta = action[1]
@@ -197,11 +197,12 @@ class RGCNRL(Policy):
                     theta = action[1]
                     Action = ActionRot(speed, theta)
                 elif self.kinematics == 'differential':
-                    if (action[0] - safe_action[0]) ** 2 + (action[1] - safe_action[1]) ** 2 > 0.0:
-                        action[0] = safe_action[0]
-                        action[1] = safe_action[1]
-                        print("safe action")
+                    # if (action[0] - safe_action[0]) ** 2 + (action[1] - safe_action[1]) ** 2 > 0.01:
+                    #     action[0] = safe_action[0]
+                    #     action[1] = safe_action[1]
                     Action = ActionDiff(action[0], action[1])
+                    # print("velocity is %f, %f",{state_tensor[0][0][2],state_tensor[0][0][3]})
+                    # print("action is %f, %f", {action[0], action[1]})
                 else:
                     print('wrong kinematics')
                 return Action, torch.tensor(action).float()
