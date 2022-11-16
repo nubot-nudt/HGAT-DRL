@@ -73,6 +73,7 @@ class CrowdSim(gym.Env):
         self.attention_weights = None
         self.robot_actions = None
         self.rewards = None
+        self.constraints = None
         self.As = None
         self.Xs = None
         self.feats = None
@@ -553,15 +554,6 @@ class CrowdSim(gym.Env):
             self.static_obstacle_num = np.random.randint(2, 5)
             self.human_num = np.random.randint(5, 10)
 
-            # target_x = 0
-            # target_y = self.circle_radius
-            # robot_theta = np.pi / 2
-        # else:
-        #     target_x = 0
-        #     target_y = self.circle_radius
-        #     robot_theta = np.pi / 2 + np.random.random() * np.pi / 4.0 - np.pi / 8.0
-        # target_x = 0
-        # target_y = self.circle_radius
         self.robot.set(0, -self.circle_radius, target_x, target_y, 0, 0, robot_theta)
 
         if self.case_counter[phase] >= 0:
@@ -607,6 +599,7 @@ class CrowdSim(gym.Env):
         self.states = list()
         self.robot_actions = list()
         self.rewards = list()
+        self.constraints = list()
         if hasattr(self.robot.policy, 'action_values'):
             self.action_values = list()
         if hasattr(self.robot.policy, 'get_attention_weights'):
@@ -732,16 +725,6 @@ class CrowdSim(gym.Env):
             if closest_dist < self.discomfort_dist * 0.5:
                 safety_penalty = safety_penalty + (closest_dist - self.discomfort_dist * 0.5) * 0.5
                 num_discom = num_discom + 1
-        # collision detection between humans
-        # human_num = len(self.humans)
-        # for i in range(human_num):
-        #     for j in range(i + 1, human_num):
-        #         dx = self.humans[i].px - self.humans[j].px
-        #         dy = self.humans[i].py - self.humans[j].py
-        #         dist = (dx ** 2 + dy ** 2) ** (1 / 2) - self.humans[i].radius - self.humans[j].radius
-        #         if dist < 0:
-        #             # detect collision but don't take humans' collision into account
-        #             logging.debug('Collision happens between humans in step()')
 
         """check if reaching the goal"""
         end_position = np.array([pre_robot_pos_x, pre_robot_pos_y])
@@ -754,10 +737,6 @@ class CrowdSim(gym.Env):
         reward_theta = (np.cos(self.robot.theta) * np.cos(theta_r2g) + np.sin(self.robot.theta) * np.sin(theta_r2g) - 1)
         reward_theta = reward_theta / (norm(cur_position - goal_position) + 5.0)
         robot_vel = (self.robot.v_left + self.robot.v_right) / 2.0
-        if robot_vel < -0.3:
-            reward_vel = (0.1 + robot_vel) * 0.1
-        else:
-            reward_vel = 0.0
         reward_col = 0.0
         reward_arrival = 0.0
         if self.global_time >= self.time_limit - 1:
@@ -778,9 +757,9 @@ class CrowdSim(gym.Env):
         else:
             done = False
             info = Nothing()
-        reward_terminal = reward_arrival + reward_col
-        reward = weight_terminal * reward_terminal + weight_goal * reward_goal + weight_safe * safety_penalty + reward_theta * re_theta
-        return reward, done, info
+        reward = reward_arrival + weight_goal * reward_goal + reward_theta * re_theta
+        constraint = reward_col + weight_safe * safety_penalty
+        return reward, constraint, done, info
 
     def rvo_reward_cal(self, ob, reward_parameter=(0.2, 0.1, 0.1, 0.2, 0.2, 1, -10, 20)):
         robot_state, human_state, obstacle_state, wall_state = self.robot.get_state(ob)
@@ -834,7 +813,7 @@ class CrowdSim(gym.Env):
             for human in self.humans:
                 ob = self.compute_observation_for(human)
                 human_actions.append(human.act(ob))
-        reward, done, info = self.reward_cal(action, human_actions)
+        reward, constraint, done, info = self.reward_cal(action, human_actions)
         if update:
             # store state, action value and attention weights
             if hasattr(self.robot.policy, 'action_values'):
@@ -887,17 +866,17 @@ class CrowdSim(gym.Env):
             elif self.robot.sensor == 'RGB':
                 raise NotImplementedError
         rvo_reward = self.rvo_reward_cal(ob)
-        reward = reward + self.re_rvo * rvo_reward
+        constraint = 100 * (constraint + self.re_rvo * rvo_reward)
         reward = reward * 100
-        self.rewards.append(reward)
-        # print("test %f %f "%(reward,rvo_reward))
-        # if info ==Collision():
-        #     reward = rvo_reward - 15
-        # elif info ==ReachGoal():
-        #     reward = rvo_reward + 20
-        # else:
-        #     reward = rvo_reward
-        return ob, reward, done, info
+        Cons_DRL = True
+        if Cons_DRL:
+            self.rewards.append(reward)
+            self.constraints.append(constraint)
+            return ob, reward, constraint, done, info
+        else:
+            reward = reward + constraint
+            self.rewards.append(reward)
+            return ob, reward, done, info
 
     def peds_predict(self, agent_states, robot_state):
         if self.robot.visible:
