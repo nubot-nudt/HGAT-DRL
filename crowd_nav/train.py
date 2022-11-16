@@ -322,10 +322,13 @@ def main(args):
                 discom_time_in_last_interval = 0
                 total_time_in_last_interval = 0
                 min_reward = (np.min(reward_rec) // 50) * 50
+                min_constraint = (np.min(constraint_rec)//50)*50
                 max_reward = (np.max(reward_rec) // 50 + 1) * 50
+                max_constraint = (np.max(constraint_rec)//50 + 1) * 50
                 pos = np.array(range(1, len(reward_rec) + 1)) * interval
                 plt.plot(pos, reward_rec, color='r', marker='.', linestyle='dashed')
-                plt.axis([0, eps_count, min_reward, max_reward])
+                plt.plot(pos, constraint_rec, color='b', marker='.', linestyle='dashed')
+                plt.axis([0, eps_count, min(min_reward,min_constraint), max(max_reward, max_constraint)])
                 savefig(args.output_dir + "/reward_record.jpg")
             explorer.log('train', episode)
 
