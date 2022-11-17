@@ -135,11 +135,13 @@ class RGCN_ACG_RL(Policy):
                 'graph_model4': self.guard.graph_model1.state_dict(),
                 'graph_model5': self.guard.graph_model2.state_dict(),
                 'graph_model6': self.state_predictor.graph_model.state_dict(),
+
                 'action_network': self.actor.action_network.state_dict(),
                 'score_network1': self.critic.score_network1.state_dict(),
                 'score_network2': self.critic.score_network2.state_dict(),
                 'score_network3': self.guard.score_network1.state_dict(),
                 'score_network4': self.guard.score_network2.state_dict(),
+
                 'motion_predictor': self.state_predictor.human_motion_predictor.state_dict()
             }
 
@@ -298,6 +300,57 @@ class RGCN_ACG_RLTrainer(object):
         else:
             raise NotImplementedError
 
+    def _retrieve_grad(self):
+        '''
+        get the gradient of the parameters of the network with specific
+        objective
+
+        output:
+        - grad: a list of the gradient of the parameters
+        - shape: a list of the shape of the parameters
+        - has_grad: a list of mask represent whether the parameter has gradient
+        '''
+
+        grad, shape, has_grad = [], [], []
+        for group in self.actor_optimizer.param_groups:
+            for p in group['params']:
+                # if p.grad is None: continue
+                # tackle the multi-head scenario
+                if p.grad is None:
+                    shape.append(p.shape)
+                    grad.append(torch.zeros_like(p).to(p.device))
+                    has_grad.append(torch.zeros_like(p).to(p.device))
+                    continue
+                shape.append(p.grad.shape)
+                grad.append(p.grad.clone())
+                has_grad.append(torch.ones_like(p).to(p.device))
+        return grad, shape, has_grad
+
+    def _unflatten_grad(self, grads, shapes):
+        unflatten_grad, idx = [], 0
+        for shape in shapes:
+            length = np.prod(shape)
+            unflatten_grad.append(grads[idx:idx + length].view(shape).clone())
+            idx += length
+        return unflatten_grad
+
+    def _flatten_grad(self, grads, shapes):
+        flatten_grad = torch.cat([g.flatten() for g in grads])
+        return flatten_grad
+
+    def _set_grad(self, grads):
+        '''
+        set the modified gradients to the network
+        '''
+
+        idx = 0
+        for group in self.actor_optimizer.param_groups:
+            for p in group['params']:
+                # if p.grad is None: continue
+                p.grad = grads[idx]
+                idx += 1
+        return
+
     def optimize_batch(self, num_batches, episode):
         self.total_iteration = 0
         if self.actor_optimizer is None or self.critic_network is None:
@@ -367,12 +420,37 @@ class RGCN_ACG_RLTrainer(object):
             if self.total_iteration % self.policy_freq == 0:
                 # Compute actor loss
                 actor_actions = self.actor_network(cur_states)
-                actor_loss = -(self.critic_network.Q1(cur_states, actions) + self.guard_network.Q1(cur_states, actions)).mean()
+                guard_loss = -(self.guard_network.Q1(cur_states, actor_actions)).mean()
+                ### come from PCGrad
+                self.actor_optimizer.zero_grad(set_to_none=True)
+                guard_loss.backward(retain_graph=True)
+                guard_grad, guard_grad_shape, guard_has_grad = self._retrieve_grad()
+                guard_grad_vector = self._flatten_grad(guard_grad, guard_grad_shape)
+
+                self.actor_optimizer.zero_grad()
+                actor_actions = self.actor_network(cur_states)
+                critic_loss = -(self.critic_network.Q1(cur_states, actor_actions)).mean()
+                ### come from PCGrad
+                self.actor_optimizer.zero_grad(set_to_none=True)
+                critic_loss.backward(retain_graph=True)
+                critic_grad, critic_grad_shape, critic_has_grad = self._retrieve_grad()
+                critic_grad_vector = self._flatten_grad(critic_grad, critic_grad_shape)
+
+                critic_grad_vector_1 = copy.deepcopy(critic_grad_vector)
+                guard_grad_vector_1 = copy.deepcopy(guard_grad_vector)
+
+                critic_dot_guard = torch.dot(critic_grad_vector_1, guard_grad_vector_1)
+                if critic_dot_guard < 0:
+                    critic_grad_vector_1 -= critic_dot_guard * guard_grad_vector_1 / (guard_grad_vector_1.norm()**2)
+
+                merged_grad = critic_grad_vector_1 + guard_grad_vector_1
+                actor_grad = self._unflatten_grad(merged_grad, critic_grad_shape)
+                self._set_grad(actor_grad)
                 # actor_loss.backward(retain_graph=True)
                 # grad, shape, has_grad = self._retrieve_grad()
                 # Optimize the actor
-                self.actor_optimizer.zero_grad()
-                actor_loss.backward()
+                # self.actor_optimizer.zero_grad()
+                # actor_loss.backward()
                 self.actor_optimizer.step()
 
                 # Update the frozen target models
@@ -726,6 +804,8 @@ def rotate_state(state):
             new_wall_states = torch.cat((wall_zero_feature, new_wall_states), dim=1)
             new_state = torch.cat((new_robot_state, new_human_state, new_wall_states), dim=0)
         return new_state
+
+
 
 
 def rotate_state2(state):

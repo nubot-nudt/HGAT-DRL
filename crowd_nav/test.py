@@ -14,6 +14,7 @@ from crowd_sim.envs.policy.socialforce import SocialForce
 from crowd_nav.policy.reward_estimate import Reward_Estimator
 from crowd_sim.envs.utils.info import *
 from crowd_sim.envs.utils.action import ActionRot
+from crowd_nav.policy.actor_critic_guard import Safe_Explorer
 
 def main(args):
     # configure logging and device
@@ -53,7 +54,7 @@ def main(args):
 
     # configure policy
     policy_config = config.PolicyConfig(args.debug)
-    if policy_config.name == 'rgcn_rl':
+    if policy_config.name == 'rgcn_rl' or 'rgcn_acg_rl':
         policy_config.gnn_model = args.gnn
     policy = policy_factory[policy_config.name]()
     reward_estimator = Reward_Estimator()
@@ -98,11 +99,14 @@ def main(args):
     action_dim = env.action_space.shape[0]
     max_action = env.action_space.high
     min_action = env.action_space.low
-    if policy.name == 'TD3RL' or policy.name == 'RGCNRL':
+    if policy.name == 'TD3RL' or 'RGCNRL' or 'RGCN_ACG_RL' :
         policy.set_action(action_dim, max_action, min_action)
     robot.time_step = env.time_step
     robot.set_policy(policy)
-    explorer = Explorer(env, robot, device, None, gamma=0.95)
+    if policy.name == 'RGCN_ACG_RL':
+        explorer = Safe_Explorer(env, robot, device, None, gamma=0.95)
+    else:
+        explorer = Explorer(env, robot, device, None, gamma=0.95)
 
     train_config = config.TrainConfig(args.debug)
     epsilon_end = train_config.train.epsilon_end
@@ -119,7 +123,7 @@ def main(args):
         else:
             robot.policy.safety_space = args.safety_space
         logging.info('ORCA agent buffer: %f', robot.policy.safety_space)
-    env.set_phase(10)
+    env.set_phase(0)
     policy.set_env(env)
     robot.print_info()
     vel_rec = []
@@ -128,16 +132,21 @@ def main(args):
             policy.model[2].eval()
         rewards = []
         actions = []
+        constraints = []
         ob = env.reset(args.phase, args.test_case)
         done = False
         last_pos = np.array(robot.get_position())
 
         while not done:
             action, action_index = robot.act(ob)
-            ob, _, done, info = env.step(action)
+            if policy.name =='RGCN_ACG_RL':
+                ob, _, constraint, done, info = env.step(action)
+            else:
+                ob, _, done, info = env.step(action)
             if isinstance(info, Timeout):
                 _ = _ - 0.25
             rewards.append(_)
+            constraints.append(constraint)
             current_pos = np.array(robot.get_position())
             logging.debug('Speed: %.2f', np.linalg.norm(current_pos - last_pos) / robot.time_step)
             last_pos = current_pos
@@ -149,6 +158,8 @@ def main(args):
         gamma = 0.95
         cumulative_reward = sum([pow(gamma, t * robot.time_step * robot.v_pref)
              * reward for t, reward in enumerate(rewards)])
+        cumulative_constraint = sum([pow(gamma, t * robot.time_step * robot.v_pref)
+             * constraint for t, constriant in enumerate(constraints)])
         positions = []
         velocity_left_rec = []
         velocity_right_rec = []
@@ -176,42 +187,6 @@ def main(args):
                     rotation_rec.append((vel[1] - vel[0]) / (2 * robot.radius))
                     action_left_rec.append(action.al)
                     action_right_rec.append(action.ar)
-        # plt.plot(positions, velocity_left_rec, color='green', marker='*', linestyle='solid')
-        # plt.plot(positions, velocity_right_rec, color='magenta', marker='^', linestyle='solid')
-
-        # plt.xlabel("t(s)")
-        # # plt.ylim((-250, 250))
-        # plt.grid = True
-        # plt.plot(positions, velocity_left_rec, color='green', marker='d', markersize=2, linestyle='solid',
-        #          label="vel_l(m/s)")
-        # plt.plot(positions, velocity_right_rec, color='magenta', marker='^', markersize=2, linestyle='solid',
-        #          label="vel_r(m/s)")
-        # plt.plot(positions, velocity_rec, color='blue', marker='o', markersize=2, linestyle='solid',
-        #          label="linear_velocity(m/s)")
-        # plt.plot(positions, rotation_rec, color='red', marker='*', markersize=2, linestyle='solid',
-        #          label="angular_velocity(rad/s)")
-        # plt.plot(positions, action_left_rec, color='yellow', marker='^', markersize=2, linestyle='solid',
-        #          label="acc_l(m/s^2)")
-        # plt.plot(positions, action_right_rec, color='purple', marker='d', markersize=2, linestyle='solid',
-        #          label="acc_r(m/s^2)")
-        # plt.legend(loc='upper left')
-
-        # for i in range(len(actions)):
-        #     positions.append(i)
-        #     action = actions[i]
-        #     if robot.kinematics is 'unicycle':
-        #         velocity_rec.append(action.v)
-        #         rotation_rec.append(action.r)
-        #     elif robot.kinematics is 'holonomic':
-        #         velocity_rec.append(action.vx)
-        #         rotation_rec.append(action.vy)
-        #     elif robot.kinematics is 'differential':
-        #         velocity_rec.append(action.al)
-        #         rotation_rec.append(action.ar)
-        # plt.plot(positions, velocity_rec, color='r', marker='.', linestyle='dashed')
-        # plt.plot(positions, rotation_rec, color='b', marker='.', linestyle='dashed')
-        # plt.show()
-        # print('finish')
         if args.traj:
             env.render('traj', args.video_file)
         else:
@@ -222,7 +197,8 @@ def main(args):
                     args.video_file = os.path.join(args.video_dir, policy_config.name)
                 args.video_file = args.video_file + '_' + args.phase + '_' + str(args.test_case) + '.mp4'
             env.render('video', args.video_file)
-        logging.info('It takes %.2f seconds to finish. Final status is %s, cumulative_reward is %f', env.global_time, info, cumulative_reward)
+        logging.info('It takes %.2f seconds to finish. Final status is %s, cumulative_reward is %f cumulative '
+                     'constraint is %f ', env.global_time, info, cumulative_reward, cumulative_constraint)
         if robot.visible and info == 'reach goal':
             human_times = env.get_human_times()
             logging.info('Average time for humans to reach goal: %.2f', sum(human_times) / len(human_times))
@@ -239,9 +215,12 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Parse configuration file')
     parser.add_argument('--config', type=str, default=None)
-    parser.add_argument('--policy', type=str, default='td3_rl')
-    parser.add_argument('--gnn', type=str, default='transformer')
-    parser.add_argument('-m', '--model_dir', type=str, default='data/final_data/transformer_test/transformer/4')#None
+    parser.add_argument('--policy', type=str, default='rgcn_acg_rl')
+    parser.add_argument('--gnn', type=str, default='rgcn')
+    parser.add_argument('-m', '--model_dir', type=str, default='data/output')#None
+    # parser.add_argument('--policy', type=str, default='td3_rl')
+    # parser.add_argument('--gnn', type=str, default='transformer')
+    # parser.add_argument('-m', '--model_dir', type=str, default='data/final_data/transformer_test/transformer/4')#None
     parser.add_argument('--il', default=False, action='store_true')
     parser.add_argument('--rl', default=False, action='store_true')
     parser.add_argument('--gpu', default=False, action='store_true')
