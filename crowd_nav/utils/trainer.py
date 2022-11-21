@@ -808,8 +808,8 @@ class RGCNRLTrainer(object):
             if self.total_iteration % self.policy_freq == 0:
                 # Compute actor loss
                 actor_loss = -self.critic_network.Q1(cur_states, self.actor_network(cur_states)).mean()
-                actor_loss.backward(retain_graph=True)
-                grad, shape, has_grad = self._retrieve_grad()
+                # actor_loss.backward(retain_graph=True)
+                # grad, shape, has_grad = self._retrieve_grad()
                 # Optimize the actor
                 self.actor_optimizer.zero_grad()
                 actor_loss.backward()

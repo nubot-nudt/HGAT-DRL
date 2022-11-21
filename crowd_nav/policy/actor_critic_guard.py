@@ -552,8 +552,8 @@ class Safe_Explorer(object):
                 states.append(self.robot.policy.last_state)
                 # for TD3rl, append the velocity and theta
                 actions.append(action_index)
-                # if phase in ['train', 'test']:
-                #     self.env.render(mode='debug')
+                if phase in ['train', 'test']:
+                    self.env.render(mode='debug')
                 # actually, final states of timeout cases is not terminal states
                 if isinstance(info, Timeout):
                     dones.append(False)
