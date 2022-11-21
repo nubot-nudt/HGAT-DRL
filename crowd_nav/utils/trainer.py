@@ -9,7 +9,6 @@ from torch.utils.data import DataLoader
 from crowd_sim.envs.utils.action import ActionXY
 import dgl
 import numpy as np
-from crowd_nav.utils.PCgrad import PCGrad
 
 def collate(sample):
     state_graphs, actions, values, dones, rewards, next_state_graphs = map(list, zip(*sample))

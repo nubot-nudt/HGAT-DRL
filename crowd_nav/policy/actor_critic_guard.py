@@ -15,6 +15,7 @@ from crowd_nav.policy.critic import GraphCritic, Critic0
 from crowd_nav.utils.crowdgraph import CrowdNavGraph
 from crowd_sim.envs.utils.action import ActionXY
 import dgl
+from crowd_nav.utils.grads import CAgrad_backward
 
 
 def collate(sample):
@@ -419,31 +420,40 @@ class RGCN_ACG_RLTrainer(object):
             # Delayed policy updates
             if self.total_iteration % self.policy_freq == 0:
                 # Compute actor loss
-                actor_actions = self.actor_network(cur_states)
-                guard_loss = -(self.guard_network.Q1(cur_states, actor_actions)).mean()
-                ### come from PCGrad
-                self.actor_optimizer.zero_grad(set_to_none=True)
-                guard_loss.backward(retain_graph=True)
-                guard_grad, guard_grad_shape, guard_has_grad = self._retrieve_grad()
-                guard_grad_vector = self._flatten_grad(guard_grad, guard_grad_shape)
+                grads, shapes, has_grads = [], [], []
 
                 self.actor_optimizer.zero_grad()
                 actor_actions = self.actor_network(cur_states)
                 critic_loss = -(self.critic_network.Q1(cur_states, actor_actions)).mean()
                 ### come from PCGrad
-                self.actor_optimizer.zero_grad(set_to_none=True)
                 critic_loss.backward(retain_graph=True)
                 critic_grad, critic_grad_shape, critic_has_grad = self._retrieve_grad()
                 critic_grad_vector = self._flatten_grad(critic_grad, critic_grad_shape)
+                grads.append(critic_grad_vector)
+                shapes.append(critic_grad_shape)
+                has_grads.append(critic_has_grad)
 
-                critic_grad_vector_1 = copy.deepcopy(critic_grad_vector)
-                guard_grad_vector_1 = copy.deepcopy(guard_grad_vector)
 
-                critic_dot_guard = torch.dot(critic_grad_vector_1, guard_grad_vector_1)
-                if critic_dot_guard < 0:
-                    critic_grad_vector_1 -= critic_dot_guard * guard_grad_vector_1 / (guard_grad_vector_1.norm()**2)
+                self.actor_optimizer.zero_grad(set_to_none=True)
+                actor_actions = self.actor_network(cur_states)
+                guard_loss = -(self.guard_network.Q1(cur_states, actor_actions)).mean()
+                ### come from PCGrad
+                guard_loss.backward(retain_graph=True)
+                guard_grad, guard_grad_shape, guard_has_grad = self._retrieve_grad()
+                guard_grad_vector = self._flatten_grad(guard_grad, guard_grad_shape)
+                grads.append(guard_grad_vector)
+                shapes.append(guard_grad_shape)
+                has_grads.append(guard_has_grad)
 
-                merged_grad = critic_grad_vector_1 + guard_grad_vector_1
+                if True:
+                    merged_grad = CAgrad_backward(grads, shapes, has_grads)
+                else:
+                    critic_grad_vector_1 = copy.deepcopy(critic_grad_vector)
+                    guard_grad_vector_1 = copy.deepcopy(guard_grad_vector)
+                    critic_dot_guard = torch.dot(critic_grad_vector_1, guard_grad_vector_1)
+                    if critic_dot_guard < 0:
+                        critic_grad_vector_1 -= critic_dot_guard * guard_grad_vector_1 / (guard_grad_vector_1.norm()**2)
+                    merged_grad = critic_grad_vector_1 + guard_grad_vector_1
                 actor_grad = self._unflatten_grad(merged_grad, critic_grad_shape)
                 self._set_grad(actor_grad)
                 # actor_loss.backward(retain_graph=True)

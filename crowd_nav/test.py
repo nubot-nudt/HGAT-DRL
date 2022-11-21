@@ -123,7 +123,7 @@ def main(args):
         else:
             robot.policy.safety_space = args.safety_space
         logging.info('ORCA agent buffer: %f', robot.policy.safety_space)
-    env.set_phase(0)
+    env.set_phase(2)
     policy.set_env(env)
     robot.print_info()
     vel_rec = []
