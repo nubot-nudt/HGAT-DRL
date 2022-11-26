@@ -68,10 +68,12 @@ class RGCN_ACG_RL(Policy):
         self.max_action = None
         self.min_action = None
         self.expl_noise = 0.2
+        self.grad_merge = None
     def set_common_parameters(self, config):
         self.gamma = config.rl.gamma
         self.kinematics = config.action_space.kinematics
         self.rotation_constraint = config.action_space.rotation_constraint
+        self.grad_merge = config.rl.grad_merge
 
     def configure(self, config, device):
         self.set_common_parameters(config)
@@ -274,6 +276,7 @@ class RGCN_ACG_RLTrainer(object):
         self.policy_freq = policy_freq
         self.action_dim = policy.action_dim
         self.max_action = policy.max_action
+        self.grad_merge = policy.grad_merge
         self.tau = 0.001
         # for value update
         self.gamma = 0.95
@@ -445,15 +448,19 @@ class RGCN_ACG_RLTrainer(object):
                 shapes.append(guard_grad_shape)
                 has_grads.append(guard_has_grad)
 
-                if True:
+                if self.grad_merge == 'CAgrad':
                     merged_grad = CAgrad_backward(grads, shapes, has_grads)
-                else:
+                elif self.grad_merge == 'PCgrad':
                     critic_grad_vector_1 = copy.deepcopy(critic_grad_vector)
                     guard_grad_vector_1 = copy.deepcopy(guard_grad_vector)
                     critic_dot_guard = torch.dot(critic_grad_vector_1, guard_grad_vector_1)
                     if critic_dot_guard < 0:
                         critic_grad_vector_1 -= critic_dot_guard * guard_grad_vector_1 / (guard_grad_vector_1.norm()**2)
                     merged_grad = critic_grad_vector_1 + guard_grad_vector_1
+                else:
+                    critic_grad_vector_1 = copy.deepcopy(critic_grad_vector)
+                    guard_grad_vector_1 = copy.deepcopy(guard_grad_vector)
+                    merged_grad = (critic_grad_vector_1 + guard_grad_vector_1) * 0.5
                 actor_grad = self._unflatten_grad(merged_grad, critic_grad_shape)
                 self._set_grad(actor_grad)
                 # actor_loss.backward(retain_graph=True)
@@ -552,8 +559,8 @@ class Safe_Explorer(object):
                 states.append(self.robot.policy.last_state)
                 # for TD3rl, append the velocity and theta
                 actions.append(action_index)
-                if phase in ['train', 'test']:
-                    self.env.render(mode='debug')
+                # if phase in ['train', 'test']:
+                #     self.env.render(mode='debug')
                 # actually, final states of timeout cases is not terminal states
                 if isinstance(info, Timeout):
                     dones.append(False)

@@ -13,8 +13,8 @@ class Config(object):
 interval = 500
 v_pref = 1.0
 rotation_constraint = np.pi/6
-#kinematics = 'differential'
-kinematics = 'unicycle'
+kinematics = 'differential'
+#kinematics = 'unicycle'
 human_num = 5
 obstacle_num = 1
 wall_num = 4
@@ -79,6 +79,7 @@ class BaseEnvConfig(object):
 class BasePolicyConfig(object):
     rl = Config()
     rl.gamma = 0.95
+    rl.grad_merge = 'CAgrad'
     om = Config()
     om.cell_num = 4
     om.cell_size = 1

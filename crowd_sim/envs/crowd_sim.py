@@ -868,7 +868,7 @@ class CrowdSim(gym.Env):
         rvo_reward = self.rvo_reward_cal(ob)
         constraint = 100 * (constraint + self.re_rvo * rvo_reward)
         reward = reward * 100
-        Cons_DRL = False
+        Cons_DRL = True
         if Cons_DRL:
             self.rewards.append(reward)
             self.constraints.append(constraint)

@@ -279,17 +279,17 @@ def main(args):
             robot.policy.set_epsilon(epsilon)
             if episode == 0:
                 # no any obstacles
-                env.set_phase(0)
+                env.set_phase(2)
             elif episode == episode_phase1:
                 # add walls, human, and static obstacles
-                env.set_phase(1)
+                env.set_phase(2)
             elif episode == episode_phase2:
                 # add poly obstacles
                 env.set_phase(2)
             elif episode == episode_phase3:
-                env.set_phase(3)
+                env.set_phase(2)
             elif episode == episode_phase4:
-                env.set_phase(4)
+                env.set_phase(2)
             # elif episode == 15000:
             #     env.set_phase(5)
             # sample k episodes into memory and optimize over the generated memory
@@ -371,17 +371,17 @@ def main(args):
             robot.policy.set_epsilon(epsilon)
             if episode == 0:
             # no any obstacles
-                env.set_phase(0)
+                env.set_phase(1)
             elif episode == episode_phase1:
             # add walls, human, and static obstacles
                 env.set_phase(1)
             elif episode == episode_phase2:
             # add poly obstacles
-                env.set_phase(2)
+                env.set_phase(1)
             elif episode == episode_phase3:
-                env.set_phase(3)
+                env.set_phase(1)
             elif episode == episode_phase4:
-                env.set_phase(4)
+                env.set_phase(1)
             # elif episode == 15000:
             #     env.set_phase(5)
             # sample k episodes into memory and optimize over the generated memory
@@ -455,8 +455,8 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Parse configuration file')
-    parser.add_argument('--policy', type=str, default='rgcn_rl')
-    parser.add_argument('--config', type=str, default='configs/icra_benchmark/rgcnrl.py')
+    parser.add_argument('--policy', type=str, default='rgcn_acg_rl')
+    parser.add_argument('--config', type=str, default='configs/icra_benchmark/rgcn_acg_rl.py')
     parser.add_argument('--gnn', type=str, default='rgcn')
     parser.add_argument('--output_dir', type=str, default='data/output')
     parser.add_argument('--overwrite', default=False, action='store_true')
@@ -465,7 +465,7 @@ if __name__ == '__main__':
     parser.add_argument('--gpu', default=False, action='store_true')
     parser.add_argument('--debug', default=False, action='store_true')
     parser.add_argument('--test_after_every_eval', default=False, action='store_true')
-    parser.add_argument('--randomseed', type=int, default=7)
+    parser.add_argument('--randomseed', type=int, default=2)
     parser.add_argument('--human_num', type=int, default=1)
     parser.add_argument('--safe_weight', type=float, default=1.0)
     parser.add_argument('--goal_weight', type=float, default=0.1)

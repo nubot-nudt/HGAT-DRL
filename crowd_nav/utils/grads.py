@@ -16,6 +16,7 @@ def cagrad( grad_vec, num_tasks):
     grads = grad_vec
     GG = grads.mm(grads.t()).cpu()
     scale = (torch.diag(GG) + 1e-4).sqrt().mean()
+    # 这里是为了更好的优化
     GG = GG / scale.pow(2)
     Gg = GG.mean(1, keepdims=True)
     gg = Gg.mean(0, keepdims=True)
