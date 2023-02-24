@@ -10,7 +10,6 @@ from crowd_sim.envs.utils.action import ActionXY
 import dgl
 import numpy as np
 
-
 def collate(sample):
     state_graphs, actions, values, dones, rewards, next_state_graphs = map(list, zip(*sample))
     state_graph = dgl.batch(state_graphs)
@@ -809,6 +808,8 @@ class RGCNRLTrainer(object):
             if self.total_iteration % self.policy_freq == 0:
                 # Compute actor loss
                 actor_loss = -self.critic_network.Q1(cur_states, self.actor_network(cur_states)).mean()
+                # actor_loss.backward(retain_graph=True)
+                # grad, shape, has_grad = self._retrieve_grad()
                 # Optimize the actor
                 self.actor_optimizer.zero_grad()
                 actor_loss.backward()
@@ -836,7 +837,31 @@ class RGCNRLTrainer(object):
         self.target_actor_network.eval()
         return average_v_loss, average_s_loss
 
+    def _retrieve_grad(self):
+        '''
+        get the gradient of the parameters of the network with specific
+        objective
 
+        output:
+        - grad: a list of the gradient of the parameters
+        - shape: a list of the shape of the parameters
+        - has_grad: a list of mask represent whether the parameter has gradient
+        '''
+
+        grad, shape, has_grad = [], [], []
+        for group in self.actor_optimizer.param_groups:
+            for p in group['params']:
+                # if p.grad is None: continue
+                # tackle the multi-head scenario
+                if p.grad is None:
+                    shape.append(p.shape)
+                    grad.append(torch.zeros_like(p).to(p.device))
+                    has_grad.append(torch.zeros_like(p).to(p.device))
+                    continue
+                shape.append(p.grad.shape)
+                grad.append(p.grad.clone())
+                has_grad.append(torch.ones_like(p).to(p.device))
+        return grad, shape, has_grad
 
 def pad_batch(batch):
     """

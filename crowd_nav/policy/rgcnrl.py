@@ -12,7 +12,7 @@ from crowd_nav.policy.graph_model import DGL_RGCN_RL, PG_GAT_RL0
 from crowd_nav.policy.actor import GraphActor, Actor0
 from crowd_nav.policy.critic import GraphCritic, Critic0
 from crowd_nav.utils.crowdgraph import CrowdNavGraph
-
+from crowd_nav.safelayer.cbf_layer import CascadeCBFLayer
 
 class RGCNRL(Policy):
     def __init__(self):
@@ -53,7 +53,7 @@ class RGCNRL(Policy):
         self.max_action = None
         self.min_action = None
         self.expl_noise = 0.2
-
+        self.safelayer = CascadeCBFLayer()
     def set_common_parameters(self, config):
         self.gamma = config.rl.gamma
         self.kinematics = config.action_space.kinematics
@@ -169,6 +169,7 @@ class RGCNRL(Policy):
                     + np.random.normal(0, self.max_action * self.expl_noise, size=self.action_dim)
             ).clip(-self.max_action, self.max_action)
             Action = None
+            # safe_action = self.safelayer.get_safe_action(state_tensor, action)
             if self.kinematics =='holonomic':
                 speed = action[0]
                 theta = action[1]
@@ -186,6 +187,7 @@ class RGCNRL(Policy):
             with torch.no_grad():
                 action = self.actor(state_graph).squeeze().numpy()
                 Action = None
+                # safe_action = self.safelayer.get_safe_action(state_tensor, action)
                 if self.kinematics == 'holonomic':
                     speed = action[0]
                     theta = action[1]
@@ -195,7 +197,12 @@ class RGCNRL(Policy):
                     theta = action[1]
                     Action = ActionRot(speed, theta)
                 elif self.kinematics == 'differential':
+                    # if (action[0] - safe_action[0]) ** 2 + (action[1] - safe_action[1]) ** 2 > 0.01:
+                    #     action[0] = safe_action[0]
+                    #     action[1] = safe_action[1]
                     Action = ActionDiff(action[0], action[1])
+                    # print("velocity is %f, %f",{state_tensor[0][0][2],state_tensor[0][0][3]})
+                    # print("action is %f, %f", {action[0], action[1]})
                 else:
                     print('wrong kinematics')
                 return Action, torch.tensor(action).float()

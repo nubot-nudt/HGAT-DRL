@@ -177,7 +177,7 @@ class Explorer(object):
                 self.memory.push((state, value, done, reward, next_state))
 
     def log(self, tag_prefix, global_step):
-        sr, cr, time, reward, avg_return,_,_ = self.statistics
+        sr, cr, time, reward, avg_return, _, _, _ = self.statistics
         self.writer.add_scalar(tag_prefix + '/success_rate', sr, global_step)
         self.writer.add_scalar(tag_prefix + '/collision_rate', cr, global_step)
         self.writer.add_scalar(tag_prefix + '/time', time, global_step)

@@ -16,7 +16,7 @@ rotation_constraint = np.pi/6
 kinematics = 'differential'
 #kinematics = 'unicycle'
 human_num = 5
-obstacle_num = 3
+obstacle_num = 1
 wall_num = 4
 # kinematics = 'unicycle'
 # action_space.kinematics = 'holonomic'
@@ -47,7 +47,7 @@ class BaseEnvConfig(object):
     sim.square_width = 10
     sim.circle_radius = 4
     sim.human_num = human_num
-    sim.obstacle_num = 3
+    sim.obstacle_num = 1
     sim.nonstop_human = True
     sim.obstacle_num = 3
     sim.wall_num = 4
@@ -79,6 +79,7 @@ class BaseEnvConfig(object):
 class BasePolicyConfig(object):
     rl = Config()
     rl.gamma = 0.95
+    rl.grad_merge = 'CAgrad'
     om = Config()
     om.cell_num = 4
     om.cell_size = 1

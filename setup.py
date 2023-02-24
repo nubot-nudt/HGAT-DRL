@@ -20,8 +20,8 @@ setup(
         'matplotlib',
         'numpy==1.19.5',
         'scipy',
-        'torch==1.9.0',
-        'torchvision==0.10.0',
+        'torch==1.10.2+cpu',
+        'torchvision',
         'seaborn',
         'tqdm',
         'tensorboardX==2.4'

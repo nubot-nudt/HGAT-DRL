@@ -40,7 +40,7 @@ set(sgdqn_common_includes
 include_directories(${sgdqn_common_includes})
 catkin_package(
  LIBRARIES custom_dynamic_reconfigure
-  CATKIN_DEPENDS dynamic_reconfigure roscpp std_msgs)
+  CATKIN_DEPENDS dynamic_reconfigure roscpp std_msgs
   INCLUDE_DIRS ${sgdqn_common_includes}
 )
 
